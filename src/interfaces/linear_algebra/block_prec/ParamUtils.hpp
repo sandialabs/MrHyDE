@@ -20,7 +20,24 @@ Read with BlockTypes first, then this file, then BlockAssembly/solvers call site
 #include <string>
 #include <vector>
 
+#include <fstream>
+
 namespace MrHyDE {
+
+inline void loadXmlBroadcast(const std::string & file,
+                             Teuchos::ParameterList & out,
+                             const Teuchos::Comm<int> & comm,
+                             const std::string & context) {
+  int ok = 1;
+  if (comm.getRank() == 0) {
+    std::ifstream probe(file.c_str());
+    ok = probe.good() ? 1 : 0;
+  }
+  Teuchos::broadcast<int,int>(comm, 0, 1, &ok);
+  TEUCHOS_TEST_FOR_EXCEPTION(ok == 0, std::runtime_error,
+    "Cannot open XML file '" << file << "' for " << context << ".");
+  Teuchos::updateParametersFromXmlFileAndBroadcast(file, Teuchos::ptr(&out), comm);
+}
 
 template<class Node>
 class LinearSolverContext;

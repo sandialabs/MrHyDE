@@ -58,6 +58,80 @@ RefMaxwellXpetraInputs<Node> buildRefMaxwellXpetraInputs(
   return out;
 }
 
+template<class Node>
+void applyDirichletBCsToKn(
+    Teuchos::RCP<Xpetra::Matrix<ScalarT, LO, GO, Node> > & Kn,
+    const Kokkos::View<bool*, typename Node::device_type::memory_space> & BCdomainNodal) {
+  using dev_mem_space = typename Node::device_type::memory_space;
+    using XpetraVector = Xpetra::Vector<ScalarT, LO, GO, Node>;
+    Teuchos::RCP<XpetraVector> saved = Xpetra::VectorFactory<ScalarT, LO, GO, Node>::Build(
+        Kn->getRowMap(), true);
+    Kn->getLocalDiagCopy(*saved);
+    auto savedView = saved->getLocalViewDevice(Tpetra::Access::ReadOnly);
+
+    auto knColMap = Kn->getColMap();
+    auto knRowMap = Kn->getRowMap();
+    auto knDomMap = Kn->getDomainMap();
+    const LO nColLocal = static_cast<LO>(knColMap->getLocalNumElements());
+    Kokkos::View<bool*, dev_mem_space> BCcols("BCcols_kn", nColLocal);
+    {
+      TEUCHOS_TEST_FOR_EXCEPTION(!knRowMap->isSameAs(*knDomMap), std::runtime_error,
+        "applyDirichletBCsToKn: Kn row and domain maps must agree.");
+      using XpetraVector = Xpetra::Vector<ScalarT, LO, GO, Node>;
+      const ScalarT one = Teuchos::ScalarTraits<ScalarT>::one();
+      const ScalarT zero = Teuchos::ScalarTraits<ScalarT>::zero();
+
+      Teuchos::RCP<XpetraVector> bcDom =
+          Xpetra::VectorFactory<ScalarT, LO, GO, Node>::Build(knDomMap, true);
+      {
+        auto domView = bcDom->getLocalViewDevice(Tpetra::Access::OverwriteAll);
+        Kokkos::parallel_for("BCcols_mark_domain",
+            Kokkos::RangePolicy<typename Node::execution_space>(0, domView.extent(0)),
+            KOKKOS_LAMBDA(const LO i) {
+              domView(i, 0) = BCdomainNodal(i) ? one : zero;
+            });
+      }
+
+      Teuchos::RCP<XpetraVector> bcCol = bcDom;
+      auto knImporter = Kn->getCrsGraph()->getImporter();
+      if (!knImporter.is_null()) {
+        bcCol = Xpetra::VectorFactory<ScalarT, LO, GO, Node>::Build(knColMap, true);
+        bcCol->doImport(*bcDom, *knImporter, Xpetra::INSERT);
+      }
+
+      auto colView = bcCol->getLocalViewDevice(Tpetra::Access::ReadOnly);
+      Kokkos::parallel_for("BCcols_fill",
+          Kokkos::RangePolicy<typename Node::execution_space>(0, nColLocal),
+          KOKKOS_LAMBDA(const LO cLid) {
+            BCcols(cLid) = (colView(cLid, 0) != zero);
+          });
+    }
+    Kokkos::View<const bool*, dev_mem_space> BCdomain_c = BCdomainNodal;
+    Kokkos::View<const bool*, dev_mem_space> BCcols_c = BCcols;
+    MueLu::UtilitiesBase<ScalarT, LO, GO, Node>::ZeroDirichletRows(Kn, BCdomain_c);
+    MueLu::UtilitiesBase<ScalarT, LO, GO, Node>::ZeroDirichletCols(Kn, BCcols_c);
+
+    Kn->resumeFill();
+    auto lclKn = Kn->getLocalMatrixDevice();
+    auto lclColMap = knColMap->getLocalMap();
+    auto lclRowMap = knRowMap->getLocalMap();
+    Kokkos::parallel_for("restore_kn_bc_diag",
+        Kokkos::RangePolicy<typename Node::execution_space>(0, lclKn.numRows()),
+        KOKKOS_LAMBDA(const LO r) {
+          if (!BCdomain_c(r)) return;
+          const GO rowGid = lclRowMap.getGlobalElement(r);
+          const LO rowLidInColMap = lclColMap.getLocalElement(rowGid);
+          auto row = lclKn.row(r);
+          for (LO j = 0; j < row.length; ++j) {
+            if (row.colidx(j) == rowLidInColMap) {
+              row.value(j) = savedView(r, 0);
+              break;
+            }
+          }
+        });
+    Kn->fillComplete(Kn->getDomainMap(), Kn->getRangeMap());
+}
+
 } // namespace detail
 } // namespace block_prec
 } // namespace MrHyDE
@@ -368,8 +442,7 @@ Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > LinearAlgebraInterfa
   if (!cntxt->amg.xml_param_file.empty()) {
     // Load parameters from XML file
     try {
-      Teuchos::updateParametersFromXmlFileAndBroadcast(
-          cntxt->amg.xml_param_file, Teuchos::ptr(&mueluParams), *J->getComm());
+      loadXmlBroadcast(cntxt->amg.xml_param_file, mueluParams, *J->getComm(), "AMG");
       if (verbosity >= 6 && J->getComm()->getRank() == 0) {
         std::cout << "[AMG] Loaded parameters from XML file: "
                   << cntxt->amg.xml_param_file << std::endl;
@@ -589,8 +662,7 @@ LinearAlgebraInterface<Node>::buildRefMaxwellPreconditioner(
   Teuchos::ParameterList refmaxwellParams;
 
   try {
-    Teuchos::updateParametersFromXmlFileAndBroadcast(
-        refmaxwellXmlFile, Teuchos::ptr(&refmaxwellParams), *J->getComm());
+    loadXmlBroadcast(refmaxwellXmlFile, refmaxwellParams, *J->getComm(), "RefMaxwell");
     if (verbosity >= 6 && J->getComm()->getRank() == 0) {
       std::cout << "[RefMaxwell] Loaded parameters from XML file: " << refmaxwellXmlFile << std::endl;
     }
@@ -721,8 +793,7 @@ LinearAlgebraInterface<Node>::buildMaxwell1Preconditioner(
     << " 'Maxwell1 Settings' sublist.");
   Teuchos::ParameterList maxwell1Params;
   try {
-    Teuchos::updateParametersFromXmlFileAndBroadcast(
-        maxwell1XmlFile, Teuchos::ptr(&maxwell1Params), *J->getComm());
+    loadXmlBroadcast(maxwell1XmlFile, maxwell1Params, *J->getComm(), "Maxwell1");
     if (verbosity >= 6 && J->getComm()->getRank() == 0) {
       std::cout << "[Maxwell1] Loaded parameters from XML file: " << maxwell1XmlFile << std::endl;
     }
@@ -784,82 +855,9 @@ LinearAlgebraInterface<Node>::buildMaxwell1Preconditioner(
     }
 
     // Zero Dirichlet rows and columns, then restore the original diagonal.
-    auto applyDirichletBCsToKn = [](
-        Teuchos::RCP<XpetraMatrix> & Kn,
-        const Kokkos::View<bool*, dev_mem_space> & BCdomainNodal) {
-      using XpetraVector = Xpetra::Vector<ScalarT, LO, GO, Node>;
-      Teuchos::RCP<XpetraVector> saved = Xpetra::VectorFactory<ScalarT, LO, GO, Node>::Build(
-          Kn->getRowMap(), true);
-      Kn->getLocalDiagCopy(*saved);
-      auto savedView = saved->getLocalViewDevice(Tpetra::Access::ReadOnly);
-
-      auto knColMap = Kn->getColMap();
-      auto knRowMap = Kn->getRowMap();
-      auto knDomMap = Kn->getDomainMap();
-      const LO nColLocal = static_cast<LO>(knColMap->getLocalNumElements());
-      Kokkos::View<bool*, dev_mem_space> BCcols("BCcols_kn", nColLocal);
-      {
-        // Dirichlet nodes owned elsewhere appear only as ghost columns, so the flags
-        // must be imported; a local row-map lookup leaves those columns unzeroed.
-        TEUCHOS_TEST_FOR_EXCEPTION(!knRowMap->isSameAs(*knDomMap), std::runtime_error,
-          "applyDirichletBCsToKn: Kn row and domain maps must agree.");
-        using XpetraVector = Xpetra::Vector<ScalarT, LO, GO, Node>;
-        const ScalarT one = Teuchos::ScalarTraits<ScalarT>::one();
-        const ScalarT zero = Teuchos::ScalarTraits<ScalarT>::zero();
-
-        Teuchos::RCP<XpetraVector> bcDom =
-            Xpetra::VectorFactory<ScalarT, LO, GO, Node>::Build(knDomMap, true);
-        {
-          auto domView = bcDom->getLocalViewDevice(Tpetra::Access::OverwriteAll);
-          Kokkos::parallel_for("BCcols_mark_domain",
-              Kokkos::RangePolicy<typename Node::execution_space>(0, domView.extent(0)),
-              KOKKOS_LAMBDA(const LO i) {
-                domView(i, 0) = BCdomainNodal(i) ? one : zero;
-              });
-        }
-
-        Teuchos::RCP<XpetraVector> bcCol = bcDom;
-        auto knImporter = Kn->getCrsGraph()->getImporter();
-        if (!knImporter.is_null()) {
-          bcCol = Xpetra::VectorFactory<ScalarT, LO, GO, Node>::Build(knColMap, true);
-          bcCol->doImport(*bcDom, *knImporter, Xpetra::INSERT);
-        }
-
-        auto colView = bcCol->getLocalViewDevice(Tpetra::Access::ReadOnly);
-        Kokkos::parallel_for("BCcols_fill",
-            Kokkos::RangePolicy<typename Node::execution_space>(0, nColLocal),
-            KOKKOS_LAMBDA(const LO cLid) {
-              BCcols(cLid) = (colView(cLid, 0) != zero);
-            });
-      }
-      Kokkos::View<const bool*, dev_mem_space> BCdomain_c = BCdomainNodal;
-      Kokkos::View<const bool*, dev_mem_space> BCcols_c = BCcols;
-      MueLu::UtilitiesBase<ScalarT, LO, GO, Node>::ZeroDirichletRows(Kn, BCdomain_c);
-      MueLu::UtilitiesBase<ScalarT, LO, GO, Node>::ZeroDirichletCols(Kn, BCcols_c);
-
-      Kn->resumeFill();
-      auto lclKn = Kn->getLocalMatrixDevice();
-      auto lclColMap = knColMap->getLocalMap();
-      auto lclRowMap = knRowMap->getLocalMap();
-      Kokkos::parallel_for("restore_kn_bc_diag",
-          Kokkos::RangePolicy<typename Node::execution_space>(0, lclKn.numRows()),
-          KOKKOS_LAMBDA(const LO r) {
-            if (!BCdomain_c(r)) return;
-            const GO rowGid = lclRowMap.getGlobalElement(r);
-            const LO rowLidInColMap = lclColMap.getLocalElement(rowGid);
-            auto row = lclKn.row(r);
-            for (LO j = 0; j < row.length; ++j) {
-              if (row.colidx(j) == rowLidInColMap) {
-                row.value(j) = savedView(r, 0);
-                break;
-              }
-            }
-          });
-      Kn->fillComplete(Kn->getDomainMap(), Kn->getRangeMap());
-    };
 
     if (BCnodes > 0) {
-      applyDirichletBCsToKn(Kn_from_M1, BCdomainK);
+      block_prec::detail::applyDirichletBCsToKn<Node>(Kn_from_M1, BCdomainK);
     }
     computeKnGlobalConstants();
 
@@ -875,7 +873,7 @@ LinearAlgebraInterface<Node>::buildMaxwell1Preconditioner(
       int nE = 0, nN = 0;
       MueLu::Maxwell_Utils<ScalarT, LO, GO, Node>::detectBoundaryConditionsSM(
           SM_wrap, D0_wrap, -1.0, BCr_sm, BCc_sm, BCd_sm, nE, nN, aE, aN);
-      if (nN > 0) applyDirichletBCsToKn(Kn_SM, BCd_sm);
+      if (nN > 0) block_prec::detail::applyDirichletBCsToKn<Node>(Kn_SM, BCd_sm);
       auto knM1_wrap = Teuchos::rcp_dynamic_cast<Xpetra::CrsMatrixWrap<ScalarT, LO, GO, Node>>(Kn_from_M1);
       auto knSM_wrap = Teuchos::rcp_dynamic_cast<Xpetra::CrsMatrixWrap<ScalarT, LO, GO, Node>>(Kn_SM);
       if (!knM1_wrap.is_null() && !knSM_wrap.is_null()) {

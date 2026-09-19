@@ -185,6 +185,11 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
   matrix_RCP M1_over = linalg->getNewOverlappedMatrix(set);
   vector_RCP diagM1_over = linalg->getNewOverlappedVector(set);
   assembler->updatePhysicsSet(set);
+  for (size_t b = 0; b < assembler->groupData.size(); ++b) {
+    TEUCHOS_TEST_FOR_EXCEPTION(assembler->groupData[b]->use_sparse_mass || assembler->lump_mass ||
+                               assembler->matrix_free, std::runtime_error,
+      "Auxiliary setup needs an assembled M1: disable sparse mass, lumping, matrix-free.");
+  }
   assembler->getWeightedMass(set, M1_over, diagM1_over, use_unit_mass);
 
   matrix_RCP assembled_mass_matrix = linalg->getNewMatrix(set);

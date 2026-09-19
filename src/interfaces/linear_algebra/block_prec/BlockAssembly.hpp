@@ -1067,15 +1067,12 @@ maybeWrapInInnerKrylov(LinearAlgebraInterface<Node> & interface,
   using LA_MultiVector = typename Types::MultiVector;
   using LA_Operator = typename Types::Operator;
   using LA_LinearProblem = Belos::LinearProblem<ScalarT, LA_MultiVector, LA_Operator>;
-  // Inner solves vary in accuracy, so the outer solver must use FGMRES.
   if (!cntxt.is_null()) {
-    const std::string outerType = toUpperAsciiCopy(cntxt->belos_type);
-    const bool outerIsGmres = (outerType == "BLOCK GMRES" || outerType == "PSEUDO BLOCK GMRES");
-    const bool flexibleFlag = cntxt->flexible_gmres;
-    TEUCHOS_TEST_FOR_EXCEPTION(!outerIsGmres || !flexibleFlag, std::runtime_error,
-      "[" << label << "] inner Krylov requires Block GMRES or Pseudo Block GMRES"
-      << " with 'Flexible Gmres: true' in Belos Settings; current solver is '"
-      << cntxt->belos_type << "'.");
+    TEUCHOS_TEST_FOR_EXCEPTION(toUpperAsciiCopy(cntxt->belos_type) != "BLOCK GMRES" ||
+                               !cntxt->flexible_gmres || !cntxt->right_preconditioner,
+      std::runtime_error,
+      "[" << label << "] inner Krylov requires Block GMRES with 'Flexible Gmres: true' "
+      "and 'right preconditioner: true'.");
   }
   const std::string innerSolver = blockList.get<std::string>("inner krylov solver");
   const int innerMaxIters = blockList.isParameter("inner krylov max iters")

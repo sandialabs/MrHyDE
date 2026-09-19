@@ -77,7 +77,7 @@ inline bool loadMueLuXmlIfPresent(const Teuchos::ParameterList & amgSublist,
   const std::string xmlFile = amgSublist.get<std::string>("xml param file");
   if (xmlFile.empty()) return false;
   try {
-    Teuchos::updateParametersFromXmlFileAndBroadcast(xmlFile, Teuchos::ptr(&outParams), *comm);
+    loadXmlBroadcast(xmlFile, outParams, *comm, context);
   } catch (const std::exception & e) {
     TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error,
       "Failed to load AMG XML file '" << xmlFile << "' for " << context << ": " << e.what());
