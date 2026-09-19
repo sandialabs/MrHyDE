@@ -90,9 +90,10 @@ void verifyBlockSystem(const BlockSystem<Node> & blocks,
     Teuchos::RCP<LA_Vector> dinv =
       detail::inverseDiagonalVector<Node>(blocks.J00->getRowMap(), w);
     LA_Vector t(blocks.pivotMap), Sx(blocks.targetMap), mf(blocks.targetMap);
+    LA_Vector dt(blocks.pivotMap);
     blocks.J01->apply(x1, t);
-    t.elementWiseMultiply(one, *dinv, t, zero);
-    blocks.J10->apply(t, mf);
+    dt.elementWiseMultiply(one, *dinv, t, zero);
+    blocks.J10->apply(dt, mf);
     blocks.J11->apply(x1, Sx);
     mf.update(one, Sx, -damping);
     SchurApprox->apply(x1, Sx);
