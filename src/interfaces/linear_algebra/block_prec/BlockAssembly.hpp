@@ -45,7 +45,6 @@ struct BlockSystem {
   int pivotBlock = 0;     // Block index for the pivot block.
 };
 
-enum class RemapMode { LidRemap, GidFilter };
 
 namespace detail {
 
@@ -71,63 +70,10 @@ void validateTekoTypeCompatibility() {
 }
 
 template<class Node>
-std::vector<std::vector<GO> >
-buildBlockGidListsFromMaps(const std::vector<MapRCP<Node> > & blockMaps) {
-  std::vector<std::vector<GO> > gids(blockMaps.size());
-  for (size_t b = 0; b < blockMaps.size(); ++b) {
-    TEUCHOS_TEST_FOR_EXCEPTION(blockMaps[b].is_null(), std::runtime_error,
-      "buildBlockGidListsFromMaps: null block map at index " << b << ".");
-    const size_t nLocal = blockMaps[b]->getLocalNumElements();
-    gids[b].reserve(nLocal);
-    for (size_t lid = 0; lid < nLocal; ++lid) {
-      gids[b].push_back(blockMaps[b]->getGlobalElement(Teuchos::as<LO>(lid)));
-    }
-  }
-  return gids;
-}
-
-template<class Node>
-std::vector<std::vector<ConstMatrixRCP<Node> > >
-extractRawTekoBlocks(const MatrixRCP<Node> & J,
-                     const std::vector<MapRCP<Node> > & blockMaps) {
-  validateTekoTypeCompatibility<Node>();
-  using Types = BlockTypes<Node>;
-  using Operator = typename Types::Operator;
-  using CrsMatrix = typename Types::CrsMatrix;
-
-  TEUCHOS_TEST_FOR_EXCEPTION(J.is_null(), std::runtime_error,
-    "extractRawTekoBlocks: Jacobian is null.");
-  TEUCHOS_TEST_FOR_EXCEPTION(blockMaps.empty(), std::runtime_error,
-    "extractRawTekoBlocks: block map list is empty.");
-
-  const std::vector<std::vector<GO> > blockGids = buildBlockGidListsFromMaps<Node>(blockMaps);
-  const Teuchos::RCP<const Operator> op = Teuchos::rcp_implicit_cast<const Operator>(J);
-  Teko::TpetraHelpers::BlockedTpetraOperator blockedOp(blockGids, op, "MrHyDE_TekoBlockExtraction");
-
-  const size_t nBlocks = blockMaps.size();
-  std::vector<std::vector<ConstMatrixRCP<Node> > > rawBlocks(
-    nBlocks, std::vector<ConstMatrixRCP<Node> >(nBlocks, Teuchos::null));
-
-  for (size_t i = 0; i < nBlocks; ++i) {
-    for (size_t j = 0; j < nBlocks; ++j) {
-      const Teuchos::RCP<const Operator> blockOp = blockedOp.GetBlock(Teuchos::as<int>(i), Teuchos::as<int>(j));
-      TEUCHOS_TEST_FOR_EXCEPTION(blockOp.is_null(), std::runtime_error,
-        "extractRawTekoBlocks: Teko returned null block (" << i << "," << j << ").");
-      const Teuchos::RCP<const CrsMatrix> blockMat = Teuchos::rcp_dynamic_cast<const CrsMatrix>(blockOp);
-      TEUCHOS_TEST_FOR_EXCEPTION(blockMat.is_null(), std::runtime_error,
-        "extractRawTekoBlocks: block (" << i << "," << j << ") is not a Tpetra::CrsMatrix.");
-      rawBlocks[i][j] = blockMat;
-    }
-  }
-  return rawBlocks;
-}
-
-template<class Node>
 MatrixRCP<Node>
 remapBlockToMaps(const ConstMatrixRCP<Node> & src,
                  const MapRCP<Node> & rowMap,
-                 const MapRCP<Node> & domainMap,
-                 const RemapMode mode) {
+                 const MapRCP<Node> & domainMap) {
   using Types = BlockTypes<Node>;
   using CrsMatrix = typename Types::CrsMatrix;
   using HostInds = typename Types::HostInds;
@@ -146,114 +92,50 @@ remapBlockToMaps(const ConstMatrixRCP<Node> & src,
   const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > srcColMap = src->getColMap();
   const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > srcDomainMap = src->getDomainMap();
 
-  const bool useLidRemap = (mode == RemapMode::LidRemap);
-  TEUCHOS_TEST_FOR_EXCEPTION(useLidRemap &&
-    (srcRowMap->getLocalNumElements() != rowMap->getLocalNumElements() ||
-     srcDomainMap->getLocalNumElements() != domainMap->getLocalNumElements()),
-    std::runtime_error,
-    "remapBlockToMaps: LidRemap requires matching local row/domain counts (source "
-    << srcRowMap->getLocalNumElements() << "x" << srcDomainMap->getLocalNumElements()
-    << ", target " << rowMap->getLocalNumElements() << "x" << domainMap->getLocalNumElements() << ").");
-
   const MatrixRCP<Node> dst = Teuchos::rcp(new CrsMatrix(rowMap, maxEnt));
 
-  if (!useLidRemap) {
-    // General path for mismatched row/domain partitions: filter source columns by target
-    // domain ownership and keep original GIDs that are valid in the destination maps.
-    Teuchos::RCP<IntVector> domainMarker = Teuchos::rcp(new IntVector(srcDomainMap));
-    {
-      auto markerView = domainMarker->getLocalViewHost(Tpetra::Access::OverwriteAll);
-      const LO nDomain = static_cast<LO>(srcDomainMap->getLocalNumElements());
-      for (LO lid = 0; lid < nDomain; ++lid) {
-        markerView(lid, 0) = domainMap->isNodeGlobalElement(srcDomainMap->getGlobalElement(lid)) ? 1 : 0;
-      }
-    }
-    Teuchos::RCP<IntVector> colMarker;
-    Teuchos::RCP<const Import> srcImporter = src->getGraph()->getImporter();
-    if (srcImporter.is_null()) {
-      colMarker = domainMarker;
-    }
-    else {
-      colMarker = Teuchos::rcp(new IntVector(srcColMap));
-      colMarker->putScalar(0);
-      colMarker->doImport(*domainMarker, *srcImporter, Tpetra::INSERT);
-    }
-    auto markerData = colMarker->getData(0);
-
-    const LO nRows = rowMap->getLocalNumElements();
-    for (LO rowLid = 0; rowLid < nRows; ++rowLid) {
-      const GO rowGid = rowMap->getGlobalElement(rowLid);
-      const LO srcRowLid = srcRowMap->getLocalElement(rowGid);
-      if (srcRowLid == Teuchos::OrdinalTraits<LO>::invalid()) continue;
-
-      size_t nent = src->getNumEntriesInLocalRow(srcRowLid);
-      if (nent == 0) continue;
-      src->getLocalRowCopy(srcRowLid, colLids, colVals, nent);
-
-      std::vector<GO> keepCols;
-      std::vector<ScalarT> keepVals;
-      keepCols.reserve(nent);
-      keepVals.reserve(nent);
-      for (size_t k = 0; k < nent; ++k) {
-        if (markerData[colLids(k)] == 0) continue;
-        const GO colGid = srcColMap->getGlobalElement(colLids(k));
-        keepCols.push_back(colGid);
-        keepVals.push_back(colVals(k));
-      }
-      if (!keepCols.empty()) {
-        dst->insertGlobalValues(rowGid, keepCols, keepVals);
-      }
+  Teuchos::RCP<IntVector> domainMarker = Teuchos::rcp(new IntVector(srcDomainMap));
+  {
+    auto markerView = domainMarker->getLocalViewHost(Tpetra::Access::OverwriteAll);
+    const LO nDomain = static_cast<LO>(srcDomainMap->getLocalNumElements());
+    for (LO lid = 0; lid < nDomain; ++lid) {
+      markerView(lid, 0) = domainMap->isNodeGlobalElement(srcDomainMap->getGlobalElement(lid)) ? 1 : 0;
     }
   }
+  Teuchos::RCP<IntVector> colMarker;
+  Teuchos::RCP<const Import> srcImporter = src->getGraph()->getImporter();
+  if (srcImporter.is_null()) {
+    colMarker = domainMarker;
+  }
   else {
-    using GoVector = Tpetra::Vector<GO,LO,GO,Node>;
+    colMarker = Teuchos::rcp(new IntVector(srcColMap));
+    colMarker->putScalar(0);
+    colMarker->doImport(*domainMarker, *srcImporter, Tpetra::INSERT);
+  }
+  auto markerData = colMarker->getData(0);
 
-    // Fast path for equal local row/domain sizes: remap source column LIDs onto target
-    // domain GIDs via a temporary GO vector imported from source domain to source columns.
-    Teuchos::RCP<GoVector> tgtDomainOnSrcDomain = Teuchos::rcp(new GoVector(srcDomainMap));
-    {
-      auto tgtDomainOnSrcDomainData = tgtDomainOnSrcDomain->getLocalViewHost(Tpetra::Access::ReadWrite);
-      const LO nLocalDomain = static_cast<LO>(srcDomainMap->getLocalNumElements());
-      for (LO lid = 0; lid < nLocalDomain; ++lid) {
-        tgtDomainOnSrcDomainData(lid, 0) = domainMap->getGlobalElement(lid);
-      }
+  const LO nRows = rowMap->getLocalNumElements();
+  for (LO rowLid = 0; rowLid < nRows; ++rowLid) {
+    const GO rowGid = rowMap->getGlobalElement(rowLid);
+    const LO srcRowLid = srcRowMap->getLocalElement(rowGid);
+    if (srcRowLid == Teuchos::OrdinalTraits<LO>::invalid()) continue;
+
+    size_t nent = src->getNumEntriesInLocalRow(srcRowLid);
+    if (nent == 0) continue;
+    src->getLocalRowCopy(srcRowLid, colLids, colVals, nent);
+
+    std::vector<GO> keepCols;
+    std::vector<ScalarT> keepVals;
+    keepCols.reserve(nent);
+    keepVals.reserve(nent);
+    for (size_t k = 0; k < nent; ++k) {
+      if (markerData[colLids(k)] == 0) continue;
+      const GO colGid = srcColMap->getGlobalElement(colLids(k));
+      keepCols.push_back(colGid);
+      keepVals.push_back(colVals(k));
     }
-
-    Import srcDomainToColImport(srcDomainMap, srcColMap);
-    Teuchos::RCP<GoVector> tgtDomainOnSrcCol = Teuchos::rcp(new GoVector(srcColMap));
-    tgtDomainOnSrcCol->putScalar(Teuchos::OrdinalTraits<GO>::invalid());
-    tgtDomainOnSrcCol->doImport(*tgtDomainOnSrcDomain, srcDomainToColImport, Tpetra::INSERT);
-    auto tgtDomainOnSrcColData = tgtDomainOnSrcCol->getData(0);
-
-    Teuchos::RCP<IntVector> srcDomainMarker = Teuchos::rcp(new IntVector(srcDomainMap));
-    srcDomainMarker->putScalar(1);
-    Teuchos::RCP<IntVector> srcColMarker = Teuchos::rcp(new IntVector(srcColMap));
-    srcColMarker->putScalar(0);
-    srcColMarker->doImport(*srcDomainMarker, srcDomainToColImport, Tpetra::INSERT);
-    auto srcColMarkerData = srcColMarker->getData(0);
-
-    const LO nRows = srcRowMap->getLocalNumElements();
-    for (LO srcRowLid = 0; srcRowLid < nRows; ++srcRowLid) {
-      const GO rowGid = rowMap->getGlobalElement(srcRowLid);
-      size_t nent = src->getNumEntriesInLocalRow(srcRowLid);
-      if (nent == 0) continue;
-      src->getLocalRowCopy(srcRowLid, colLids, colVals, nent);
-
-      std::vector<GO> keepCols;
-      std::vector<ScalarT> keepVals;
-      keepCols.reserve(nent);
-      keepVals.reserve(nent);
-      for (size_t k = 0; k < nent; ++k) {
-        const LO colLid = colLids(k);
-        if (srcColMarkerData[colLid] == 0) continue;
-        const GO mappedColGid = tgtDomainOnSrcColData[colLid];
-        if (mappedColGid == Teuchos::OrdinalTraits<GO>::invalid()) continue;
-        keepCols.push_back(mappedColGid);
-        keepVals.push_back(colVals(k));
-      }
-      if (!keepCols.empty()) {
-        dst->insertGlobalValues(rowGid, keepCols, keepVals);
-      }
+    if (!keepCols.empty()) {
+      dst->insertGlobalValues(rowGid, keepCols, keepVals);
     }
   }
 
@@ -266,8 +148,6 @@ std::vector<std::vector<MatrixRCP<Node> > >
 extractAndRemapBlocks(const MatrixRCP<Node> & J,
                       const std::vector<MapRCP<Node> > & blockMaps,
                       const bool diagonalOnly = false) {
-  const std::vector<std::vector<ConstMatrixRCP<Node> > > rawBlocks =
-    extractRawTekoBlocks<Node>(J, blockMaps);
   const size_t nBlocks = blockMaps.size();
   std::vector<std::vector<MatrixRCP<Node> > > remapped(
     nBlocks, std::vector<MatrixRCP<Node> >(nBlocks, Teuchos::null));
@@ -275,8 +155,7 @@ extractAndRemapBlocks(const MatrixRCP<Node> & J,
   for (size_t i = 0; i < nBlocks; ++i) {
     for (size_t j = 0; j < nBlocks; ++j) {
       if (diagonalOnly && i != j) continue;
-      remapped[i][j] = remapBlockToMaps<Node>(rawBlocks[i][j], blockMaps[i], blockMaps[j],
-                                              RemapMode::LidRemap);
+      remapped[i][j] = remapBlockToMaps<Node>(J, blockMaps[i], blockMaps[j]);
       TEUCHOS_TEST_FOR_EXCEPTION(
         !remapped[i][j]->getRowMap()->isSameAs(*blockMaps[i]) ||
         !remapped[i][j]->getDomainMap()->isSameAs(*blockMaps[j]),

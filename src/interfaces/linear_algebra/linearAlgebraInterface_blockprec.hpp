@@ -76,12 +76,7 @@ inline bool loadMueLuXmlIfPresent(const Teuchos::ParameterList & amgSublist,
   if (!amgSublist.isParameter("xml param file")) return false;
   const std::string xmlFile = amgSublist.get<std::string>("xml param file");
   if (xmlFile.empty()) return false;
-  try {
-    loadXmlBroadcast(xmlFile, outParams, *comm, context);
-  } catch (const std::exception & e) {
-    TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error,
-      "Failed to load AMG XML file '" << xmlFile << "' for " << context << ": " << e.what());
-  }
+  loadXmlBroadcast(xmlFile, outParams, *comm, context);
   return true;
 }
 
@@ -407,8 +402,7 @@ LinearAlgebraInterface<Node>::extractDiagonalBlock(
   using LA_CrsMatrix = typename LATypes<Node>::CrsMatrix;
   const Teuchos::RCP<const LA_CrsMatrix> Jconst =
     Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(J);
-  return block_prec::detail::remapBlockToMaps<Node>(Jconst, blockMap, blockMap,
-                                                    block_prec::RemapMode::GidFilter);
+  return block_prec::detail::remapBlockToMaps<Node>(Jconst, blockMap, blockMap);
 }
 
 // Extract off-diagonal block by remapping J to rowMap x colMap.
@@ -421,8 +415,7 @@ LinearAlgebraInterface<Node>::extractOffDiagonalBlock(
   using LA_CrsMatrix = typename LATypes<Node>::CrsMatrix;
   const Teuchos::RCP<const LA_CrsMatrix> Jconst =
     Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(J);
-  return block_prec::detail::remapBlockToMaps<Node>(Jconst, rowMap, colMap,
-                                                    block_prec::RemapMode::GidFilter);
+  return block_prec::detail::remapBlockToMaps<Node>(Jconst, rowMap, colMap);
 }
 
 // ========================================================================================
