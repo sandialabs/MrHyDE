@@ -28,15 +28,23 @@ inline void loadXmlBroadcast(const std::string & file,
                              Teuchos::ParameterList & out,
                              const Teuchos::Comm<int> & comm,
                              const std::string & context) {
-  int ok = 1;
+  std::string text;
+  int len = -1;
   if (comm.getRank() == 0) {
-    std::ifstream probe(file.c_str());
-    ok = probe.good() ? 1 : 0;
+    std::ifstream in(file.c_str());
+    if (in) {
+      std::ostringstream ss;
+      ss << in.rdbuf();
+      text = ss.str();
+      len = static_cast<int>(text.size());
+    }
   }
-  Teuchos::broadcast<int,int>(comm, 0, 1, &ok);
-  TEUCHOS_TEST_FOR_EXCEPTION(ok == 0, std::runtime_error,
+  Teuchos::broadcast<int,int>(comm, 0, 1, &len);
+  TEUCHOS_TEST_FOR_EXCEPTION(len < 0, std::runtime_error,
     "Cannot open XML file '" << file << "' for " << context << ".");
-  Teuchos::updateParametersFromXmlFileAndBroadcast(file, Teuchos::ptr(&out), comm);
+  text.resize(len);
+  if (len > 0) Teuchos::broadcast<int,char>(comm, 0, len, &text[0]);
+  Teuchos::updateParametersFromXmlString(text, Teuchos::ptr(&out));
 }
 
 template<class Node>
