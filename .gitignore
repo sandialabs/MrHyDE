@@ -18,3 +18,8 @@ MILO.profile
 *.out
 *.err
 mrhyde
+
+# regression/sandbox specific
+!regression/**/*.xml
+!sandbox/**/*.xml
+regression/**/mrhyde.results
