@@ -5,7 +5,6 @@
   <Parameter name="maxwell1: mode" type="string" value="standard"/>
   <Parameter name="maxwell1: use as preconditioner" type="bool" value="true"/>
   <Parameter name="maxwell1: enable reuse" type="bool" value="true"/>
-  <Parameter name="maxwell1: disable addon" type="bool" value="false"/>
   <Parameter name="maxwell1: dump matrices" type="bool" value="false"/>
   <Parameter name="maxwell1: use Kn from M1" type="bool" value="true"/>
   <Parameter name="fuse prolongation and update" type="bool" value="true"/>

@@ -9,7 +9,7 @@
   <Parameter name="refmaxwell: mode" type="string" value="additive"/>
   <Parameter name="refmaxwell: use as preconditioner" type="bool" value="true"/>
   <Parameter name="refmaxwell: enable reuse" type="bool" value="true"/>
-  <Parameter name="refmaxwell: disable addon" type="bool" value="false"/>
+  <Parameter name="refmaxwell: disable addon" type="bool" value="true"/>
   <Parameter name="refmaxwell: max coarse size" type="int" value="200"/>
   <Parameter name="refmaxwell: apply BCs to coarse 11" type="bool" value="true"/>
   <Parameter name="refmaxwell: apply BCs to 22" type="bool" value="true"/>

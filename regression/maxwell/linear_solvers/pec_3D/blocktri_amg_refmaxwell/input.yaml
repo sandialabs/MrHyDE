@@ -33,5 +33,4 @@ ANONYMOUS:
         hcurl basis name: E
         hgrad basis order: 1
         hcurl basis order: 1
-        use lumped M0inv: true
 ...

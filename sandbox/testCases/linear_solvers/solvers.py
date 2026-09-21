@@ -86,11 +86,10 @@ def blocktri(pivot, schur, iters=500, approx="diag", lumped_weight=True,
 
 
 def refmaxwell(xml, extra="", pivot=None, triangle=None):
-    """blocktri with RefMaxwell on the Schur block. MrHyDE builds M0inv here;
-    Maxwell1 needs no such flag, it always uses an identity M0inv."""
+    """blocktri with RefMaxwell on the Schur block (addon disabled)."""
     return blocktri(amg(AMG_PIVOT) if pivot is None else pivot,
                     auxspace("RefMaxwell", xml,
-                             "  use lumped M0inv: true\n" + extra),
+                             extra),
                     iters=200, triangle=triangle)
 
 

@@ -17,7 +17,7 @@ VALUE = re.compile(r"([0-9.eE+-]+) \(")
 UNCONVERGED = "WARNING: Belos linear solve did not converge"
 
 # Measured spread across 1-8 ranks scales with the count, not with a constant, so the
-# band is proportional with a floor. See regression/maxwell/linear_solvers/README.md.
+# band is proportional with a floor. See sandbox/testCases/linear_solvers/README.md.
 ITER_TOL_FLOOR = 2
 ITER_TOL_FRAC = 0.15
 

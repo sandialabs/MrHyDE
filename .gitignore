@@ -12,9 +12,9 @@
 *.mem_events
 build*
 MILO.profile
-*.dat
 *.sh
 *.slurm
+*.dat
 *.out
 *.err
 mrhyde
