@@ -206,11 +206,10 @@ void verifyBlockSystem(const BlockSystem<Node> & blocks,
   }
 
   if (schurIsDiag && !SchurApprox.is_null()) {
-    const detail::InverseDiagonalResult<Node> w =
-      detail::buildInverseDiagonal<Node>(
-        Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(blocks.J00), useLumpedWeightDiagonal);
+    detail::InverseDiagonalCounts w;
     Teuchos::RCP<LA_Vector> dinv =
-      detail::inverseDiagonalVector<Node>(blocks.J00->getRowMap(), w);
+      detail::buildInverseDiagonal<Node>(
+        Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(blocks.J00), useLumpedWeightDiagonal, w);
     LA_Vector t(blocks.pivotMap), Sx(blocks.targetMap), mf(blocks.targetMap);
     LA_Vector dt(blocks.pivotMap);
     blocks.J01->apply(x1, t);

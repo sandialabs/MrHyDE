@@ -208,73 +208,66 @@ extractAndRemapBlocks(const MatrixRCP<Node> & J,
   return remapped;
 }
 
-template<class Node>
-struct InverseDiagonalResult {
-  std::unordered_map<GO, ScalarT> invByRow;
+struct InverseDiagonalCounts {
   GO missing = 0;
   GO usedLumped = 0;
   GO usedDiag = 0;
 };
 
 template<class Node>
-InverseDiagonalResult<Node>
+Teuchos::RCP<typename BlockTypes<Node>::Vector>
 buildInverseDiagonal(const ConstMatrixRCP<Node> & mat,
-                     const bool useLumpedDiagonal) {
+                     const bool useLumpedDiagonal,
+                     InverseDiagonalCounts & counts) {
   using Types = BlockTypes<Node>;
-  using map_rcp = typename Types::MapRCP;
-  using host_inds_type = typename Types::HostInds;
-  using host_vals_type = typename Types::HostVals;
-
+  using LA_Vector = typename Types::Vector;
   const ScalarT zero = Teuchos::ScalarTraits<ScalarT>::zero();
   const ScalarT one = Teuchos::ScalarTraits<ScalarT>::one();
-  const auto zeroMag = Teuchos::ScalarTraits<ScalarT>::magnitude(zero);
-  InverseDiagonalResult<Node> result;
-  forEachLocalRow<Node>(mat, [useLumpedDiagonal, &result, one, zero, zeroMag](GO rowGid, const host_inds_type & colLids,
-      const host_vals_type & colVals, size_t numEntries, const map_rcp & colMap) {
-    ScalarT d = zero;
-    ScalarT lumped = zero;
-    bool foundDiag = false;
-    for (size_t k = 0; k < numEntries; ++k) {
-      lumped += colVals(k);
-      if (colMap->getGlobalElement(colLids(k)) == rowGid) {
-        d = colVals(k);
-        foundDiag = true;
-      }
-    }
-    const bool haveDiag = foundDiag && Teuchos::ScalarTraits<ScalarT>::magnitude(d) > zeroMag;
-    const bool haveLumped = Teuchos::ScalarTraits<ScalarT>::magnitude(lumped) > zeroMag;
-    // Keep lumped fallback sign-consistent with the true diagonal when both exist.
-    const bool useLumped = useLumpedDiagonal && haveLumped && (!haveDiag || (d * lumped) > zero);
-    const ScalarT pivot = useLumped ? lumped : d;
-    if ((useLumped || haveDiag) && Teuchos::ScalarTraits<ScalarT>::magnitude(pivot) > zeroMag) {
-      result.invByRow[rowGid] = one / pivot;
-      if (useLumped) ++result.usedLumped;
-      else ++result.usedDiag;
-    }
-    else {
-      ++result.missing;
-    }
-  });
-  return result;
-}
 
-// Scatter inv(diag) onto rowMap. Rows with no entry keep zero.
-template<class Node>
-Teuchos::RCP<typename BlockTypes<Node>::Vector>
-inverseDiagonalVector(const typename BlockTypes<Node>::MapRCP & rowMap,
-                      const InverseDiagonalResult<Node> & result) {
-  using LA_Vector = typename BlockTypes<Node>::Vector;
-  Teuchos::RCP<LA_Vector> invDiag = Teuchos::rcp(new LA_Vector(rowMap));
-  invDiag->putScalar(Teuchos::ScalarTraits<ScalarT>::zero());
-  for (typename std::unordered_map<GO, ScalarT>::const_iterator it = result.invByRow.begin();
-       it != result.invByRow.end(); ++it) {
-    invDiag->replaceGlobalValue(it->first, it->second);
+  typename Types::MapRCP rowMap = mat->getRowMap();
+  Teuchos::RCP<LA_Vector> inv = Teuchos::rcp(new LA_Vector(rowMap, false));
+  LA_Vector diag(rowMap, false);
+  mat->getLocalDiagCopy(diag);
+
+  LA_Vector lumped(mat->getRangeMap(), false);
+  if (useLumpedDiagonal) {
+    LA_Vector ones(mat->getDomainMap(), false);
+    ones.putScalar(one);
+    mat->apply(ones, lumped);   // row sums
+  } else {
+    lumped.putScalar(zero);
   }
-  return invDiag;
+
+  auto dView = diag.getLocalViewDevice(Tpetra::Access::ReadOnly);
+  auto lView = lumped.getLocalViewDevice(Tpetra::Access::ReadOnly);
+  auto iView = inv->getLocalViewDevice(Tpetra::Access::OverwriteAll);
+  const size_t nrows = static_cast<size_t>(rowMap->getLocalNumElements());
+  const bool wantLumped = useLumpedDiagonal;
+  GO nDiag = 0, nLumped = 0, nMissing = 0;
+  Kokkos::parallel_reduce("buildInverseDiagonal",
+    Kokkos::RangePolicy<typename Node::execution_space, size_t>(0, nrows),
+    KOKKOS_LAMBDA(const size_t i, GO & ad, GO & al, GO & am) {
+      const ScalarT d = dView(i, 0);
+      const ScalarT sum = lView(i, 0);
+      // Keep the lumped fallback sign-consistent with the true diagonal.
+      const bool useLumped = wantLumped && sum != zero && (d == zero || (d * sum) > zero);
+      const ScalarT pivot = useLumped ? sum : d;
+      if (pivot != zero) {
+        iView(i, 0) = one / pivot;
+        if (useLumped) ++al; else ++ad;
+      } else {
+        iView(i, 0) = zero;
+        ++am;
+      }
+    }, nDiag, nLumped, nMissing);
+  counts.usedDiag = nDiag;
+  counts.usedLumped = nLumped;
+  counts.missing = nMissing;
+  return inv;
 }
 
 template<class Node>
-void reportInverseDiagonal(const InverseDiagonalResult<Node> & result,
+void reportInverseDiagonal(const InverseDiagonalCounts & result,
                            const std::string & label,
                            const Teuchos::RCP<const Teuchos::Comm<int> > & comm,
                            const int verbosity) {
@@ -918,19 +911,19 @@ buildDiagonalBlockInverse(const typename BlockTypes<Node>::CrsMatrixRCP & J00,
                           const Teuchos::RCP<const Teuchos::Comm<int> > & comm,
                           const int verbosity) {
   using Types = BlockTypes<Node>;
-  const detail::InverseDiagonalResult<Node> invData =
+  detail::InverseDiagonalCounts counts;
+  Teuchos::RCP<typename Types::Vector> invDiag =
     detail::buildInverseDiagonal<Node>(
-      Teuchos::rcp_implicit_cast<const typename Types::CrsMatrix>(J00), useLumpedDiagonal);
-  detail::reportInverseDiagonal<Node>(invData, "Pivot-block diag inverse", comm, verbosity);
-  return Teuchos::rcp(new DiagonalInverseOperator<Node>(
-    detail::inverseDiagonalVector<Node>(J00->getRowMap(), invData)));
+      Teuchos::rcp_implicit_cast<const typename Types::CrsMatrix>(J00), useLumpedDiagonal, counts);
+  detail::reportInverseDiagonal<Node>(counts, "Pivot-block diag inverse", comm, verbosity);
+  return Teuchos::rcp(new DiagonalInverseOperator<Node>(invDiag));
 }
 
 template<class Node>
 Teko::LinearOp
 buildDirectBlockInverse(const typename BlockTypes<Node>::CrsMatrixRCP & A,
-                        const std::string & label) {
-  const std::string solverName = "KLU2";
+                        const std::string & label,
+                        const std::string & solverName) {
   Teuchos::ParameterList entry;
   entry.set("Solver Type", solverName);
   // Block row maps are extracted from the monolithic map, so they are not contiguous.
@@ -1002,7 +995,8 @@ buildBlockOperator(LinearAlgebraInterface<Node> & interface,
       tpetraPrec = interface.buildMaxwell1Preconditioner(mat, cntxt, blockList, forSchur);
       break;
     case BlockPrecType::Direct:
-      innerPrec = buildDirectBlockInverse<Node>(mat, label);
+      innerPrec = buildDirectBlockInverse<Node>(mat, label,
+        cntxt.is_null() ? std::string("KLU2") : cntxt->amesos_type);
       break;
     case BlockPrecType::Diagonal:
       // S is formed from J00, so inverting its diagonal is not an approximation of it.

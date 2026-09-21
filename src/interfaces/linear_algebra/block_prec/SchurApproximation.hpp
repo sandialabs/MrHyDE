@@ -66,10 +66,10 @@ ScalarT addonBeta(const BlockSystem<Node> & blocks,
   corr->apply(v, cv);
   blocks.J01->apply(v, w);
 
-  const detail::InverseDiagonalResult<Node> wgt =
+  detail::InverseDiagonalCounts wgt;
+  Teuchos::RCP<LA_Vector> dB =
     detail::buildInverseDiagonal<Node>(
-      Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(massPivot), useLumpedWeightDiagonal);
-  Teuchos::RCP<LA_Vector> dB = detail::inverseDiagonalVector<Node>(massPivot->getRowMap(), wgt);
+      Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(massPivot), useLumpedWeightDiagonal, wgt);
   dw.elementWiseMultiply(one, *dB, w, zero);
 
   const ScalarT num = v.dot(cv);
@@ -120,16 +120,14 @@ typename block_prec::BlockTypes<Node>::CrsMatrixRCP buildCorrectionMatrix(
   using Types = block_prec::BlockTypes<Node>;
   using LA_CrsMatrix = typename Types::CrsMatrix;
 
-  const block_prec::detail::InverseDiagonalResult<Node> weight =
-    block_prec::detail::buildInverseDiagonal<Node>(
-      Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(inputs.weight),
-      inputs.useLumpedWeightDiagonal);
-  block_prec::detail::reportInverseDiagonal<Node>(
-    weight, "Schur weight diag inverse", inputs.weight->getRowMap()->getComm(), verbosity);
-
+  block_prec::detail::InverseDiagonalCounts weight;
   // weight and right share a row map, so this row scaling needs no communication.
   Teuchos::RCP<typename Types::Vector> dinv =
-    block_prec::detail::inverseDiagonalVector<Node>(inputs.weight->getRowMap(), weight);
+    block_prec::detail::buildInverseDiagonal<Node>(
+      Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(inputs.weight),
+      inputs.useLumpedWeightDiagonal, weight);
+  block_prec::detail::reportInverseDiagonal<Node>(
+    weight, "Schur weight diag inverse", inputs.weight->getRowMap()->getComm(), verbosity);
   dinv->scale(inputs.scale);
   LA_CrsMatrix scaledRight(*inputs.right, Teuchos::Copy);
   scaledRight.leftScale(*dinv);

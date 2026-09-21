@@ -3,7 +3,6 @@
 
 #include "block_prec/BlockTypes.hpp"
 
-#include <KokkosKernels_ArithTraits.hpp>
 
 #include <algorithm>
 #include <string>
@@ -35,25 +34,6 @@ void checkApplyMaps(const typename BlockTypes<Node>::MultiVector & X,
   checked = true;
 }
 
-template<class Node, class RowFunctor>
-void forEachLocalRow(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node> > & mat,
-                     RowFunctor && f) {
-  using Types = BlockTypes<Node>;
-  using HostInds = typename Types::HostInds;
-  using HostVals = typename Types::HostVals;
-  const LO nrows = mat->getLocalNumRows();
-  const size_t maxEnt = std::max(size_t(1), mat->getLocalMaxNumRowEntries());
-  HostInds colLids("col_lids", maxEnt);
-  HostVals colVals("col_vals", maxEnt);
-  auto colMap = mat->getColMap();
-  for (LO rowLid = 0; rowLid < nrows; ++rowLid) {
-    GO rowGid = mat->getRowMap()->getGlobalElement(rowLid);
-    size_t nent = mat->getNumEntriesInLocalRow(rowLid);
-    if (nent == 0) continue;
-    mat->getLocalRowCopy(rowLid, colLids, colVals, nent);
-    f(rowGid, colLids, colVals, nent, colMap);
-  }
-}
 
 } // namespace detail
 
@@ -83,28 +63,7 @@ public:
       std::runtime_error,
       "DiagonalInverseOperator only supports NO_TRANS, TRANS, or CONJ_TRANS.");
     detail::checkApplyMaps<Node>(X, Y, invDiag_->getMap(), maps_checked_, "DiagonalInverseOperator");
-    const auto xView = X.getLocalViewDevice(Tpetra::Access::ReadOnly);
-    const auto dView = invDiag_->getLocalViewDevice(Tpetra::Access::ReadOnly);
-    const size_t nrows = static_cast<size_t>(X.getLocalLength());
-    const size_t nvec = static_cast<size_t>(X.getNumVectors());
-    const bool useConjugate = (mode == Teuchos::CONJ_TRANS);
-    const ScalarT zero = Teuchos::ScalarTraits<ScalarT>::zero();
-    // 0 * NaN = NaN in IEEE 754; Belos hands us uninitialized Y, so guard beta==0.
-    const bool overwrite = (beta == zero);
-    // OverwriteAll skips syncing uninitialized Y from host.
-    using dev_view_t = decltype(Y.getLocalViewDevice(Tpetra::Access::ReadWrite));
-    dev_view_t yView = overwrite ? Y.getLocalViewDevice(Tpetra::Access::OverwriteAll)
-                                 : Y.getLocalViewDevice(Tpetra::Access::ReadWrite);
-    Kokkos::parallel_for("DiagonalInverseOperator::apply",
-        Kokkos::RangePolicy<typename Node::execution_space, size_t>(0, nrows),
-        KOKKOS_LAMBDA(const size_t i) {
-          const ScalarT dinv = useConjugate ? KokkosKernels::ArithTraits<ScalarT>::conj(dView(i, 0))
-                                            : dView(i, 0);
-          for (size_t j = 0; j < nvec; ++j) {
-            const ScalarT ax = alpha * dinv * xView(i, j);
-            yView(i, j) = overwrite ? ax : (beta * yView(i, j) + ax);
-          }
-        });
+    Y.elementWiseMultiply(alpha, *invDiag_, X, beta);
   }
 
 private:
