@@ -6,6 +6,7 @@
 Needs verbosity: 10.
 """
 
+import atexit
 import math
 import sys
 from pathlib import Path
@@ -150,12 +151,20 @@ class Results:
     """PASS/FAIL rows for one test, echoed to stdout and to mrhyde.results."""
 
     def __init__(self, path="mrhyde.results"):
-        self.path, self.rows = path, []
+        self.path, self.rows, self.written = path, [], False
+        # its.call() exits the process on a failed run, so write on the way out.
+        atexit.register(self._on_exit)
+
+    def _on_exit(self):
+        if not self.written:
+            self.add(False, "run aborted", "exited before all checks ran")
+            self.write()
 
     def add(self, ok, label, detail=""):
         self.rows.append((bool(ok), label, detail))
 
     def write(self):
+        self.written = True
         bad = sum(1 for ok, _, _ in self.rows if not ok)
         lines = ["%-4s %-26s %s" % ("PASS" if ok else "FAIL", label, detail)
                  for ok, label, detail in self.rows]
@@ -163,3 +172,4 @@ class Results:
         Path(self.path).write_text("\n".join(lines) + "\n")
         print("\n".join(lines))
         return bad
+

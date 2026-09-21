@@ -5,6 +5,7 @@ import re
 import sys
 sys.path.append("../../../../scripts")
 from mrhyde_test_support import *
+from trilinos_env import enable_trilinos_debug
 
 its = mrhyde_test_support('''Monolith Jacobi vs block-diagonal Jacobi: outputs must match.''')
 its.opts.verbose = True
@@ -23,7 +24,7 @@ def filter_log(src, dst):
         g.writelines(line for line in f if KEEP.search(line))
 
 
-status = 0
+status = enable_trilinos_debug()
 try:
     for deck, log in (('input_monolith_jac.yaml', 'mrhyde_monolith'),
                       ('input_blockdiag_jacobi.yaml', 'mrhyde_blockdiag')):

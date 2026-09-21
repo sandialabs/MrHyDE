@@ -4,6 +4,7 @@ import sys
 sys.path.append("../../../../scripts")
 sys.path.append("../../../../../scripts/data_processing")
 from mrhyde_test_support import *
+from trilinos_env import enable_trilinos_debug
 from parse_log import check
 
 its = mrhyde_test_support('''Block-triangular: AMG pivot, RefMaxwell Schur block.''')
@@ -13,7 +14,8 @@ its.opts.verbose = True
 #TESTING -n 4
 #TESTING -k maxwell,HCURL,blocktriangular,refmaxwell,regression
 
-status = its.call('mpiexec -n 4 ../../../../mrhyde >& mrhyde.log')
+status = enable_trilinos_debug()
+status += its.call('mpiexec -n 4 ../../../../mrhyde >& mrhyde.log')
 status += check(solves=12, mean=7.42, imax=9)
 
 sys.exit(status)

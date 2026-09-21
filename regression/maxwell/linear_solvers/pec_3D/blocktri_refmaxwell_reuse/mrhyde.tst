@@ -5,6 +5,7 @@ import sys
 sys.path.append("../../../../scripts")
 sys.path.append("../../../../../scripts/data_processing")
 from mrhyde_test_support import *
+from trilinos_env import enable_trilinos_debug
 from parse_log import iterations, stats, Results
 
 its = mrhyde_test_support('''Reuse type must not change the answer: none vs update vs full.''')
@@ -22,7 +23,7 @@ RESET = re.compile(r"\[RefMaxwell\] Reusing existing hierarchy")
 MODES = ["none", "update", "full"]
 
 res = Results()
-status = 0
+status = enable_trilinos_debug()
 runs, builds, resets = {}, {}, {}
 for mode in MODES:
     log = "mrhyde_%s.log" % mode

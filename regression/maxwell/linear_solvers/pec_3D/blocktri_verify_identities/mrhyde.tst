@@ -5,6 +5,7 @@ import sys
 sys.path.append("../../../../scripts")
 sys.path.append("../../../../../scripts/data_processing")
 from mrhyde_test_support import *
+from trilinos_env import enable_trilinos_debug
 from parse_log import Results
 
 its = mrhyde_test_support('''Setup-time block identities: round-trip, J10*D0, Schur, D0 scale.''')
@@ -18,7 +19,8 @@ TOL = 1.0e-12
 EXPECTED = ["round-trip", "J10*D0", "schur", "D0-scale"]
 
 res = Results()
-status = its.call('mpiexec -n 4 ../../../../mrhyde input.yaml >& mrhyde.log')
+status = enable_trilinos_debug()
+status += its.call('mpiexec -n 4 ../../../../mrhyde input.yaml >& mrhyde.log')
 
 found = {}
 for line in open("mrhyde.log"):

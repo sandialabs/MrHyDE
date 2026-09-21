@@ -1,0 +1,103 @@
+  Integrated quantities -> 
+   electric_energy -> 
+   magnetic_energy -> 
+   total_energy -> 
+***** Belos Iterative Solver:  Pseudo Block BiCGStab 
+Iter   0, [ 1] :    0.000000e+00
+***** Belos Iterative Solver:  Pseudo Block BiCGStab 
+Iter   0, [ 1] :    1.000000e+00
+Iter  10, [ 1] :    2.714399e-09
+Time = 0, Integrated quantities:  electric_energy = 0.0624919  magnetic_energy = 0  total_energy = 0.0624919
+**** Beginning Time Step 1
+**** Current time is 0
+***** Iteration: 0
+***** Norm of nonlinear residual: 1.52968
+***** Scaled Norm of nonlinear residual: 1
+***** Belos Iterative Solver:  Pseudo Block BiCGStab 
+Iter   0, [ 1] :    1.000000e+00
+Iter   8, [ 1] :    6.655933e-10
+Time = 0.02, Integrated quantities:  electric_energy = 0.0619941  magnetic_energy = 0.000497797  total_energy = 0.0624919
+**** Beginning Time Step 2
+**** Current time is 0.02
+***** Iteration: 0
+***** Norm of nonlinear residual: 1.52363
+***** Scaled Norm of nonlinear residual: 1
+***** Belos Iterative Solver:  Pseudo Block BiCGStab 
+Iter   0, [ 1] :    1.000000e+00
+Iter   8, [ 1] :    4.523032e-10
+Time = 0.04, Integrated quantities:  electric_energy = 0.0605166  magnetic_energy = 0.00197533  total_energy = 0.0624919
+**** Beginning Time Step 3
+**** Current time is 0.04
+***** Iteration: 0
+***** Norm of nonlinear residual: 1.50552
+***** Scaled Norm of nonlinear residual: 1
+***** Belos Iterative Solver:  Pseudo Block BiCGStab 
+Iter   0, [ 1] :    1.000000e+00
+Iter   8, [ 1] :    5.215097e-10
+Time = 0.06, Integrated quantities:  electric_energy = 0.0581064  magnetic_energy = 0.00438551  total_energy = 0.0624919
+**** Beginning Time Step 4
+**** Current time is 0.06
+***** Iteration: 0
+***** Norm of nonlinear residual: 1.47547
+***** Scaled Norm of nonlinear residual: 1
+***** Belos Iterative Solver:  Pseudo Block BiCGStab 
+Iter   0, [ 1] :    1.000000e+00
+Iter   8, [ 1] :    7.911104e-10
+Time = 0.08, Integrated quantities:  electric_energy = 0.0548403  magnetic_energy = 0.00765155  total_energy = 0.0624919
+**** Beginning Time Step 5
+**** Current time is 0.08
+***** Iteration: 0
+***** Norm of nonlinear residual: 1.43368
+***** Scaled Norm of nonlinear residual: 1
+***** Belos Iterative Solver:  Pseudo Block BiCGStab 
+Iter   0, [ 1] :    1.000000e+00
+Iter   8, [ 1] :    1.202971e-09
+Time = 0.1, Integrated quantities:  electric_energy = 0.0508225  magnetic_energy = 0.0116694  total_energy = 0.0624919
+**** Beginning Time Step 6
+**** Current time is 0.1
+***** Iteration: 0
+***** Norm of nonlinear residual: 1.38046
+***** Scaled Norm of nonlinear residual: 1
+***** Belos Iterative Solver:  Pseudo Block BiCGStab 
+Iter   0, [ 1] :    1.000000e+00
+Iter   8, [ 1] :    1.122812e-09
+Time = 0.12, Integrated quantities:  electric_energy = 0.0461809  magnetic_energy = 0.016311  total_energy = 0.0624919
+**** Beginning Time Step 7
+**** Current time is 0.12
+***** Iteration: 0
+***** Norm of nonlinear residual: 1.31618
+***** Scaled Norm of nonlinear residual: 1
+***** Belos Iterative Solver:  Pseudo Block BiCGStab 
+Iter   0, [ 1] :    1.000000e+00
+Iter   8, [ 1] :    1.689447e-09
+Time = 0.14, Integrated quantities:  electric_energy = 0.0410634  magnetic_energy = 0.0214284  total_energy = 0.0624919
+**** Beginning Time Step 8
+**** Current time is 0.14
+***** Iteration: 0
+***** Norm of nonlinear residual: 1.24133
+***** Scaled Norm of nonlinear residual: 1
+***** Belos Iterative Solver:  Pseudo Block BiCGStab 
+Iter   0, [ 1] :    1.000000e+00
+Iter   8, [ 1] :    1.380318e-09
+Time = 0.16, Integrated quantities:  electric_energy = 0.0356331  magnetic_energy = 0.0268587  total_energy = 0.0624919
+**** Beginning Time Step 9
+**** Current time is 0.16
+***** Iteration: 0
+***** Norm of nonlinear residual: 1.1565
+***** Scaled Norm of nonlinear residual: 1
+***** Belos Iterative Solver:  Pseudo Block BiCGStab 
+Iter   0, [ 1] :    1.000000e+00
+Iter   8, [ 1] :    8.800415e-10
+Time = 0.18, Integrated quantities:  electric_energy = 0.0300631  magnetic_energy = 0.0324288  total_energy = 0.0624919
+**** Beginning Time Step 10
+**** Current time is 0.18
+***** Iteration: 0
+***** Norm of nonlinear residual: 1.06234
+***** Scaled Norm of nonlinear residual: 1
+***** Belos Iterative Solver:  Pseudo Block BiCGStab 
+Iter   0, [ 1] :    1.000000e+00
+Iter   8, [ 1] :    3.836584e-10
+Time = 0.2, Integrated quantities:  electric_energy = 0.0245307  magnetic_energy = 0.0379612  total_energy = 0.0624919
+electric_energy : 0.0245307
+magnetic_energy : 0.0379612
+total_energy : 0.0624919

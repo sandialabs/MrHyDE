@@ -5,6 +5,7 @@ import sys
 sys.path.append("../../../../scripts")
 sys.path.append("../../../../../scripts/data_processing")
 from mrhyde_test_support import *
+from trilinos_env import enable_trilinos_debug
 from parse_log import check, Results
 
 its = mrhyde_test_support('''RefMaxwell with the addon enabled: recovered beta and iteration count.''')
@@ -18,7 +19,8 @@ its.opts.verbose = True
 BETA, BETA_TOL = 0.1, 1.0e-10
 
 res = Results()
-status = its.call('mpiexec -n 4 ../../../../mrhyde input.yaml >& mrhyde.log')
+status = enable_trilinos_debug()
+status += its.call('mpiexec -n 4 ../../../../mrhyde input.yaml >& mrhyde.log')
 text = open("mrhyde.log").read()
 
 seen = [float(m) for m in re.findall(r"\[ADDON\] beta = ([-0-9.eE+]+)", text)]

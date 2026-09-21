@@ -4,6 +4,7 @@ import sys
 sys.path.append("../../../../scripts")
 sys.path.append("../../../../../scripts/data_processing")
 from mrhyde_test_support import *
+from trilinos_env import enable_trilinos_debug
 from parse_log import iterations, stats, Results
 
 its = mrhyde_test_support('''Block-triangular, KLU on both blocks, at 1/2/4 ranks.''')
@@ -17,7 +18,9 @@ RANKS = [1, 2, 4]
 ITER_TOL = 1
 
 res = Results()
-status = 0
+# TPETRA_DEBUG off: Amesos2 reindex_impl builds an overlapping column map
+# with a non-overlapping global size, which trips Tpetra's own check.
+status = enable_trilinos_debug(tpetra=False)
 runs = {}
 for n in RANKS:
     log = "mrhyde_np%d.log" % n
