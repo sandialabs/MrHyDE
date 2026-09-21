@@ -50,43 +50,6 @@ inline void loadXmlBroadcast(const std::string & file,
 template<class Node>
 class LinearSolverContext;
 
-inline bool keyInSet(const std::string & key, const std::set<std::string> & allowed) {
-  return allowed.find(key) != allowed.end();
-}
-
-inline void throwUnknownKey(const std::string & sectionName, const std::string & key,
-                            const std::set<std::string> & allowedParams,
-                            const std::set<std::string> & allowedSublists) {
-  std::ostringstream msg;
-  msg << "Unknown key '" << key << "' in section '" << sectionName << "'.";
-  msg << "\nAllowed parameters:";
-  for (std::set<std::string>::const_iterator it = allowedParams.begin(); it != allowedParams.end(); ++it) {
-    msg << "\n  - " << *it;
-  }
-  msg << "\nAllowed sublists:";
-  for (std::set<std::string>::const_iterator it = allowedSublists.begin(); it != allowedSublists.end(); ++it) {
-    msg << "\n  - " << *it;
-  }
-  TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error, msg.str());
-}
-
-inline void validateAllowedKeys(const Teuchos::ParameterList & list,
-                                const std::string & sectionName,
-                                const std::set<std::string> & allowedParams,
-                                const std::set<std::string> & allowedSublists) {
-  for (Teuchos::ParameterList::ConstIterator it = list.begin(); it != list.end(); ++it) {
-    const std::string key = list.name(it);
-    if (list.isSublist(key)) {
-      if (!keyInSet(key, allowedSublists)) {
-        throwUnknownKey(sectionName, key, allowedParams, allowedSublists);
-      }
-    }
-    else if (!keyInSet(key, allowedParams)) {
-      throwUnknownKey(sectionName, key, allowedParams, allowedSublists);
-    }
-  }
-}
-
 inline std::string canonicalPreconditionerType(const std::string & raw) {
   const std::string u = toUpperAsciiCopy(raw);
   if (u == "AMG" || u == "MUELU") return "AMG";
@@ -152,39 +115,57 @@ inline Teuchos::ParameterList defaultMueLuParams() {
   return mueluParams;
 }
 
-inline std::set<std::string> defaultRefMaxwellAllowedParams() {
-  const char * keys[] = {
-    "xml param file",
-    "filter SM", "filter threshold",
-    "verify complex"
-  };
-  return std::set<std::string>(keys, keys + sizeof(keys) / sizeof(keys[0]));
+inline Teuchos::ParameterList validRefMaxwellParams() {
+  Teuchos::ParameterList v("RefMaxwell Settings");
+  v.set("xml param file", "");
+  v.set("filter SM", false);
+  v.set("filter threshold", 1.0e-14);
+  v.set("verify complex", false);
+  return v;
 }
 
-inline std::set<std::string> defaultRefMaxwellAllowedSublists() {
-  return std::set<std::string>();
+inline Teuchos::ParameterList validMaxwell1Params() {
+  Teuchos::ParameterList v = validRefMaxwellParams();
+  v.setName("Maxwell1 Settings");
+  v.set("verify Kn consistency", false);
+  v.set("use Kn from M1", false);
+  return v;
 }
 
-inline std::set<std::string> defaultMaxwell1AllowedParams() {
-  const char * keys[] = {
-    "xml param file",
-    "filter SM", "filter threshold",
-    "verify complex", "verify Kn consistency",
-    "use Kn from M1"
-  };
-  return std::set<std::string>(keys, keys + sizeof(keys) / sizeof(keys[0]));
+inline Teuchos::ParameterList validPivotBlockParams() {
+  Teuchos::ParameterList v("Pivot Block Settings");
+  v.set("preconditioner type", "AMG");
+  v.set("diag use lumped diagonal", false);
+  v.set("hgrad basis name", "");
+  v.set("hcurl basis name", "");
+  v.set("inner krylov solver", "");
+  v.set("inner krylov max iters", 5);
+  v.set("inner krylov tol", 1.0e-2);
+  // MueLu and the nested MrHyDE lists are validated on their own terms.
+  v.sublist("AMG Settings").disableRecursiveValidation();
+  v.sublist("RefMaxwell Settings").disableRecursiveValidation();
+  v.sublist("Maxwell1 Settings").disableRecursiveValidation();
+  return v;
 }
 
-inline std::set<std::string> defaultMaxwell1AllowedSublists() {
-  return std::set<std::string>();
+inline Teuchos::ParameterList validSchurBlockParams() {
+  Teuchos::ParameterList v = validPivotBlockParams();
+  v.setName("Schur Block Settings");
+  v.set("approximation type", "base");
+  v.set("pivot block", 0);
+  v.set("triangle", "auto");
+  v.set("diag use lumped pivot diagonal", false);
+  v.set("smoother: type", "");
+  v.sublist("smoother: params").disableRecursiveValidation();
+  return v;
 }
 
-inline void validateRefMaxwellSettingsSection(const Teuchos::ParameterList & list, const std::string & sectionName) {
-  validateAllowedKeys(list, sectionName, defaultRefMaxwellAllowedParams(), defaultRefMaxwellAllowedSublists());
+inline void validateRefMaxwellSettingsSection(const Teuchos::ParameterList & list, const std::string &) {
+  list.validateParameters(validRefMaxwellParams());
 }
 
-inline void validateMaxwell1SettingsSection(const Teuchos::ParameterList & list, const std::string & sectionName) {
-  validateAllowedKeys(list, sectionName, defaultMaxwell1AllowedParams(), defaultMaxwell1AllowedSublists());
+inline void validateMaxwell1SettingsSection(const Teuchos::ParameterList & list, const std::string &) {
+  list.validateParameters(validMaxwell1Params());
 }
 
 inline void validateNestedBlockSublists(const Teuchos::ParameterList & list, const std::string & sectionName) {
@@ -197,15 +178,7 @@ inline void validateNestedBlockSublists(const Teuchos::ParameterList & list, con
 }
 
 inline void validatePivotBlockSettingsSection(const Teuchos::ParameterList & list, const std::string & sectionName) {
-  const char * keys[] = {
-    "preconditioner type", "diag use lumped diagonal",
-    "hgrad basis name", "hcurl basis name",
-    "inner krylov solver", "inner krylov max iters", "inner krylov tol"
-  };
-  const char * subkeys[] = {"AMG Settings", "RefMaxwell Settings", "Maxwell1 Settings"};
-  validateAllowedKeys(list, sectionName,
-    std::set<std::string>(keys, keys + sizeof(keys) / sizeof(keys[0])),
-    std::set<std::string>(subkeys, subkeys + sizeof(subkeys) / sizeof(subkeys[0])));
+  list.validateParameters(validPivotBlockParams());
   if (list.isParameter("preconditioner type")) {
     canonicalBlockPrecType(list.get<std::string>("preconditioner type"));
   }
@@ -213,17 +186,7 @@ inline void validatePivotBlockSettingsSection(const Teuchos::ParameterList & lis
 }
 
 inline void validateSchurBlockSettingsSection(const Teuchos::ParameterList & list, const std::string & sectionName) {
-  const char * keys[] = {
-    "preconditioner type", "approximation type", "pivot block", "triangle",
-    "diag use lumped pivot diagonal",
-    "hgrad basis name", "hcurl basis name",
-    "smoother: type", "diag use lumped diagonal",
-    "inner krylov solver", "inner krylov max iters", "inner krylov tol"
-  };
-  const char * subkeys[] = {"smoother: params", "AMG Settings", "RefMaxwell Settings", "Maxwell1 Settings"};
-  validateAllowedKeys(list, sectionName,
-    std::set<std::string>(keys, keys + sizeof(keys) / sizeof(keys[0])),
-    std::set<std::string>(subkeys, subkeys + sizeof(subkeys) / sizeof(subkeys[0])));
+  list.validateParameters(validSchurBlockParams());
   if (list.isParameter("preconditioner type")) {
     canonicalBlockPrecType(list.get<std::string>("preconditioner type"));
   }

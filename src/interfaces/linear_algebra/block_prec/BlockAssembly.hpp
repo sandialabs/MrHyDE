@@ -6,6 +6,8 @@
 #include "linearAlgebraInterface.hpp"
 #include "linearSolverContext.hpp"
 
+#include <BelosLinearProblem.hpp>
+#include <BelosTpetraOperator.hpp>
 #include <MueLu_CreateTpetraPreconditioner.hpp>
 #include <Xpetra_MatrixFactory.hpp>
 #include <Xpetra_VectorFactory.hpp>
@@ -955,13 +957,14 @@ maybeWrapInInnerKrylov(LinearAlgebraInterface<Node> & interface,
   using LA_MultiVector = typename Types::MultiVector;
   using LA_Operator = typename Types::Operator;
   using LA_LinearProblem = Belos::LinearProblem<ScalarT, LA_MultiVector, LA_Operator>;
-  if (!cntxt.is_null()) {
-    TEUCHOS_TEST_FOR_EXCEPTION(toUpperAsciiCopy(cntxt->belos_type) != "BLOCK GMRES" ||
-                               !cntxt->flexible_gmres || !cntxt->right_preconditioner,
-      std::runtime_error,
-      "[" << label << "] inner Krylov requires Block GMRES with 'Flexible Gmres: true' "
-      "and 'right preconditioner: true'.");
-  }
+  // Inner Krylov gives a different operator on every apply, so the outer solver
+  // has to be right-preconditioned flexible GMRES.
+  TEUCHOS_TEST_FOR_EXCEPTION(cntxt.is_null() ||
+                             toUpperAsciiCopy(cntxt->belos_type) != "BLOCK GMRES" ||
+                             !cntxt->flexible_gmres || !cntxt->right_preconditioner,
+    std::runtime_error,
+    "[" << label << "] 'inner krylov solver' requires Block GMRES with "
+    "'Flexible Gmres: true' and 'right preconditioner: true'.");
   const std::string innerSolver = blockList.get<std::string>("inner krylov solver");
   const int innerMaxIters = blockList.isParameter("inner krylov max iters")
     ? blockList.get<int>("inner krylov max iters") : 5;
@@ -978,14 +981,14 @@ maybeWrapInInnerKrylov(LinearAlgebraInterface<Node> & interface,
   Teuchos::RCP<LA_LinearProblem> problem = Teuchos::rcp(new LA_LinearProblem(
     Teuchos::rcp_implicit_cast<LA_Operator>(blockMat), Teuchos::null, Teuchos::null));
   problem->setRightPrec(innerPrec);
-  auto solver = interface.createBelosSolverManager(problem, belosList, innerSolver);
   if (interface.verbosity >= 10 && interface.comm->getRank() == 0) {
     std::cout << "[" << label << "] wrapping block preconditioner in inner Belos '"
               << innerSolver << "' (max iters=" << innerMaxIters
               << ", tol=" << innerTol << ")" << std::endl;
   }
   return Teuchos::rcp_implicit_cast<LA_Operator>(
-    Teuchos::rcp(new KrylovWrappedBlockOperator<Node>(blockMat, solver, problem)));
+    Teuchos::rcp(new Belos::TpetraOperator<ScalarT, LO, GO, Node>(
+      problem, belosList, innerSolver, /*initSolnVec=*/ true)));
 }
 
 template<class Node>
