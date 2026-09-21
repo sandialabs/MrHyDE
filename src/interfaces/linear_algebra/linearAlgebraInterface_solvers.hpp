@@ -738,22 +738,6 @@ LinearAlgebraInterface<Node>::buildMaxwell1Preconditioner(
                 << BCnodes << " BC nodes" << std::endl;
     }
 
-    // Remove BC rows before Maxwell1 adds zeros that ReitzingerPFactory rejects.
-    // Kn already uses the full D0.
-    if (BCedges > 0) {
-      Kokkos::View<const bool*, dev_mem_space> BCrowsK_c = BCrowsK;
-      Teuchos::RCP<LA_CrsMatrix> D0_bc_pruned = block_prec::detail::dropBCRows<Node>(
-          cntxt->maxwell1.D0_normalized, BCrowsK_c);
-      using XpetraCrs = Xpetra::TpetraCrsMatrix<ScalarT, LO, GO, Node>;
-      using XpetraCrsWrap = Xpetra::CrsMatrixWrap<ScalarT, LO, GO, Node>;
-      using XpetraCrsMatrix = Xpetra::CrsMatrix<ScalarT, LO, GO, Node>;
-      D0_wrap = Teuchos::rcp(new XpetraCrsWrap(
-          Teuchos::rcp_implicit_cast<XpetraCrsMatrix>(
-              Teuchos::rcp(new XpetraCrs(D0_bc_pruned)))));
-    }
-
-    // Zero Dirichlet rows and columns, then restore the original diagonal.
-
     if (BCnodes > 0) {
       block_prec::detail::applyDirichletBCsToKn<Node>(Kn_from_M1, BCdomainK);
     }
