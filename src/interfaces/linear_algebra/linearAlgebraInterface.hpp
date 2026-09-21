@@ -631,10 +631,6 @@ public:
   /** @brief Extract diagonal block submatrix for given row/column map. */
   matrix_RCP extractDiagonalBlock(const matrix_RCP & J,
                                   const Teuchos::RCP<const LA_Map> & blockMap);
-  /** @brief Extract off-diagonal block submatrix for given row/column maps. */
-  matrix_RCP extractOffDiagonalBlock(const matrix_RCP & J,
-                                     const Teuchos::RCP<const LA_Map> & rowMap,
-                                     const Teuchos::RCP<const LA_Map> & colMap);
   /** @brief Build block-diagonal preconditioner; per-block smoother from Block b Settings (preconditioner variant, default RELAXATION/Jacobi). */
   Teuchos::RCP<LA_Operator> buildBlockDiagonalPreconditioner(const matrix_RCP & J,
                                                              const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,

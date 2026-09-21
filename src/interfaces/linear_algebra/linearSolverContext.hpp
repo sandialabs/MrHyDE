@@ -35,12 +35,10 @@
 
 namespace MrHyDE {
 
-/** \brief Schur approximation and block-triangular options (variant, damping, pivot block, strictness). */
+/** \brief Schur approximation and block-triangular options (type, damping, pivot block, strictness). */
 struct SchurConfig {
   /** Canonical Schur approximation family (currently base or diag). */
   std::string approximation_type;
-  /** Active Schur variant used by assembly path (kept in sync with approximation_type). */
-  std::string variant;
   /**< Pivot block index p. pivot_block=0 -> Schur on block 1: S = J11 - J10*inv(J00)*J01.
    *   pivot_block=1 -> Schur on block 0: S = J00 - J01*inv(J11)*J10. */
   int pivot_block;
@@ -54,7 +52,7 @@ struct SchurConfig {
   std::string schur_block_preconditioner_type;
 };
 
-/** \brief RefMaxwell auxiliary matrices and vectors (D0, M1, coords, nullspace) and debug/strict flags. */
+/** \brief RefMaxwell auxiliary matrices and vectors (D0, M1, coords) and debug/strict flags. */
 template<class Node>
 struct RefMaxwellData {
   typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node>   LA_CrsMatrix;
@@ -66,12 +64,14 @@ struct RefMaxwellData {
   std::vector<Teuchos::RCP<LA_CrsMatrix> > block_mass_matrices;  /**< Mass matrix per variable block. */
   std::vector<Teuchos::RCP<LA_CoordMultiVector> > block_dof_coords;  /**< Coordinates per variable block for MueLu. */
   Teuchos::RCP<LA_CoordMultiVector> nodal_coords;
+  /** Lumped nodal mass, integral(N_n), for the RefMaxwell addon. */
   Teuchos::RCP<LA_MultiVector> nodal_lumped_mass;
-  ScalarT addon_beta = 0.0;   /**< Curl-curl coefficient of S, for the RefMaxwell addon. */
-  ScalarT addon_beta_built = 0.0; /**< beta baked into the cached hierarchy. */
-  bool addon_wanted = false;      /**< XML asked for the addon. */
-  /**< Lumped nodal mass, integral(N_n), for the RefMaxwell addon. */
-  Teuchos::RCP<LA_MultiVector> nullspace;
+  /** Curl-curl coefficient of S, read off the Schur correction, so it applies
+   *  to the Schur block only. The pivot hierarchy is cached separately and has
+   *  no beta of its own. */
+  ScalarT schur_addon_beta = 0.0;
+  ScalarT schur_addon_beta_built = 0.0; /**< beta baked into the cached Schur hierarchy. */
+  bool schur_addon_wanted = false;      /**< The Schur XML asked for the addon. */
   std::string xml_param_file_pivot = "";
   std::string xml_param_file_schur = "";
 };
@@ -173,11 +173,11 @@ public:
   bool have_matrix;           /**< Indicates whether a Jacobian has been constructed. */
   bool have_preconditioner;     /**< Indicates whether a preconditioner exists. */
   bool have_symb_factor;        /**< Indicates whether symbolic factorization exists. */
-  /**< Grouped Schur and block-tri options (variant, damping, pivot block, strictness). */
+  /**< Grouped Schur and block-tri options (type, damping, pivot block, strictness). */
   SchurConfig schur;
   /**< AMG preconditioner configuration data including XML parameter support. */
   AMGData amg;
-  /**< RefMaxwell matrices/vectors (D0, M1, coords, nullspace) and debug/strict flags. */
+  /**< RefMaxwell matrices/vectors (D0, M1, coords) and debug/strict flags. */
   RefMaxwellData<Node> refMaxwell;
   /**< Maxwell1 (Reitzinger-Schoberl / energy-min) configuration; reuses D0 + coords from refMaxwell. */
   Maxwell1Data<Node> maxwell1;
@@ -257,7 +257,6 @@ private:
     right_preconditioner = settings.get<bool>("right preconditioner",false);
     reuse_matrix = settings.get<bool>("reuse Jacobian",false);
     schur.approximation_type = canonicalSchurApproximationType(settings.get<string>("Schur approximation type","base"));
-    schur.variant = schur.approximation_type;
     schur.pivot_block = settings.get<int>("Schur pivot block",0);
     schur.damping = settings.get<ScalarT>("Schur damping",Teuchos::ScalarTraits<ScalarT>::one());
     schur.diag_use_lumped_pivot_diagonal =
@@ -330,7 +329,6 @@ private:
     if (schur_block_sublist.isParameter("approximation type")) {
       schur.approximation_type =
         canonicalSchurApproximationType(schur_block_sublist.get<string>("approximation type"));
-      schur.variant = schur.approximation_type;
     }
     if (schur_block_sublist.isParameter("pivot block")) {
       schur.pivot_block = schur_block_sublist.get<int>("pivot block");

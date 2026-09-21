@@ -20,13 +20,11 @@ template<class Node>
 struct RefMaxwellXpetraInputs {
   using CoordScalarT = typename Teuchos::ScalarTraits<ScalarT>::coordinateType;
   using XpetraMatrix = Xpetra::Matrix<ScalarT, LO, GO, Node>;
-  using XpetraMultiVector = Xpetra::MultiVector<ScalarT, LO, GO, Node>;
   using XpetraCoordMV = Xpetra::TpetraMultiVector<CoordScalarT, LO, GO, Node>;
   Teuchos::RCP<XpetraMatrix> SM_wrap;
   Teuchos::RCP<XpetraMatrix> D0_wrap;
   Teuchos::RCP<XpetraMatrix> M1_wrap;
   Teuchos::RCP<XpetraCoordMV> coords_xpetra;
-  Teuchos::RCP<XpetraMultiVector> nullspace_xpetra;
 };
 
 template<class Node>
@@ -34,24 +32,18 @@ RefMaxwellXpetraInputs<Node> buildRefMaxwellXpetraInputs(
     const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT, LO, GO, Node> > & J,
     const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT, LO, GO, Node> > & D0,
     const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT, LO, GO, Node> > & M1,
-    const Teuchos::RCP<const Tpetra::MultiVector<typename Teuchos::ScalarTraits<ScalarT>::coordinateType, LO, GO, Node> > & nodal_coords,
-    const Teuchos::RCP<const Tpetra::MultiVector<ScalarT, LO, GO, Node> > & nullspace) {
+    const Teuchos::RCP<const Tpetra::MultiVector<typename Teuchos::ScalarTraits<ScalarT>::coordinateType, LO, GO, Node> > & nodal_coords) {
   using CoordScalarT = typename Teuchos::ScalarTraits<ScalarT>::coordinateType;
-  using TpetraCrs = Tpetra::CrsMatrix<ScalarT, LO, GO, Node>;
   using XpetraCrs = Xpetra::TpetraCrsMatrix<ScalarT, LO, GO, Node>;
   using XpetraCrsMatrix = Xpetra::CrsMatrix<ScalarT, LO, GO, Node>;
   using XpetraCrsWrap = Xpetra::CrsMatrixWrap<ScalarT, LO, GO, Node>;
-  using XpetraMV = Xpetra::TpetraMultiVector<ScalarT, LO, GO, Node>;
   using TpetraCoordMV = Tpetra::MultiVector<CoordScalarT, LO, GO, Node>;
   RefMaxwellXpetraInputs<Node> out;
-  out.SM_wrap = Teuchos::rcp(new XpetraCrsWrap(Teuchos::rcp_implicit_cast<XpetraCrsMatrix>(Teuchos::rcp(new XpetraCrs(Teuchos::rcp_const_cast<TpetraCrs>(J))))));
-  out.D0_wrap = Teuchos::rcp(new XpetraCrsWrap(Teuchos::rcp_implicit_cast<XpetraCrsMatrix>(Teuchos::rcp(new XpetraCrs(Teuchos::rcp_const_cast<TpetraCrs>(D0))))));
-  out.M1_wrap = Teuchos::rcp(new XpetraCrsWrap(Teuchos::rcp_implicit_cast<XpetraCrsMatrix>(Teuchos::rcp(new XpetraCrs(Teuchos::rcp_const_cast<TpetraCrs>(M1))))));
+  out.SM_wrap = wrapAsXpetraMatrix<Node>(J);
+  out.D0_wrap = wrapAsXpetraMatrix<Node>(D0);
+  out.M1_wrap = wrapAsXpetraMatrix<Node>(M1);
   out.coords_xpetra = Teuchos::rcp(new Xpetra::TpetraMultiVector<CoordScalarT, LO, GO, Node>(
       Teuchos::rcp_const_cast<TpetraCoordMV>(nodal_coords)));
-  out.nullspace_xpetra = nullspace.is_null()
-    ? Teuchos::null
-    : Teuchos::rcp(new XpetraMV(Teuchos::rcp_const_cast<Tpetra::MultiVector<ScalarT, LO, GO, Node>>(nullspace)));
   return out;
 }
 
@@ -68,40 +60,7 @@ void applyDirichletBCsToKn(
 
   auto knColMap = Kn->getColMap();
   auto knRowMap = Kn->getRowMap();
-  auto knDomMap = Kn->getDomainMap();
-  const LO nColLocal = static_cast<LO>(knColMap->getLocalNumElements());
-  Kokkos::View<bool*, dev_mem_space> BCcols("BCcols_kn", nColLocal);
-  {
-    TEUCHOS_TEST_FOR_EXCEPTION(!knRowMap->isSameAs(*knDomMap), std::runtime_error,
-      "applyDirichletBCsToKn: Kn row and domain maps must agree.");
-    const ScalarT one = Teuchos::ScalarTraits<ScalarT>::one();
-    const ScalarT zero = Teuchos::ScalarTraits<ScalarT>::zero();
-
-    Teuchos::RCP<XpetraVector> bcDom =
-        Xpetra::VectorFactory<ScalarT, LO, GO, Node>::Build(knDomMap, true);
-    {
-      auto domView = bcDom->getLocalViewDevice(Tpetra::Access::OverwriteAll);
-      Kokkos::parallel_for("BCcols_mark_domain",
-          Kokkos::RangePolicy<typename Node::execution_space>(0, domView.extent(0)),
-          KOKKOS_LAMBDA(const LO i) {
-            domView(i, 0) = BCdomainNodal(i) ? one : zero;
-          });
-    }
-
-    Teuchos::RCP<XpetraVector> bcCol = bcDom;
-    auto knImporter = Kn->getCrsGraph()->getImporter();
-    if (!knImporter.is_null()) {
-      bcCol = Xpetra::VectorFactory<ScalarT, LO, GO, Node>::Build(knColMap, true);
-      bcCol->doImport(*bcDom, *knImporter, Xpetra::INSERT);
-    }
-
-    auto colView = bcCol->getLocalViewDevice(Tpetra::Access::ReadOnly);
-    Kokkos::parallel_for("BCcols_fill",
-        Kokkos::RangePolicy<typename Node::execution_space>(0, nColLocal),
-        KOKKOS_LAMBDA(const LO cLid) {
-          BCcols(cLid) = (colView(cLid, 0) != zero);
-        });
-  }
+  Kokkos::View<bool*, dev_mem_space> BCcols = knColumnMask<Node>(Kn, BCdomainNodal);
   Kokkos::View<const bool*, dev_mem_space> BCdomain_c = BCdomainNodal;
   Kokkos::View<const bool*, dev_mem_space> BCcols_c = BCcols;
   MueLu::UtilitiesBase<ScalarT, LO, GO, Node>::ZeroDirichletRows(Kn, BCdomain_c);
@@ -232,11 +191,9 @@ LinearAlgebraInterface<Node>::buildOrUpdatePreconditioner(
 
   if (cntxt->prec_type == "block diagonal") {
     const size_t set = cntxt->equation_set_index;
-    std::string reuseType = cntxt->preconditioner_reuse_type;
-    toUpperAscii(reuseType);
     const bool keepExisting = cntxt->have_preconditioner && !cntxt->prec_block.is_null() &&
-      (reuseType == "FULL" ||
-       (reuseType == "UPDATE" && !cntxt->jacobian_rebuilt_this_step));
+      reuseKeepsOperator(cntxt->preconditioner_reuse_type,
+                                     cntxt->jacobian_rebuilt_this_step);
     if (!keepExisting) {
       cntxt->prec_block = this->buildBlockDiagonalPreconditioner(J, cntxt, set);
       cntxt->have_preconditioner = true;
@@ -536,63 +493,42 @@ LinearAlgebraInterface<Node>::buildRefMaxwellPreconditioner(
     "RefMaxwell requires nodal coordinates length to match D0 column count.");
   TEUCHOS_TEST_FOR_EXCEPTION(cntxt->refMaxwell.nodal_coords->getLocalLength() != nodal_map->getLocalNumElements(), std::runtime_error,
     "RefMaxwell requires nodal coordinates local length to match local D0 domain size.");
-  const bool hasNestedRefMaxwellSettings =
-    (blockSublist.name() != "empty") &&
-    blockSublist.isSublist("RefMaxwell Settings");
-
+  using XpetraOperator = Xpetra::Operator<ScalarT, LO, GO, Node>;
+  const Teuchos::ParameterList rmSettings = blockSublist.isSublist("RefMaxwell Settings")
+    ? blockSublist.sublist("RefMaxwell Settings") : Teuchos::ParameterList();
 
   // Filtering and operator checks are disabled by default.
-  matrix_RCP SM_for_setup = J;
-  matrix_RCP M1_for_setup = M1_use;
-  block_prec::detail::FilterResult<Node> smFilterResult;
-  block_prec::detail::FilterResult<Node> m1FilterResult;
-  const block_prec::detail::FilterOpts filterOpts =
-    hasNestedRefMaxwellSettings
-      ? block_prec::detail::readFilterOpts(blockSublist.sublist("RefMaxwell Settings"))
-      : block_prec::detail::FilterOpts{};
-  if (filterOpts.filterSM) {
-    smFilterResult = block_prec::detail::filterExplicitZeros<Node>(
-      Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(J), filterOpts.tol, filterOpts.verifyComplex);
-    m1FilterResult = block_prec::detail::filterExplicitZeros<Node>(
-      Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(M1_use), filterOpts.tol, filterOpts.verifyComplex);
-    SM_for_setup = smFilterResult.matrix;
-    M1_for_setup = m1FilterResult.matrix;
-    block_prec::detail::assertStructuralSymmetry<Node>(
-      Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(M1_for_setup), "RefMaxwell M1 filter");
-    block_prec::detail::assertKernelBound<Node>(
-      Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(SM_for_setup),
-      Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(J),
-      cntxt->refMaxwell.D0_matrix, filterOpts.tol, "RefMaxwell SM filter");
-    if (verbosity >= 6 && rank == 0) {
-      const auto sm_in = J->getGlobalNumEntries(),   sm_out = SM_for_setup->getGlobalNumEntries();
-      const auto m1_in = M1_use->getGlobalNumEntries(), m1_out = M1_for_setup->getGlobalNumEntries();
-      std::cout << "[RefMaxwell] filter SM tol=" << filterOpts.tol
-                << ": SM " << sm_in << " -> " << sm_out
-                << " (dropped " << (100.0 * (sm_in - sm_out) / std::max<decltype(sm_in)>(sm_in, 1)) << "%)"
-                << ", M1 " << m1_in << " -> " << m1_out
-                << " (dropped " << (100.0 * (m1_in - m1_out) / std::max<decltype(m1_in)>(m1_in, 1)) << "%)"
-                << std::endl;
-    }
+  const block_prec::detail::FilterOpts filterOpts = block_prec::detail::readFilterOpts(rmSettings);
+
+  // MueLu bakes beta into the hierarchy, and only the Schur one has an addon.
+  const ScalarT betaTarget = (forSchur && cntxt->refMaxwell.schur_addon_wanted)
+    ? cntxt->refMaxwell.schur_addon_beta : 0.0;
+  const ScalarT betaWas = forSchur ? cntxt->refMaxwell.schur_addon_beta_built : 0.0;
+  if (std::abs(betaTarget - betaWas) >
+      1.0e-12 * std::max(std::abs(betaTarget), std::abs(betaWas))) {
+    precCache = Teuchos::null;
   }
-  if (filterOpts.verifyComplex) {
-    block_prec::detail::verifyMaxwellComplex<Node>(
-      cntxt->refMaxwell.D0_matrix, cntxt->refMaxwell.nodal_coords,
-      cntxt->refMaxwell.nullspace,
-      Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(J),
-      Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(M1_use),
-      Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(SM_for_setup),
-      Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(M1_for_setup),
-      smFilterResult.dropped, m1FilterResult.dropped,
-      filterOpts.tol, verbosity, rank, "RefMaxwell");
+  const bool canReuse = !precCache.is_null() &&
+    reuseKeepsHierarchy(cntxt->preconditioner_reuse_type);
+
+  block_prec::detail::MaxwellInputs<Node> in = block_prec::detail::filterSMOnly<Node>(
+    J, M1_use, cntxt->refMaxwell.D0_matrix, filterOpts, canReuse);
+
+  // Everything past here feeds the hierarchy build, which reuse skips.
+  if (canReuse) {
+    return block_prec::detail::resetAndWrap<Node>(precCache, in.SM, "RefMaxwell",
+                                                  forSchur, verbosity, rank);
   }
+  block_prec::detail::finishMaxwellInputs<Node>(
+    in, cntxt->refMaxwell.nodal_coords, filterOpts, "RefMaxwell", verbosity, rank);
+  matrix_RCP SM_for_setup = in.SM, M1_for_setup = in.M1;
 
   block_prec::detail::RefMaxwellXpetraInputs<Node> xpetraInputs = block_prec::detail::buildRefMaxwellXpetraInputs<Node>(
-    SM_for_setup, cntxt->refMaxwell.D0_matrix, M1_for_setup, cntxt->refMaxwell.nodal_coords, cntxt->refMaxwell.nullspace);
+    SM_for_setup, cntxt->refMaxwell.D0_matrix, M1_for_setup, cntxt->refMaxwell.nodal_coords);
   Teuchos::RCP<XpetraMatrix> SM_wrap = xpetraInputs.SM_wrap;
   Teuchos::RCP<XpetraMatrix> D0_wrap = xpetraInputs.D0_wrap;
   Teuchos::RCP<XpetraMatrix> M1_wrap = xpetraInputs.M1_wrap;
   auto coords_xpetra = xpetraInputs.coords_xpetra;
-  auto nullspace_xpetra = xpetraInputs.nullspace_xpetra;
 
   if (verbosity >= 10 && rank == 0) {
     std::cout << "[RefMaxwell preflight] A rows=" << J->getGlobalNumRows()
@@ -616,29 +552,6 @@ LinearAlgebraInterface<Node>::buildRefMaxwellPreconditioner(
     "RefMaxwell requires 'xml param file' in "
     << (forSchur ? "Schur" : "Pivot") << " Block Settings -> RefMaxwell Settings.");
 
-  using XpetraOperator = Xpetra::Operator<ScalarT, LO, GO, Node>;
-  const std::string reuseType = toUpperAsciiCopy(cntxt->preconditioner_reuse_type);
-  // MueLu bakes the addon into the hierarchy, so a changed beta makes it stale.
-  const ScalarT betaTarget =
-    cntxt->refMaxwell.addon_wanted ? cntxt->refMaxwell.addon_beta : 0.0;
-  const ScalarT betaWas = cntxt->refMaxwell.addon_beta_built;
-  if (std::abs(betaTarget - betaWas) >
-      1.0e-12 * std::max(std::abs(betaTarget), std::abs(betaWas))) {
-    precCache = Teuchos::null;
-  }
-
-  const bool canReuse = !precCache.is_null() && (reuseType == "FULL" || reuseType == "UPDATE");
-
-  // Reuse needs none of the XML parsing or filtering below.
-  if (canReuse) {
-    precCache->resetMatrix(SM_wrap);
-    if (verbosity >= 10 && J->getComm()->getRank() == 0) {
-      std::cout << "[RefMaxwell] Reusing existing hierarchy with resetMatrix()" << (forSchur ? " (Schur)" : "") << std::endl;
-    }
-    return Teuchos::rcp(new MueLu::TpetraOperator<ScalarT, LO, GO, Node>(
-        Teuchos::rcp_static_cast<XpetraOperator>(precCache)));
-  }
-
   Teuchos::ParameterList refmaxwellParams;
 
   loadXmlBroadcast(refmaxwellXmlFile, refmaxwellParams, *J->getComm(), "RefMaxwell");
@@ -655,8 +568,11 @@ LinearAlgebraInterface<Node>::buildRefMaxwellPreconditioner(
   refmaxwellParams.set("refmaxwell: space number", 1);
   // M0(1/beta)^-1 needs beta, so fall back to no addon until it is known.
   const bool wantAddon = !refmaxwellParams.get<bool>("refmaxwell: disable addon", true);
-  cntxt->refMaxwell.addon_wanted = wantAddon;
-  const bool haveAddon = wantAddon && cntxt->refMaxwell.addon_beta > 0.0 &&
+  TEUCHOS_TEST_FOR_EXCEPTION(wantAddon && !forSchur, std::runtime_error,
+    "RefMaxwell XML '" << refmaxwellXmlFile << "' enables the addon on the pivot block. "
+    "beta is read off the Schur correction and has no pivot-block counterpart.");
+  if (forSchur) cntxt->refMaxwell.schur_addon_wanted = wantAddon;
+  const bool haveAddon = wantAddon && cntxt->refMaxwell.schur_addon_beta > 0.0 &&
                          !cntxt->refMaxwell.nodal_lumped_mass.is_null();
   TEUCHOS_TEST_FOR_EXCEPTION(wantAddon && cntxt->refMaxwell.nodal_lumped_mass.is_null(),
     std::runtime_error,
@@ -671,7 +587,7 @@ LinearAlgebraInterface<Node>::buildRefMaxwellPreconditioner(
   }
   // resetMatrix is a no-op unless the hierarchy was built with reuse enabled.
   // MueLu then defaults the sublists to "full", which freezes their smoothers.
-  if (reuseType != "NONE") {
+  if (cntxt->preconditioner_reuse_type != "none") {
     refmaxwellParams.set("refmaxwell: enable reuse", true);
     for (const char * sub : {"refmaxwell: 11list", "refmaxwell: 22list"}) {
       Teuchos::ParameterList & pl = refmaxwellParams.sublist(sub);
@@ -689,13 +605,16 @@ LinearAlgebraInterface<Node>::buildRefMaxwellPreconditioner(
   if (haveAddon) {
     M0inv_wrap = block_prec::detail::wrapAsXpetraMatrix<Node>(
       block_prec::detail::buildScaledInverseDiagonalMatrix<Node>(
-        cntxt->refMaxwell.nodal_lumped_mass, cntxt->refMaxwell.addon_beta));
+        cntxt->refMaxwell.nodal_lumped_mass, cntxt->refMaxwell.schur_addon_beta));
   }
+  // Null nullspace: MueLu forms D0*coords itself, which is what we would pass.
   precCache = Teuchos::rcp(new RefMaxwellType(
       SM_wrap, D0_wrap, M1_wrap, M0inv_wrap, M1_wrap,
-      nullspace_xpetra, coords_xpetra,
+      Teuchos::null, coords_xpetra,
       refmaxwellParams, true));
-  cntxt->refMaxwell.addon_beta_built = haveAddon ? cntxt->refMaxwell.addon_beta : 0.0;
+  if (forSchur) {
+    cntxt->refMaxwell.schur_addon_beta_built = haveAddon ? cntxt->refMaxwell.schur_addon_beta : 0.0;
+  }
   if (verbosity >= 10 && J->getComm()->getRank() == 0) {
     std::cout << "[RefMaxwell] Built new preconditioner hierarchy" << (forSchur ? " (Schur)" : "") << std::endl;
   }
@@ -728,6 +647,7 @@ LinearAlgebraInterface<Node>::buildMaxwell1Preconditioner(
   TEUCHOS_TEST_FOR_EXCEPTION(M1_use.is_null(), std::runtime_error,
     "Maxwell1 setup path reuses the RefMaxwell auxiliary M1 matrix. It is null.");
 
+  const int rank = J->getComm()->getRank();
   // Panzer OPERATOR_GRAD emits +-0.5; MueLu's ReitzingerP requires +-1.
   if (cntxt->maxwell1.D0_normalized.is_null()) {
     cntxt->maxwell1.D0_normalized = block_prec::detail::snapCrsMatrixSigns<Node>(
@@ -735,56 +655,29 @@ LinearAlgebraInterface<Node>::buildMaxwell1Preconditioner(
   }
 
   // Filtering and operator checks are disabled by default.
-  matrix_RCP SM_for_setup = J;
-  matrix_RCP M1_for_setup = M1_use;
-  block_prec::detail::FilterResult<Node> smFilterResult;
-  block_prec::detail::FilterResult<Node> m1FilterResult;
-  const block_prec::detail::FilterOpts filterOpts =
-    blockSublist.isSublist("Maxwell1 Settings")
-      ? block_prec::detail::readFilterOpts(blockSublist.sublist("Maxwell1 Settings"))
-      : block_prec::detail::FilterOpts{};
-  if (filterOpts.filterSM) {
-    smFilterResult = block_prec::detail::filterExplicitZeros<Node>(
-      Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(J), filterOpts.tol, filterOpts.verifyComplex);
-    m1FilterResult = block_prec::detail::filterExplicitZeros<Node>(
-      Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(M1_use), filterOpts.tol, filterOpts.verifyComplex);
-    SM_for_setup = smFilterResult.matrix;
-    M1_for_setup = m1FilterResult.matrix;
-    block_prec::detail::assertStructuralSymmetry<Node>(
-      Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(M1_for_setup), "Maxwell1 M1 filter");
-    block_prec::detail::assertKernelBound<Node>(
-      Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(SM_for_setup),
-      Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(J),
-      cntxt->maxwell1.D0_normalized, filterOpts.tol, "Maxwell1 SM filter");
-    if (verbosity >= 6 && J->getComm()->getRank() == 0) {
-      const auto sm_in = J->getGlobalNumEntries(),   sm_out = SM_for_setup->getGlobalNumEntries();
-      const auto m1_in = M1_use->getGlobalNumEntries(), m1_out = M1_for_setup->getGlobalNumEntries();
-      std::cout << "[Maxwell1] filter SM tol=" << filterOpts.tol
-                << ": SM " << sm_in << " -> " << sm_out
-                << " (dropped " << (100.0 * (sm_in - sm_out) / std::max<decltype(sm_in)>(sm_in, 1)) << "%)"
-                << ", M1 " << m1_in << " -> " << m1_out
-                << " (dropped " << (100.0 * (m1_in - m1_out) / std::max<decltype(m1_in)>(m1_in, 1)) << "%)"
-                << std::endl;
-    }
+  const Teuchos::ParameterList m1Settings = blockSublist.isSublist("Maxwell1 Settings")
+    ? blockSublist.sublist("Maxwell1 Settings") : Teuchos::ParameterList();
+  const block_prec::detail::FilterOpts filterOpts = block_prec::detail::readFilterOpts(m1Settings);
+  const bool canReuse = !precCache.is_null() &&
+    reuseKeepsHierarchy(cntxt->preconditioner_reuse_type);
+
+  block_prec::detail::MaxwellInputs<Node> in = block_prec::detail::filterSMOnly<Node>(
+    J, M1_use, cntxt->maxwell1.D0_normalized, filterOpts, canReuse);
+
+  // Everything past here feeds the hierarchy build, which reuse skips.
+  if (canReuse) {
+    return block_prec::detail::resetAndWrap<Node>(precCache, in.SM, "Maxwell1",
+                                                  forSchur, verbosity, rank);
   }
-  if (filterOpts.verifyComplex) {
-    block_prec::detail::verifyMaxwellComplex<Node>(
-      cntxt->maxwell1.D0_normalized, cntxt->refMaxwell.nodal_coords,
-      cntxt->refMaxwell.nullspace,
-      Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(J),
-      Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(M1_use),
-      Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(SM_for_setup),
-      Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(M1_for_setup),
-      smFilterResult.dropped, m1FilterResult.dropped,
-      filterOpts.tol, verbosity, J->getComm()->getRank(), "Maxwell1");
-  }
+  block_prec::detail::finishMaxwellInputs<Node>(
+    in, cntxt->refMaxwell.nodal_coords, filterOpts, "Maxwell1", verbosity, rank);
+  matrix_RCP SM_for_setup = in.SM, M1_for_setup = in.M1;
 
   block_prec::detail::RefMaxwellXpetraInputs<Node> xpetraInputs = block_prec::detail::buildRefMaxwellXpetraInputs<Node>(
-    SM_for_setup, cntxt->maxwell1.D0_normalized, M1_for_setup, cntxt->refMaxwell.nodal_coords, cntxt->refMaxwell.nullspace);
+    SM_for_setup, cntxt->maxwell1.D0_normalized, M1_for_setup, cntxt->refMaxwell.nodal_coords);
   Teuchos::RCP<XpetraMatrix> SM_wrap = xpetraInputs.SM_wrap;
   Teuchos::RCP<XpetraMatrix> D0_wrap = xpetraInputs.D0_wrap;
   auto coords_xpetra = xpetraInputs.coords_xpetra;
-  auto nullspace_xpetra = xpetraInputs.nullspace_xpetra;
 
   const std::string & maxwell1XmlFile = forSchur ? cntxt->maxwell1.xml_param_file_schur
                                                  : cntxt->maxwell1.xml_param_file_pivot;
@@ -794,23 +687,33 @@ LinearAlgebraInterface<Node>::buildMaxwell1Preconditioner(
     << " 'Maxwell1 Settings' sublist.");
   Teuchos::ParameterList maxwell1Params;
   loadXmlBroadcast(maxwell1XmlFile, maxwell1Params, *J->getComm(), "Maxwell1");
-  if (verbosity >= 6 && J->getComm()->getRank() == 0) {
+  if (verbosity >= 6 && rank == 0) {
     std::cout << "[Maxwell1] Loaded parameters from XML file: " << maxwell1XmlFile << std::endl;
   }
 
   sanitizeDirectCoarseParams(maxwell1Params.sublist("maxwell1: 11list"));
   sanitizeDirectCoarseParams(maxwell1Params.sublist("maxwell1: 22list"));
 
-  const std::string reuseType = toUpperAsciiCopy(cntxt->preconditioner_reuse_type);
-  const bool canReuse = !precCache.is_null() && (reuseType == "FULL" || reuseType == "UPDATE");
-
   // Use M1 because PEC identity rows in SM create O(1)/O(h) diagonal contrast
   // that breaks aggregation in D0^T SM D0.
   Teuchos::RCP<XpetraMatrix> Kn_from_M1;
-  const bool useKnFromM1 = maxwell1Params.isParameter("maxwell1: use Kn from M1") &&
-                           maxwell1Params.get<bool>("maxwell1: use Kn from M1");
+  const bool knXmlSet = maxwell1Params.isParameter("maxwell1: use Kn from M1");
+  const bool knFromXml = knXmlSet && maxwell1Params.get<bool>("maxwell1: use Kn from M1");
   maxwell1Params.remove("maxwell1: use Kn from M1", false);
-  if (useKnFromM1 && !canReuse) {
+  const bool knInYaml = m1Settings.isParameter("use Kn from M1");
+  const bool useKnFromM1 = knInYaml ? m1Settings.get<bool>("use Kn from M1") : knFromXml;
+  if (rank == 0) {
+    if (knXmlSet && knInYaml && knFromXml != useKnFromM1) {
+      std::cout << "WARNING: 'use Kn from M1' is " << (useKnFromM1 ? "true" : "false")
+                << " in Maxwell1 Settings and " << (knFromXml ? "true" : "false")
+                << " in " << maxwell1XmlFile << ". The YAML wins." << std::endl;
+    }
+    else if (knXmlSet && !knInYaml && verbosity >= 1) {
+      std::cout << "WARNING: 'maxwell1: use Kn from M1' is a MrHyDE key, not a MueLu one. "
+                << "Set 'use Kn from M1' in Maxwell1 Settings instead." << std::endl;
+    }
+  }
+  if (useKnFromM1) {
     Teuchos::ParameterList rapList;
     rapList.set("rap: fix zero diagonals", false);
     Kn_from_M1 = MueLu::Maxwell_Utils<ScalarT, LO, GO, Node>::PtAPWrapper(
@@ -830,7 +733,7 @@ LinearAlgebraInterface<Node>::buildMaxwell1Preconditioner(
         SM_wrap, D0_wrap, /*rowSumTol=*/ -1.0,
         BCrowsK, BCcolsK_d0, BCdomainK,
         BCedges, BCnodes, allEdgesBnd, allNodesBnd);
-    if (verbosity >= 10 && J->getComm()->getRank() == 0) {
+    if (verbosity >= 10 && rank == 0) {
       std::cout << "[Maxwell1] Kn from M1: detected " << BCedges << " BC edges, "
                 << BCnodes << " BC nodes" << std::endl;
     }
@@ -858,98 +761,18 @@ LinearAlgebraInterface<Node>::buildMaxwell1Preconditioner(
 
     // Warn if Kn_from_M1 differs from D0^T SM D0 beyond roundoff on non-BC rows.
     if (filterOpts.verifyKnConsistency) {
-      Teuchos::ParameterList rapList2;
-      rapList2.set("rap: fix zero diagonals", false);
-      Teuchos::RCP<XpetraMatrix> Kn_SM = MueLu::Maxwell_Utils<ScalarT, LO, GO, Node>::PtAPWrapper(
-          SM_wrap, D0_wrap, rapList2, "Kn_from_SM");
-      Teuchos::rcp_const_cast<Xpetra::CrsGraph<LO, GO, Node>>(Kn_SM->getCrsGraph())->computeGlobalConstants();
-      Kokkos::View<bool*, dev_mem_space> BCr_sm, BCc_sm, BCd_sm;
-      bool aE = false, aN = false;
-      int nE = 0, nN = 0;
-      MueLu::Maxwell_Utils<ScalarT, LO, GO, Node>::detectBoundaryConditionsSM(
-          SM_wrap, D0_wrap, -1.0, BCr_sm, BCc_sm, BCd_sm, nE, nN, aE, aN);
-      if (nN > 0) block_prec::detail::applyDirichletBCsToKn<Node>(Kn_SM, BCd_sm);
-      auto knM1_wrap = Teuchos::rcp_dynamic_cast<Xpetra::CrsMatrixWrap<ScalarT, LO, GO, Node>>(Kn_from_M1);
-      auto knSM_wrap = Teuchos::rcp_dynamic_cast<Xpetra::CrsMatrixWrap<ScalarT, LO, GO, Node>>(Kn_SM);
-      if (!knM1_wrap.is_null() && !knSM_wrap.is_null()) {
-        using LA_Vector2 = Tpetra::Vector<ScalarT,LO,GO,Node>;
-        auto knM1_op = Teuchos::rcp_dynamic_cast<Xpetra::TpetraCrsMatrix<ScalarT,LO,GO,Node>>(knM1_wrap->getCrsMatrix());
-        auto knSM_op = Teuchos::rcp_dynamic_cast<Xpetra::TpetraCrsMatrix<ScalarT,LO,GO,Node>>(knSM_wrap->getCrsMatrix());
-        if (!knM1_op.is_null() && !knSM_op.is_null()) {
-          auto knM1_tp = knM1_op->getTpetra_CrsMatrix();
-          auto knSM_tp = knSM_op->getTpetra_CrsMatrix();
-          Teuchos::RCP<LA_Vector2> diagM1 = Teuchos::rcp(new LA_Vector2(knM1_tp->getRowMap(), true));
-          knM1_tp->getLocalDiagCopy(*diagM1);
-          auto dM1_h = diagM1->getLocalViewHost(Tpetra::Access::ReadOnly);
-          double diagMaxInf = 0.0;
-          const LO nrLocal = static_cast<LO>(knM1_tp->getRowMap()->getLocalNumElements());
-          for (LO r = 0; r < nrLocal; ++r) {
-            const double a = std::abs(dM1_h(r, 0));
-            if (a > diagMaxInf) diagMaxInf = a;
-          }
-          double diagMaxG = 0.0;
-          Teuchos::reduceAll<int,double>(*(J->getComm()), Teuchos::REDUCE_MAX, 1, &diagMaxInf, &diagMaxG);
-          auto BCd_host = Kokkos::create_mirror_view(BCd_sm);
-          Kokkos::deep_copy(BCd_host, BCd_sm);
-          using host_inds2 = typename Tpetra::CrsMatrix<ScalarT,LO,GO,Node>::nonconst_local_inds_host_view_type;
-          using host_vals2 = typename Tpetra::CrsMatrix<ScalarT,LO,GO,Node>::nonconst_values_host_view_type;
-          double maxDiff = 0.0;
-          size_t nCompared = 0;
-          // Compare each row by merging its sorted column indices.
-          for (LO r = 0; r < nrLocal; ++r) {
-            if (BCd_host(r)) continue;
-            size_t nentM1 = knM1_tp->getNumEntriesInLocalRow(r);
-            size_t nentSM = knSM_tp->getNumEntriesInLocalRow(r);
-            if (nentM1 == 0 || nentSM == 0) continue;
-            host_inds2 cM("kncmp_cM", nentM1), cS("kncmp_cS", nentSM);
-            host_vals2 vM("kncmp_vM", nentM1), vS("kncmp_vS", nentSM);
-            knM1_tp->getLocalRowCopy(r, cM, vM, nentM1);
-            knSM_tp->getLocalRowCopy(r, cS, vS, nentSM);
-            size_t iM = 0, iS = 0;
-            while (iM < nentM1) {
-              const double vMabs = std::abs(vM(iM));
-              double vSabs = 0.0;
-              while (iS < nentSM && cS(iS) < cM(iM)) ++iS;
-              if (iS < nentSM && cS(iS) == cM(iM)) { vSabs = std::abs(vS(iS)); ++iS; }
-              const double d = std::abs(vMabs - vSabs);
-              if (d > maxDiff) maxDiff = d;
-              ++nCompared;
-              ++iM;
-            }
-          }
-          double maxDiffG = 0.0;
-          Teuchos::reduceAll<int,double>(*(J->getComm()), Teuchos::REDUCE_MAX, 1, &maxDiff, &maxDiffG);
-          size_t nCompG = 0;
-          Teuchos::reduceAll<int,size_t>(*(J->getComm()), Teuchos::REDUCE_SUM, 1, &nCompared, &nCompG);
-          if (verbosity >= 6 && J->getComm()->getRank() == 0) {
-            std::cout << "[Maxwell1 verify Kn] non-BC entries compared=" << nCompG
-                      << " max|Kn_M1 - Kn_SM|=" << maxDiffG
-                      << " max|diag Kn_M1|=" << diagMaxG << std::endl;
-            if (diagMaxG > 0.0 && maxDiffG > 1e-10 * diagMaxG) {
-              std::cout << "[Maxwell1 verify Kn] WARN: diff exceeds 1e-10 * max|diag|; "
-                        << "Kn_from_M1 and Kn_from_SM disagree on curl-curl inclusion." << std::endl;
-            }
-          }
-        }
-      }
+      block_prec::verifyKnConsistency<Node>(Kn_from_M1, SM_wrap, D0_wrap, BCdomainK,
+                                            *J->getComm(), verbosity);
     }
   }
 
-  if (canReuse) {
-    precCache->resetMatrix(SM_wrap);
-    if (verbosity >= 10 && J->getComm()->getRank() == 0) {
-      std::cout << "[Maxwell1] Reusing existing hierarchy with resetMatrix()" << (forSchur ? " (Schur)" : "") << std::endl;
-    }
-  }
-  else {
-    precCache = Teuchos::rcp(new Maxwell1Type(
-        SM_wrap, D0_wrap, Kn_from_M1, nullspace_xpetra, coords_xpetra,
-        maxwell1Params, true));
-    if (verbosity >= 10 && J->getComm()->getRank() == 0) {
-      std::cout << "[Maxwell1] Built new preconditioner hierarchy"
-                << (useKnFromM1 ? " with Kn from M1" : "")
-                << (forSchur ? " (Schur)" : "") << std::endl;
-    }
+  precCache = Teuchos::rcp(new Maxwell1Type(
+      SM_wrap, D0_wrap, Kn_from_M1, Teuchos::null, coords_xpetra,
+      maxwell1Params, true));
+  if (verbosity >= 10 && rank == 0) {
+    std::cout << "[Maxwell1] Built new preconditioner hierarchy"
+              << (useKnFromM1 ? " with Kn from M1" : "")
+              << (forSchur ? " (Schur)" : "") << std::endl;
   }
 
   return Teuchos::rcp(new MueLu::TpetraOperator<ScalarT, LO, GO, Node>(

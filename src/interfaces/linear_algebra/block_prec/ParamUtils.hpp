@@ -110,11 +110,20 @@ inline std::string canonicalBlockPrecType(const std::string & raw) {
 }
 
 inline std::string canonicalSchurApproximationType(const std::string & raw) {
-  return schurVariantName(parseSchurVariant(raw, raw));
+  return schurVariantName(parseSchurVariant(raw));
 }
 
 inline std::string canonicalSchurTriangle(const std::string & raw) {
   return triangleSideName(parseTriangleSide(raw));
+}
+
+// preconditioner_reuse_type is stored canonical lowercase by canonicalReuseType.
+inline bool reuseKeepsHierarchy(const std::string & t) {
+  return t == "update" || t == "full";
+}
+
+inline bool reuseKeepsOperator(const std::string & t, const bool jacobianRebuilt) {
+  return t == "full" || (t == "update" && !jacobianRebuilt);
 }
 
 inline std::string canonicalReuseType(const std::string & raw) {
@@ -148,7 +157,6 @@ inline std::set<std::string> defaultRefMaxwellAllowedParams() {
     "xml param file",
     "hgrad basis name", "hcurl basis name",
     "hgrad basis order", "hcurl basis order",
-    "D0 file", "coordinates file",
     "filter SM", "filter threshold",
     "verify complex"
   };
@@ -165,7 +173,8 @@ inline std::set<std::string> defaultMaxwell1AllowedParams() {
     "hgrad basis name", "hcurl basis name",
     "hgrad basis order", "hcurl basis order",
     "filter SM", "filter threshold",
-    "verify complex", "verify Kn consistency"
+    "verify complex", "verify Kn consistency",
+    "use Kn from M1"
   };
   return std::set<std::string>(keys, keys + sizeof(keys) / sizeof(keys[0]));
 }
@@ -263,7 +272,7 @@ inline const std::vector<std::string> & mrhydeOwnedKeys() {
     "approximation type", "pivot block", "triangle",
     "diag use lumped diagonal", "diag use lumped pivot diagonal",
     "filter SM", "filter threshold", "verify complex", "verify Kn consistency",
-    "D0 file", "coordinates file"
+    "use Kn from M1"
   };
   return keys;
 }

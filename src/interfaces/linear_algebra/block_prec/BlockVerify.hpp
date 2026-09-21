@@ -2,11 +2,115 @@
 #define MRHYDE_BLOCK_PREC_VERIFY_HPP
 
 #include "block_prec/BlockAssembly.hpp"
+
+#include <MueLu_Maxwell_Utils.hpp>
+#include <Xpetra_TpetraCrsMatrix.hpp>
+
 #include <iomanip>
+#include <utility>
+#include <vector>
 
 namespace MrHyDE {
 namespace block_prec {
 
+
+// On interior nodes curl*D0 = 0 forces Kn_SM = s * Kn_M1, so fit s and measure
+// the rest. Boundary nodes differ only by Dirichlet treatment, so they are cut.
+template<class Node>
+void verifyKnConsistency(
+    const Teuchos::RCP<Xpetra::Matrix<ScalarT,LO,GO,Node> > & Kn_M1,
+    const Teuchos::RCP<Xpetra::Matrix<ScalarT,LO,GO,Node> > & SM_wrap,
+    const Teuchos::RCP<Xpetra::Matrix<ScalarT,LO,GO,Node> > & D0_wrap,
+    const Kokkos::View<bool*, typename Node::device_type::memory_space> & BCdomainNodal,
+    const Teuchos::Comm<int> & comm,
+    const int verbosity) {
+  using LA_CrsMatrix = typename BlockTypes<Node>::CrsMatrix;
+  using HostInds = typename BlockTypes<Node>::HostInds;
+  using HostVals = typename BlockTypes<Node>::HostVals;
+
+  Teuchos::ParameterList rapList;
+  rapList.set("rap: fix zero diagonals", false);
+  Teuchos::RCP<Xpetra::Matrix<ScalarT,LO,GO,Node> > Kn_SM =
+    MueLu::Maxwell_Utils<ScalarT,LO,GO,Node>::PtAPWrapper(SM_wrap, D0_wrap, rapList, "Kn_from_SM");
+  Teuchos::rcp_const_cast<Xpetra::CrsGraph<LO,GO,Node> >(Kn_SM->getCrsGraph())->computeGlobalConstants();
+
+  // Hard casts: a silent skip makes the check report nothing while looking enabled.
+  auto asTpetra = [](const Teuchos::RCP<Xpetra::Matrix<ScalarT,LO,GO,Node> > & K) {
+    auto wrap = Teuchos::rcp_dynamic_cast<Xpetra::CrsMatrixWrap<ScalarT,LO,GO,Node> >(K);
+    TEUCHOS_TEST_FOR_EXCEPTION(wrap.is_null(), std::runtime_error,
+      "verify Kn consistency: Kn is not an Xpetra::CrsMatrixWrap.");
+    auto op = Teuchos::rcp_dynamic_cast<Xpetra::TpetraCrsMatrix<ScalarT,LO,GO,Node> >(wrap->getCrsMatrix());
+    TEUCHOS_TEST_FOR_EXCEPTION(op.is_null(), std::runtime_error,
+      "verify Kn consistency: Kn is not backed by an Xpetra::TpetraCrsMatrix.");
+    return op->getTpetra_CrsMatrix();
+  };
+  Teuchos::RCP<const LA_CrsMatrix> knM1 = asTpetra(Kn_M1), knSM = asTpetra(Kn_SM);
+
+  Teuchos::RCP<typename BlockTypes<Node>::Vector> diag =
+    Teuchos::rcp(new typename BlockTypes<Node>::Vector(knM1->getRowMap(), true));
+  knM1->getLocalDiagCopy(*diag);
+  const double diagMax = diag->normInf();
+
+  auto bcRow = Kokkos::create_mirror_view(BCdomainNodal);
+  Kokkos::deep_copy(bcRow, BCdomainNodal);
+  auto bcColDev = detail::knColumnMask<Node>(Kn_M1, BCdomainNodal);
+  auto bcCol = Kokkos::create_mirror_view(bcColDev);
+  Kokkos::deep_copy(bcCol, bcColDev);
+
+  // Column maps need not match, and local order says nothing about global order.
+  auto colMapM1 = knM1->getColMap();
+  auto colMapSM = knSM->getColMap();
+  const LO nrows = static_cast<LO>(knM1->getRowMap()->getLocalNumElements());
+  const size_t maxEnt = std::max<size_t>(1, std::max(knM1->getLocalMaxNumRowEntries(),
+                                                     knSM->getLocalMaxNumRowEntries()));
+  HostInds cM("kn_cM", maxEnt), cS("kn_cS", maxEnt);
+  HostVals vM("kn_vM", maxEnt), vS("kn_vS", maxEnt);
+  std::vector<std::pair<double,double> > pairs;
+  pairs.reserve(static_cast<size_t>(nrows) * maxEnt);
+  for (LO r = 0; r < nrows; ++r) {
+    if (bcRow(r)) continue;
+    size_t nM = knM1->getNumEntriesInLocalRow(r), nS = knSM->getNumEntriesInLocalRow(r);
+    if (nM == 0) continue;
+    knM1->getLocalRowCopy(r, cM, vM, nM);
+    if (nS > 0) knSM->getLocalRowCopy(r, cS, vS, nS);
+    for (size_t k = 0; k < nM; ++k) {
+      if (bcCol(cM(k))) continue;
+      const LO lidSM = colMapSM->getLocalElement(colMapM1->getGlobalElement(cM(k)));
+      double sVal = 0.0;
+      for (size_t q = 0; q < nS; ++q) if (cS(q) == lidSM) { sVal = vS(q); break; }
+      pairs.push_back(std::make_pair(static_cast<double>(vM(k)), sVal));
+    }
+  }
+
+  double acc[3] = {0.0, 0.0, static_cast<double>(pairs.size())};
+  for (size_t i = 0; i < pairs.size(); ++i) {
+    acc[0] += pairs[i].first * pairs[i].second;
+    acc[1] += pairs[i].first * pairs[i].first;
+  }
+  double accG[3];
+  Teuchos::reduceAll<int,double>(comm, Teuchos::REDUCE_SUM, 3, acc, accG);
+  const double sFit = (accG[1] > 0.0) ? (accG[0] / accG[1]) : 1.0;
+
+  double local[2] = {0.0, diagMax};
+  for (size_t i = 0; i < pairs.size(); ++i) {
+    local[0] = std::max(local[0], std::abs(sFit * pairs[i].first - pairs[i].second));
+  }
+  double globalMax[2];
+  Teuchos::reduceAll<int,double>(comm, Teuchos::REDUCE_MAX, 2, local, globalMax);
+  const double scale = std::abs(sFit) * globalMax[1];
+  if (comm.getRank() != 0) return;
+  if (verbosity >= 6) {
+    std::cout << "[Maxwell1 verify Kn] interior entries compared=" << static_cast<size_t>(accG[2])
+              << " fitted Kn_SM/Kn_M1=" << sFit
+              << " max|s*Kn_M1 - Kn_SM|=" << globalMax[0]
+              << " scale=" << scale << std::endl;
+  }
+  if (scale > 0.0 && globalMax[0] > 1e-10 * scale) {
+    std::cout << "[Maxwell1 verify Kn] WARN: residual " << globalMax[0]
+              << " exceeds 1e-10 * " << scale << "; Kn_from_M1 is not a scalar "
+              << "multiple of Kn_from_SM on the interior block." << std::endl;
+  }
+}
 
 template<class Node>
 void verifyBlockSystem(const BlockSystem<Node> & blocks,

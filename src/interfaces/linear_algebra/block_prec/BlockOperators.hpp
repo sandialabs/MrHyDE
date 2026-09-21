@@ -22,6 +22,22 @@ void requireNoTranspose(const Teuchos::ETransp mode, const std::string & opName)
                              opName + "::apply only supports NO_TRANS mode.");
 }
 
+// isSameAs is an all-reduce, so it runs once; local lengths are what the
+// kernels index with, so those are checked every call.
+template<class Node>
+void checkApplyMaps(const typename BlockTypes<Node>::MultiVector & X,
+                    const typename BlockTypes<Node>::MultiVector & Y,
+                    const typename BlockTypes<Node>::MapRCP & map,
+                    bool & checked, const std::string & opName) {
+  TEUCHOS_TEST_FOR_EXCEPTION(X.getLocalLength() != map->getLocalNumElements() ||
+                             Y.getLocalLength() != map->getLocalNumElements(),
+    std::runtime_error, opName + ": local length mismatch.");
+  if (checked) return;
+  TEUCHOS_TEST_FOR_EXCEPTION(!X.getMap()->isSameAs(*map) || !Y.getMap()->isSameAs(*map),
+    std::runtime_error, opName + ": map mismatch.");
+  checked = true;
+}
+
 template<class Node>
 void combineWithAlphaBeta(const typename BlockTypes<Node>::MultiVector & opX,
                           const ScalarT alpha,
@@ -77,10 +93,7 @@ public:
                                mode != Teuchos::CONJ_TRANS,
       std::runtime_error,
       "DiagonalInverseOperator only supports NO_TRANS, TRANS, or CONJ_TRANS.");
-    TEUCHOS_TEST_FOR_EXCEPTION(!X.getMap()->isSameAs(*invDiag_->getMap()) ||
-                               !Y.getMap()->isSameAs(*invDiag_->getMap()),
-      std::runtime_error,
-      "DiagonalInverseOperator map mismatch.");
+    detail::checkApplyMaps<Node>(X, Y, invDiag_->getMap(), maps_checked_, "DiagonalInverseOperator");
     const auto xView = X.getLocalViewDevice(Tpetra::Access::ReadOnly);
     const auto dView = invDiag_->getLocalViewDevice(Tpetra::Access::ReadOnly);
     const size_t nrows = static_cast<size_t>(X.getLocalLength());
@@ -107,6 +120,7 @@ public:
 
 private:
   Teuchos::RCP<LA_Vector> invDiag_;
+  mutable bool maps_checked_ = false;
 };
 
 /** Wraps an Amesos2 direct solver as a Tpetra::Operator for block-level inversion. */
@@ -133,8 +147,7 @@ public:
              ScalarT beta = Teuchos::ScalarTraits<ScalarT>::zero()) const override {
     TEUCHOS_TEST_FOR_EXCEPTION(mode != Teuchos::NO_TRANS, std::runtime_error,
       "DirectSolveOperator does not support transpose.");
-    TEUCHOS_TEST_FOR_EXCEPTION(!X.getMap()->isSameAs(*map_) || !Y.getMap()->isSameAs(*map_),
-      std::runtime_error, "DirectSolveOperator map mismatch.");
+    detail::checkApplyMaps<Node>(X, Y, map_, maps_checked_, "DirectSolveOperator");
     const ScalarT zero = Teuchos::ScalarTraits<ScalarT>::zero();
     if (beta == zero) {
       solver_->setB(Teuchos::rcpFromRef(const_cast<LA_MultiVector &>(X)));
@@ -155,6 +168,7 @@ public:
 private:
   Teuchos::RCP<Solver> solver_;
   Teuchos::RCP<const LA_Map> map_;
+  mutable bool maps_checked_ = false;
 };
 
 // Variable inner iteration counts require a flexible outer solver such as FGMRES.
@@ -183,8 +197,7 @@ public:
              ScalarT alpha = Teuchos::ScalarTraits<ScalarT>::one(),
              ScalarT beta = Teuchos::ScalarTraits<ScalarT>::zero()) const override {
     detail::requireNoTranspose<Node>(mode, "KrylovWrappedBlockOperator");
-    TEUCHOS_TEST_FOR_EXCEPTION(!X.getMap()->isSameAs(*map_) || !Y.getMap()->isSameAs(*map_),
-      std::runtime_error, "KrylovWrappedBlockOperator: map mismatch.");
+    detail::checkApplyMaps<Node>(X, Y, map_, maps_checked_, "KrylovWrappedBlockOperator");
     Teuchos::RCP<LA_MultiVector> rhs = Teuchos::rcp(new LA_MultiVector(X, Teuchos::Copy));
     Teuchos::RCP<LA_MultiVector> sol = Teuchos::rcp(new LA_MultiVector(map_, X.getNumVectors()));
     problem_->setProblem(sol, rhs);
@@ -197,6 +210,7 @@ private:
   Teuchos::RCP<LA_SolverManager> solver_;
   Teuchos::RCP<LA_LinearProblem> problem_;
   Teuchos::RCP<const LA_Map> map_;
+  mutable bool maps_checked_ = false;
 };
 
 } // namespace block_prec

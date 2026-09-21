@@ -158,7 +158,7 @@ typename block_prec::BlockTypes<Node>::CrsMatrixRCP buildSchurApproximation(cons
                                                              const int verbosity = 0) {
   using matrix_rcp = typename block_prec::BlockTypes<Node>::CrsMatrixRCP;
   if (diagTermOut != nullptr) *diagTermOut = Teuchos::null;
-  const SchurVariant variant = parseSchurVariant(cntxt.schur.variant, cntxt.schur.approximation_type);
+  const SchurVariant variant = parseSchurVariant(cntxt.schur.approximation_type);
   if (variant == SchurVariant::Base) {
     return schurBase<Node>(blocks.J11);
   }

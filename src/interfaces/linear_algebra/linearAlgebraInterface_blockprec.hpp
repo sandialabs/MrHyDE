@@ -401,19 +401,6 @@ LinearAlgebraInterface<Node>::extractDiagonalBlock(
   return block_prec::detail::remapBlockToMaps<Node>(Jconst, blockMap, blockMap);
 }
 
-// Extract off-diagonal block by remapping J to rowMap x colMap.
-template<class Node>
-Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,Node> >
-LinearAlgebraInterface<Node>::extractOffDiagonalBlock(
-    const matrix_RCP & J,
-    const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > & rowMap,
-    const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > & colMap) {
-  using LA_CrsMatrix = typename LATypes<Node>::CrsMatrix;
-  const Teuchos::RCP<const LA_CrsMatrix> Jconst =
-    Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(J);
-  return block_prec::detail::remapBlockToMaps<Node>(Jconst, rowMap, colMap);
-}
-
 // ========================================================================================
 // Block diagonal preconditioner
 // ========================================================================================
@@ -576,17 +563,11 @@ LinearAlgebraInterface<Node>::setupBlockTriangularPreconditioner(
 
   // --- Phase 1: Reuse short-circuit and mode validation ---
 
-  // Reuse policy at operator level:
-  //  - FULL: keep current operator
-  //  - UPDATE: keep operator only if Jacobian has not changed
-  //  - NONE: always rebuild
-  std::string reuseType = cntxt->preconditioner_reuse_type;
-  toUpperAscii(reuseType);
-  if (!cntxt->prec_block.is_null()) {
-    if (reuseType == "FULL") return cntxt->prec_block;
-    if (reuseType == "UPDATE" && !cntxt->jacobian_rebuilt_this_step) {
-      return cntxt->prec_block;
-    }
+  // full keeps the operator, update keeps it while J is unchanged, none rebuilds.
+  if (!cntxt->prec_block.is_null() &&
+      reuseKeepsOperator(cntxt->preconditioner_reuse_type,
+                                     cntxt->jacobian_rebuilt_this_step)) {
+    return cntxt->prec_block;
   }
 
   // --- Phase 2: Extract block system ---
@@ -598,12 +579,12 @@ LinearAlgebraInterface<Node>::setupBlockTriangularPreconditioner(
     blocks, cntxt, &schurCorr);
 
   // Only the diag variant has a curl-curl term to read beta from.
-  // addon_wanted is only known after the first XML read, so probe on that build too.
-  cntxt->refMaxwell.addon_beta = 0.0;
-  if ((cntxt->refMaxwell.addon_wanted || !cntxt->have_preconditioner) && !schurCorr.is_null() && !cntxt->refMaxwell.nodal_lumped_mass.is_null() &&
+  // schur_addon_wanted is only known after the first XML read, so probe on that build too.
+  cntxt->refMaxwell.schur_addon_beta = 0.0;
+  if ((cntxt->refMaxwell.schur_addon_wanted || !cntxt->have_preconditioner) && !schurCorr.is_null() && !cntxt->refMaxwell.nodal_lumped_mass.is_null() &&
       static_cast<size_t>(cntxt->schur.pivot_block) < cntxt->refMaxwell.block_mass_matrices.size() &&
       !cntxt->refMaxwell.block_mass_matrices[cntxt->schur.pivot_block].is_null()) {
-    cntxt->refMaxwell.addon_beta = block_prec::addonBeta<Node>(
+    cntxt->refMaxwell.schur_addon_beta = block_prec::addonBeta<Node>(
       blocks, schurCorr, cntxt->refMaxwell.block_mass_matrices[cntxt->schur.pivot_block],
       cntxt->schur.diag_use_lumped_pivot_diagonal,
       cntxt->stage_alpha_u, verbosity);
@@ -614,7 +595,7 @@ LinearAlgebraInterface<Node>::setupBlockTriangularPreconditioner(
     cntxt->refMaxwell.nodal_coords, cntxt->refMaxwell.nodal_lumped_mass,
     cntxt->schur.damping,
     cntxt->schur.diag_use_lumped_pivot_diagonal,
-    parseSchurVariant(cntxt->schur.variant, cntxt->schur.approximation_type) == SchurVariant::Diag,
+    parseSchurVariant(cntxt->schur.approximation_type) == SchurVariant::Diag,
     verbosity);
 
   // --- Phase 4: Build/reuse AMG for pivot and Schur blocks ---

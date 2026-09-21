@@ -70,14 +70,12 @@ inline std::string toUpperAsciiCopy(std::string value) {
   return value;
 }
 
-inline SchurVariant parseSchurVariant(const std::string & canonical, const std::string & fallbackType) {
-  std::string raw = canonical.empty() ? fallbackType : canonical;
-  std::string forError = raw;
-  toUpperAscii(raw);
-  if (raw == "BASE") return SchurVariant::Base;
-  if (raw == "DIAG") return SchurVariant::Diag;
+inline SchurVariant parseSchurVariant(const std::string & canonical) {
+  const std::string up = toUpperAsciiCopy(canonical);
+  if (up == "BASE") return SchurVariant::Base;
+  if (up == "DIAG") return SchurVariant::Diag;
   TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error,
-    "Unsupported Schur approximation type '" << forError
+    "Unsupported Schur approximation type '" << canonical
     << "'. Supported canonical values are: base, diag.");
   return SchurVariant::Base;
 }

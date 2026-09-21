@@ -148,7 +148,6 @@ void SolverManager<Node>::completeSetup() {
         dst.block_dof_coords = src.block_dof_coords;
         dst.nodal_coords = src.nodal_coords;
         dst.nodal_lumped_mass = src.nodal_lumped_mass;
-        dst.nullspace = src.nullspace;
       }
     };
     share_auxiliary_data(linalg->context);
@@ -478,16 +477,19 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
     Kokkos::deep_copy(wts_h, wts);
     auto vals_h = Kokkos::create_mirror_view(refVals);
     Kokkos::deep_copy(vals_h, refVals);
+    // DRV lives on PHX::Device; the loop below reads node coordinates on the host.
+    auto nodes_h = Kokkos::create_mirror_view(elem_nodes);
+    Kokkos::deep_copy(nodes_h, elem_nodes);
 
     for (size_t e = 0; e < num_elem; ++e) {
       std::vector<GO> elem_dofs;
       LO local_elem_id = disc->my_elements[block](e);
       hgrad_dof->getElementGIDs(local_elem_id, elem_dofs, block_name);
-      const size_t num_nodes = static_cast<size_t>(elem_nodes.extent(1));
+      const size_t num_nodes = static_cast<size_t>(nodes_h.extent(1));
       for (size_t n = 0; n < elem_dofs.size() && n < num_nodes; ++n) {
         if (gid_to_coords.find(elem_dofs[n]) == gid_to_coords.end()) {
           std::vector<double> coord(dimension, 0.0);
-          for (int d = 0; d < dimension; ++d) coord[d] = elem_nodes(e, n, d);
+          for (int d = 0; d < dimension; ++d) coord[d] = nodes_h(e, n, d);
           gid_to_coords[elem_dofs[n]] = coord;
         }
         const LO og_lid = og_map->getLocalElement(elem_dofs[n]);
