@@ -25,7 +25,6 @@ struct RefMaxwellXpetraInputs {
   Teuchos::RCP<XpetraMatrix> SM_wrap;
   Teuchos::RCP<XpetraMatrix> D0_wrap;
   Teuchos::RCP<XpetraMatrix> M1_wrap;
-  Teuchos::RCP<XpetraMatrix> M0inv_wrap;
   Teuchos::RCP<XpetraCoordMV> coords_xpetra;
   Teuchos::RCP<XpetraMultiVector> nullspace_xpetra;
 };
@@ -35,7 +34,6 @@ RefMaxwellXpetraInputs<Node> buildRefMaxwellXpetraInputs(
     const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT, LO, GO, Node> > & J,
     const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT, LO, GO, Node> > & D0,
     const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT, LO, GO, Node> > & M1,
-    const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT, LO, GO, Node> > & M0inv,
     const Teuchos::RCP<const Tpetra::MultiVector<typename Teuchos::ScalarTraits<ScalarT>::coordinateType, LO, GO, Node> > & nodal_coords,
     const Teuchos::RCP<const Tpetra::MultiVector<ScalarT, LO, GO, Node> > & nullspace) {
   using CoordScalarT = typename Teuchos::ScalarTraits<ScalarT>::coordinateType;
@@ -49,7 +47,6 @@ RefMaxwellXpetraInputs<Node> buildRefMaxwellXpetraInputs(
   out.SM_wrap = Teuchos::rcp(new XpetraCrsWrap(Teuchos::rcp_implicit_cast<XpetraCrsMatrix>(Teuchos::rcp(new XpetraCrs(Teuchos::rcp_const_cast<TpetraCrs>(J))))));
   out.D0_wrap = Teuchos::rcp(new XpetraCrsWrap(Teuchos::rcp_implicit_cast<XpetraCrsMatrix>(Teuchos::rcp(new XpetraCrs(Teuchos::rcp_const_cast<TpetraCrs>(D0))))));
   out.M1_wrap = Teuchos::rcp(new XpetraCrsWrap(Teuchos::rcp_implicit_cast<XpetraCrsMatrix>(Teuchos::rcp(new XpetraCrs(Teuchos::rcp_const_cast<TpetraCrs>(M1))))));
-  out.M0inv_wrap = Teuchos::rcp(new XpetraCrsWrap(Teuchos::rcp_implicit_cast<XpetraCrsMatrix>(Teuchos::rcp(new XpetraCrs(Teuchos::rcp_const_cast<TpetraCrs>(M0inv))))));
   out.coords_xpetra = Teuchos::rcp(new Xpetra::TpetraMultiVector<CoordScalarT, LO, GO, Node>(
       Teuchos::rcp_const_cast<TpetraCoordMV>(nodal_coords)));
   out.nullspace_xpetra = nullspace.is_null()
@@ -480,7 +477,7 @@ Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > LinearAlgebraInterfa
 
 // Maxwell nomenclature used below:
 //   SM  = HCURL system block: M/dt + curl(1/mu) curl.
-//   D0  = nodal-to-edge gradient, normalized to {-1, +1}.
+//   D0  = nodal-to-edge gradient, as Panzer emits it (+-0.5).
 //   M1  = HCURL edge mass matrix.
 //   Kn  = nodal auxiliary matrix D0^T M1 D0.
 template<class Node>
@@ -543,24 +540,6 @@ LinearAlgebraInterface<Node>::buildRefMaxwellPreconditioner(
     (blockSublist.name() != "empty") &&
     blockSublist.isSublist("RefMaxwell Settings");
 
-  // Handle use lumped M0inv parameter - this is MrHyDE-specific, not passed to MueLu
-  bool useLumpedM0inv = true; // default
-  if (hasNestedRefMaxwellSettings) {
-    const Teuchos::ParameterList & refmaxwellSettings = blockSublist.sublist("RefMaxwell Settings");
-    if (refmaxwellSettings.isParameter("use lumped M0inv")) {
-      useLumpedM0inv = refmaxwellSettings.template get<bool>("use lumped M0inv");
-    }
-  } else if (cntxt->prec_sublist.name() != "empty") {
-    if (cntxt->prec_sublist.isParameter("use lumped M0inv")) {
-      useLumpedM0inv = cntxt->prec_sublist.template get<bool>("use lumped M0inv");
-    } else if (cntxt->prec_sublist.isParameter("refmaxwell: use lumped M0inv")) {
-      useLumpedM0inv = cntxt->prec_sublist.template get<bool>("refmaxwell: use lumped M0inv");
-    }
-  }
-
-  matrix_RCP M0inv = useLumpedM0inv
-    ? block_prec::detail::buildLumpedM0inv<Node>(cntxt->refMaxwell.D0_matrix, M1_use, nodal_map, edge_map, verbosity)
-    : block_prec::detail::buildM0invIdentity<Node>(nodal_map);
 
   // Filtering and operator checks are disabled by default.
   matrix_RCP SM_for_setup = J;
@@ -608,11 +587,10 @@ LinearAlgebraInterface<Node>::buildRefMaxwellPreconditioner(
   }
 
   block_prec::detail::RefMaxwellXpetraInputs<Node> xpetraInputs = block_prec::detail::buildRefMaxwellXpetraInputs<Node>(
-    SM_for_setup, cntxt->refMaxwell.D0_matrix, M1_for_setup, M0inv, cntxt->refMaxwell.nodal_coords, cntxt->refMaxwell.nullspace);
+    SM_for_setup, cntxt->refMaxwell.D0_matrix, M1_for_setup, cntxt->refMaxwell.nodal_coords, cntxt->refMaxwell.nullspace);
   Teuchos::RCP<XpetraMatrix> SM_wrap = xpetraInputs.SM_wrap;
   Teuchos::RCP<XpetraMatrix> D0_wrap = xpetraInputs.D0_wrap;
   Teuchos::RCP<XpetraMatrix> M1_wrap = xpetraInputs.M1_wrap;
-  Teuchos::RCP<XpetraMatrix> M0inv_wrap = xpetraInputs.M0inv_wrap;
   auto coords_xpetra = xpetraInputs.coords_xpetra;
   auto nullspace_xpetra = xpetraInputs.nullspace_xpetra;
 
@@ -640,6 +618,15 @@ LinearAlgebraInterface<Node>::buildRefMaxwellPreconditioner(
 
   using XpetraOperator = Xpetra::Operator<ScalarT, LO, GO, Node>;
   const std::string reuseType = toUpperAsciiCopy(cntxt->preconditioner_reuse_type);
+  // MueLu bakes the addon into the hierarchy, so a changed beta makes it stale.
+  const ScalarT betaTarget =
+    cntxt->refMaxwell.addon_wanted ? cntxt->refMaxwell.addon_beta : 0.0;
+  const ScalarT betaWas = cntxt->refMaxwell.addon_beta_built;
+  if (std::abs(betaTarget - betaWas) >
+      1.0e-12 * std::max(std::abs(betaTarget), std::abs(betaWas))) {
+    precCache = Teuchos::null;
+  }
+
   const bool canReuse = !precCache.is_null() && (reuseType == "FULL" || reuseType == "UPDATE");
 
   // Reuse needs none of the XML parsing or filtering below.
@@ -666,6 +653,22 @@ LinearAlgebraInterface<Node>::buildRefMaxwellPreconditioner(
 
   // AMS only for this path.
   refmaxwellParams.set("refmaxwell: space number", 1);
+  // M0(1/beta)^-1 needs beta, so fall back to no addon until it is known.
+  const bool wantAddon = !refmaxwellParams.get<bool>("refmaxwell: disable addon", true);
+  cntxt->refMaxwell.addon_wanted = wantAddon;
+  const bool haveAddon = wantAddon && cntxt->refMaxwell.addon_beta > 0.0 &&
+                         !cntxt->refMaxwell.nodal_lumped_mass.is_null();
+  TEUCHOS_TEST_FOR_EXCEPTION(wantAddon && cntxt->refMaxwell.nodal_lumped_mass.is_null(),
+    std::runtime_error,
+    "RefMaxwell XML '" << refmaxwellXmlFile << "' enables the addon, but the lumped "
+    "nodal mass was not built.");
+  if (!haveAddon) {
+    if (wantAddon && J->getComm()->getRank() == 0) {
+      std::cout << "[RefMaxwell] addon requested but beta is unavailable; running without it."
+                << std::endl;
+    }
+    refmaxwellParams.set("refmaxwell: disable addon", true);
+  }
   // resetMatrix is a no-op unless the hierarchy was built with reuse enabled.
   // MueLu then defaults the sublists to "full", which freezes their smoothers.
   if (reuseType != "NONE") {
@@ -681,10 +684,18 @@ LinearAlgebraInterface<Node>::buildRefMaxwellPreconditioner(
     refmaxwellParams.print(std::cout, 2, true);
   }
 
+  // The no-addon overload is this same call with Ms = M1 and a null M0inv.
+  Teuchos::RCP<XpetraMatrix> M0inv_wrap;
+  if (haveAddon) {
+    M0inv_wrap = block_prec::detail::wrapAsXpetraMatrix<Node>(
+      block_prec::detail::buildScaledInverseDiagonalMatrix<Node>(
+        cntxt->refMaxwell.nodal_lumped_mass, cntxt->refMaxwell.addon_beta));
+  }
   precCache = Teuchos::rcp(new RefMaxwellType(
       SM_wrap, D0_wrap, M1_wrap, M0inv_wrap, M1_wrap,
       nullspace_xpetra, coords_xpetra,
       refmaxwellParams, true));
+  cntxt->refMaxwell.addon_beta_built = haveAddon ? cntxt->refMaxwell.addon_beta : 0.0;
   if (verbosity >= 10 && J->getComm()->getRank() == 0) {
     std::cout << "[RefMaxwell] Built new preconditioner hierarchy" << (forSchur ? " (Schur)" : "") << std::endl;
   }
@@ -716,8 +727,6 @@ LinearAlgebraInterface<Node>::buildMaxwell1Preconditioner(
   matrix_RCP M1_use = cntxt->refMaxwell.M1_matrix;
   TEUCHOS_TEST_FOR_EXCEPTION(M1_use.is_null(), std::runtime_error,
     "Maxwell1 setup path reuses the RefMaxwell auxiliary M1 matrix. It is null.");
-  const Teuchos::RCP<const LA_Map> nodal_map = cntxt->refMaxwell.D0_matrix->getDomainMap();
-  matrix_RCP M0inv = block_prec::detail::buildM0invIdentity<Node>(nodal_map);
 
   // Panzer OPERATOR_GRAD emits +-0.5; MueLu's ReitzingerP requires +-1.
   if (cntxt->maxwell1.D0_normalized.is_null()) {
@@ -771,7 +780,7 @@ LinearAlgebraInterface<Node>::buildMaxwell1Preconditioner(
   }
 
   block_prec::detail::RefMaxwellXpetraInputs<Node> xpetraInputs = block_prec::detail::buildRefMaxwellXpetraInputs<Node>(
-    SM_for_setup, cntxt->maxwell1.D0_normalized, M1_for_setup, M0inv, cntxt->refMaxwell.nodal_coords, cntxt->refMaxwell.nullspace);
+    SM_for_setup, cntxt->maxwell1.D0_normalized, M1_for_setup, cntxt->refMaxwell.nodal_coords, cntxt->refMaxwell.nullspace);
   Teuchos::RCP<XpetraMatrix> SM_wrap = xpetraInputs.SM_wrap;
   Teuchos::RCP<XpetraMatrix> D0_wrap = xpetraInputs.D0_wrap;
   auto coords_xpetra = xpetraInputs.coords_xpetra;

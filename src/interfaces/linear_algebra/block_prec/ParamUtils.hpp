@@ -146,7 +146,6 @@ inline Teuchos::ParameterList defaultMueLuParams() {
 inline std::set<std::string> defaultRefMaxwellAllowedParams() {
   const char * keys[] = {
     "xml param file",
-    "use lumped M0inv",
     "hgrad basis name", "hcurl basis name",
     "hgrad basis order", "hcurl basis order",
     "D0 file", "coordinates file",
@@ -258,7 +257,6 @@ inline const std::vector<std::string> & mrhydeOwnedKeys() {
     "hgrad basis name", "hcurl basis name",
     "hgrad basis order", "hcurl basis order",
     "inner krylov solver", "inner krylov max iters", "inner krylov tol",
-    "use lumped M0inv", "refmaxwell: use lumped M0inv",
     "Schur approximation type", "Schur pivot block", "Schur triangle", "Schur damping",
     "Schur diag use lumped pivot diagonal",
     "Pivot block preconditioner type", "Pivot block diag use lumped diagonal",
