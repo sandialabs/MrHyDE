@@ -147,6 +147,7 @@ void SolverManager<Node>::completeSetup() {
         dst.block_mass_matrices = src.block_mass_matrices;
         dst.block_dof_coords = src.block_dof_coords;
         dst.nodal_coords = src.nodal_coords;
+        dst.nodal_lumped_mass = src.nodal_lumped_mass;
         dst.nullspace = src.nullspace;
       }
     };
@@ -434,6 +435,20 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
     new Tpetra::MultiVector<typename Teuchos::ScalarTraits<ScalarT>::coordinateType,LO,GO,Node>(nodal_map, dimension));
   auto coords_2d = cntxt->refMaxwell.nodal_coords->getLocalViewHost(Tpetra::Access::OverwriteAll);
 
+  typedef Intrepid2::CellTools<PHX::Device::execution_space> AuxCellTools;
+  typedef Intrepid2::FunctionSpaceTools<PHX::Device::execution_space> AuxFuncTools;
+
+  // m_n = integral(N_n), accumulated on owned+ghosted then export-added.
+  std::vector<GO> og_gids;
+  hgrad_dof->getOwnedAndGhostedIndices(og_gids);
+  Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > og_map =
+    Teuchos::rcp(new Tpetra::Map<LO,GO,Node>(
+      Teuchos::OrdinalTraits<Tpetra::global_size_t>::invalid(),
+      Teuchos::ArrayView<const GO>(og_gids), 0, mesh->comm));
+  Teuchos::RCP<LA_MultiVector> mass_og = Teuchos::rcp(new LA_MultiVector(og_map, 1));
+  mass_og->putScalar(0.0);
+  auto mass_og_view = mass_og->getLocalViewHost(Tpetra::Access::ReadWrite);
+
   std::map<GO, std::vector<double> > gid_to_coords;
   for (size_t block = 0; block < mesh->block_names.size(); ++block) {
     const std::string block_name = mesh->block_names[block];
@@ -442,6 +457,28 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
     vector<size_t> elem_ids(num_elem);
     for (size_t e = 0; e < num_elem; ++e) elem_ids[e] = disc->my_elements[block](e);
     DRV elem_nodes = mesh->getMyNodes(block, elem_ids);
+
+    topo_RCP blockTopo = mesh->cell_topo[block];
+    basis_RCP blockHgrad = disc->getBasis(dimension, blockTopo, "HGRAD", hgrad_order);
+    DRV refPts, refWts;
+    disc->getQuadrature(blockTopo, 2, refPts, refWts);
+    const int nP = static_cast<int>(refPts.extent(0));
+    const int nB = static_cast<int>(blockHgrad->getCardinality());
+    DRV refVals("hgrad vals", nB, nP);
+    blockHgrad->getValues(refVals, refPts, Intrepid2::OPERATOR_VALUE);
+    const int nC = static_cast<int>(num_elem);
+    DRV wts("wts", nC, nP);
+    {
+      DRV jac("jac", nC, nP, dimension, dimension), det("det", nC, nP);
+      AuxCellTools::setJacobian(jac, refPts, elem_nodes, *blockTopo);
+      AuxCellTools::setJacobianDet(det, jac);
+      AuxFuncTools::computeCellMeasure(wts, det, refWts);
+    }
+    auto wts_h = Kokkos::create_mirror_view(wts);
+    Kokkos::deep_copy(wts_h, wts);
+    auto vals_h = Kokkos::create_mirror_view(refVals);
+    Kokkos::deep_copy(vals_h, refVals);
+
     for (size_t e = 0; e < num_elem; ++e) {
       std::vector<GO> elem_dofs;
       LO local_elem_id = disc->my_elements[block](e);
@@ -453,8 +490,36 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
           for (int d = 0; d < dimension; ++d) coord[d] = elem_nodes(e, n, d);
           gid_to_coords[elem_dofs[n]] = coord;
         }
+        const LO og_lid = og_map->getLocalElement(elem_dofs[n]);
+        if (og_lid == Teuchos::OrdinalTraits<LO>::invalid()) continue;
+        ScalarT acc = 0.0;
+        for (int q = 0; q < nP; ++q) acc += wts_h(e, q) * vals_h(static_cast<int>(n), q);
+        mass_og_view(og_lid, 0) += acc;
       }
     }
+  }
+
+  {
+    mass_og_view = decltype(mass_og_view)();
+    Teuchos::RCP<LA_MultiVector> mass_owned = Teuchos::rcp(new LA_MultiVector(nodal_map, 1));
+    mass_owned->putScalar(0.0);
+    Tpetra::Export<LO,GO,Node> og_to_owned(og_map, nodal_map);
+    mass_owned->doExport(*mass_og, og_to_owned, Tpetra::ADD);
+    ScalarT lmin = std::numeric_limits<ScalarT>::max(), gmin = 0.0;
+    {
+      auto mv = mass_owned->getLocalViewHost(Tpetra::Access::ReadOnly);
+      for (size_t i = 0; i < mv.extent(0); ++i) lmin = std::min(lmin, mv(i,0));
+    }
+    Teuchos::reduceAll(*(nodal_map->getComm()), Teuchos::REDUCE_MIN, 1, &lmin, &gmin);
+    TEUCHOS_TEST_FOR_EXCEPTION(gmin <= 0.0, std::runtime_error,
+      "Lumped nodal mass has a non-positive entry (" << gmin << ").");
+    // sum(m_n) is |Omega|. norm1 is collective, so every rank must call it.
+    const ScalarT msum = mass_owned->getVector(0)->norm1();
+    if (verbosity >= 5 && nodal_map->getComm()->getRank() == 0) {
+      std::cout << "[AUX] lumped nodal mass: sum = " << std::setprecision(14)
+                << msum << std::setprecision(6) << std::endl;
+    }
+    cntxt->refMaxwell.nodal_lumped_mass = mass_owned;
   }
 
   GO missing_coords = 0;

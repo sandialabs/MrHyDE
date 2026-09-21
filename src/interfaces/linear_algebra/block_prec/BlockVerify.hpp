@@ -2,26 +2,21 @@
 #define MRHYDE_BLOCK_PREC_VERIFY_HPP
 
 #include "block_prec/BlockAssembly.hpp"
+#include <iomanip>
 
 namespace MrHyDE {
 namespace block_prec {
 
-// create a deterministic vec
-template<class Node>
-void fillProbe(typename BlockTypes<Node>::Vector & v) {
-  auto vv = v.getLocalViewHost(Tpetra::Access::OverwriteAll);
-  auto map = v.getMap();
-  for (size_t i = 0; i < map->getLocalNumElements(); ++i) {
-    const GO g = map->getGlobalElement(static_cast<LO>(i));
-    vv(i, 0) = static_cast<ScalarT>(1.0 + (g % 7)) * ((g % 2) ? 1.0 : -1.0);
-  }
-}
 
 template<class Node>
 void verifyBlockSystem(const BlockSystem<Node> & blocks,
                        const typename BlockTypes<Node>::CrsMatrixRCP & J,
                        const typename BlockTypes<Node>::CrsMatrixRCP & SchurApprox,
                        const typename BlockTypes<Node>::CrsMatrixRCP & D0,
+                       const typename BlockTypes<Node>::CrsMatrixRCP & M1,
+                       const Teuchos::RCP<const Tpetra::MultiVector<
+                         typename Teuchos::ScalarTraits<ScalarT>::coordinateType,LO,GO,Node> > & coords,
+                       const Teuchos::RCP<typename BlockTypes<Node>::MultiVector> & lumpedMass,
                        const ScalarT damping,
                        const bool useLumpedWeightDiagonal,
                        const bool schurIsDiag,
@@ -38,7 +33,7 @@ void verifyBlockSystem(const BlockSystem<Node> & blocks,
 
   Teuchos::RCP<const typename Types::Map> fullMap = J->getRowMap();
   LA_Vector x(fullMap), Jx(fullMap), y(fullMap);
-  fillProbe<Node>(x);
+  detail::fillProbe<Node>(x);
   J->apply(x, Jx);
 
   Import impP(fullMap, blocks.pivotMap), impT(fullMap, blocks.targetMap);
@@ -71,7 +66,7 @@ void verifyBlockSystem(const BlockSystem<Node> & blocks,
   }
   if (!curlBlock.is_null()) {
     LA_Vector v(D0->getDomainMap()), D0v(D0->getRangeMap()), c(curlBlock->getRangeMap());
-    fillProbe<Node>(v);
+    detail::fillProbe<Node>(v);
     D0->apply(v, D0v);
     curlBlock->apply(D0v, c);
     // divide by |J| as well otherwise this tracks element-size spread
@@ -80,6 +75,29 @@ void verifyBlockSystem(const BlockSystem<Node> & blocks,
     if (rank == 0) {
       std::cout << "[BLOCK-VERIFY] J10*D0 rel = "
                 << (nD0v > 0 ? nc / nD0v : nc) << std::endl;
+    }
+  }
+
+  // g'*M1*g matches sum(m_n) for Panzer's D0; a +-1 D0 gives 4x that.
+  if (!D0.is_null() && !M1.is_null() && !coords.is_null() && !lumpedMass.is_null() &&
+      M1->getRowMap()->isSameAs(*D0->getRangeMap()) &&
+      coords->getMap()->isSameAs(*D0->getDomainMap())) {
+    LA_Vector xd(D0->getDomainMap()), g(D0->getRangeMap()), M1g(D0->getRangeMap());
+    for (size_t d = 0; d < coords->getNumVectors(); ++d) {
+      auto cv = coords->getVector(d)->getLocalViewHost(Tpetra::Access::ReadOnly);
+      {
+        auto xv = xd.getLocalViewHost(Tpetra::Access::OverwriteAll);
+        for (size_t i = 0; i < xv.extent(0); ++i) xv(i, 0) = static_cast<ScalarT>(cv(i, 0));
+      }
+      D0->apply(xd, g);
+      M1->apply(g, M1g);
+      const auto q = g.dot(M1g);
+      const auto vol = lumpedMass->getVector(0)->norm1();
+      const auto rel = (vol > 0) ? std::abs(q - vol) / vol : std::abs(q - vol);
+      if (rank == 0) {
+        std::cout << "[BLOCK-VERIFY] D0-scale rel = "
+                  << std::setprecision(14) << rel << std::setprecision(6) << std::endl;
+      }
     }
   }
 

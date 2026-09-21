@@ -66,6 +66,11 @@ struct RefMaxwellData {
   std::vector<Teuchos::RCP<LA_CrsMatrix> > block_mass_matrices;  /**< Mass matrix per variable block. */
   std::vector<Teuchos::RCP<LA_CoordMultiVector> > block_dof_coords;  /**< Coordinates per variable block for MueLu. */
   Teuchos::RCP<LA_CoordMultiVector> nodal_coords;
+  Teuchos::RCP<LA_MultiVector> nodal_lumped_mass;
+  ScalarT addon_beta = 0.0;   /**< Curl-curl coefficient of S, for the RefMaxwell addon. */
+  ScalarT addon_beta_built = 0.0; /**< beta baked into the cached hierarchy. */
+  bool addon_wanted = false;      /**< XML asked for the addon. */
+  /**< Lumped nodal mass, integral(N_n), for the RefMaxwell addon. */
   Teuchos::RCP<LA_MultiVector> nullspace;
   std::string xml_param_file_pivot = "";
   std::string xml_param_file_schur = "";
@@ -163,6 +168,7 @@ public:
   bool reuse_preconditioner;    /**< Whether to reuse an existing preconditioner. */
   string preconditioner_reuse_type; /**< Reuse mode (none, update, or full). */
   bool reuse_matrix;          /**< Whether to reuse an existing Jacobian. */
+  ScalarT stage_alpha_u = 1.0; /**< DIRK spatial-term scaling a_ss/b_s. */
   bool jacobian_rebuilt_this_step; /**< True when Jacobian values were rebuilt before this linear solve. */
   bool have_matrix;           /**< Indicates whether a Jacobian has been constructed. */
   bool have_preconditioner;     /**< Indicates whether a preconditioner exists. */

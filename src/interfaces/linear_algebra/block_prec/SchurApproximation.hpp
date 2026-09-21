@@ -11,6 +11,7 @@
 #include "block_prec/BlockTypes.hpp"
 
 #include <TpetraExt_MatrixMatrix.hpp>
+#include <iomanip>
 
 namespace MrHyDE {
 namespace block_prec {
@@ -41,6 +42,48 @@ template<class Node>
 typename block_prec::BlockTypes<Node>::CrsMatrixRCP schurBase(const typename block_prec::BlockTypes<Node>::CrsMatrixRCP & J11) {
   using LA_CrsMatrix = typename block_prec::BlockTypes<Node>::CrsMatrix;
   return Teuchos::rcp(new LA_CrsMatrix(*J11, Teuchos::Copy));
+}
+
+// beta = alpha_u^2 * (v'*corr*v) / (w'*diag(M_pivot)^-1*w), w = J01*v.
+template<class Node>
+ScalarT addonBeta(const BlockSystem<Node> & blocks,
+                  const typename BlockTypes<Node>::CrsMatrixRCP & corr,
+                  const typename BlockTypes<Node>::CrsMatrixRCP & massPivot,
+                  const bool useLumpedWeightDiagonal,
+                  const ScalarT alphaU,
+                  const int verbosity) {
+  using Types = BlockTypes<Node>;
+  using LA_Vector = typename Types::Vector;
+  using LA_CrsMatrix = typename Types::CrsMatrix;
+  const ScalarT one = Teuchos::ScalarTraits<ScalarT>::one();
+  const ScalarT zero = Teuchos::ScalarTraits<ScalarT>::zero();
+
+  // J10 has its Dirichlet rows zeroed, so v = J10*z vanishes there; J01 does not.
+  LA_Vector z(blocks.pivotMap), v(blocks.targetMap), cv(blocks.targetMap);
+  LA_Vector w(blocks.pivotMap), dw(blocks.pivotMap);
+  detail::fillProbe<Node>(z);
+  blocks.J10->apply(z, v);
+  corr->apply(v, cv);
+  blocks.J01->apply(v, w);
+
+  const detail::InverseDiagonalResult<Node> wgt =
+    detail::buildInverseDiagonal<Node>(
+      Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(massPivot), useLumpedWeightDiagonal);
+  Teuchos::RCP<LA_Vector> dB = detail::inverseDiagonalVector<Node>(massPivot->getRowMap(), wgt);
+  dw.elementWiseMultiply(one, *dB, w, zero);
+
+  const ScalarT num = v.dot(cv);
+  const ScalarT den = w.dot(dw);
+  // An unassembled J gives an empty correction, so beta is undefined here.
+  if (den == zero || num <= zero) return zero;
+  // Both off-diagonal blocks carry the DIRK spatial scaling, which cancels in r.
+  const ScalarT beta = alphaU * alphaU * (num / den);
+
+  if (verbosity >= 5 && blocks.targetMap->getComm()->getRank() == 0) {
+    std::cout << "[ADDON] beta = " << std::setprecision(14) << beta
+              << std::setprecision(6) << std::endl;
+  }
+  return beta;
 }
 
 template<class Node>
