@@ -5,7 +5,7 @@ import sys
 sys.path.append("../../../../scripts")
 from mrhyde_test_support import *
 
-its = mrhyde_test_support('''Setup-time block identities: round-trip, J10*D0, assembled vs matrix-free Schur.''')
+its = mrhyde_test_support('''Setup-time block identities: round-trip, J10*D0, Schur, D0 scale.''')
 its.opts.verbose = True
 
 #TESTING active
@@ -13,7 +13,7 @@ its.opts.verbose = True
 #TESTING -k maxwell,HCURL,blocktriangular,refmaxwell,parallel,regression
 
 TOL = 1.0e-12
-EXPECTED = ["round-trip", "J10*D0", "schur"]
+EXPECTED = ["round-trip", "J10*D0", "schur", "D0-scale"]
 
 status = its.call('mpiexec -n 4 ../../../../mrhyde input.yaml >& mrhyde.log')
 
