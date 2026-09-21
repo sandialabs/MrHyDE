@@ -29,8 +29,4 @@ ANONYMOUS:
       hcurl basis name: E
       Maxwell1 Settings:
         xml param file: ../xml/maxwell1_sa.xml
-        hgrad basis name: phi_aux
-        hcurl basis name: E
-        hgrad basis order: 1
-        hcurl basis order: 1
 ...

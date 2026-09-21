@@ -57,12 +57,10 @@ def amg(xml):
 def auxspace(kind, xml, extra=""):
     """RefMaxwell or Maxwell1 on the edge space."""
     return ("preconditioner type: {k}\n"
+            "hgrad basis name: phi_aux\n"
+            "hcurl basis name: E\n"
             "{k} Settings:\n"
             "  xml param file: {x}\n"
-            "  hgrad basis name: phi_aux\n"
-            "  hcurl basis name: E\n"
-            "  hgrad basis order: 1\n"
-            "  hcurl basis order: 1\n"
             "{e}").format(k=kind, x=xml, e=extra)
 
 

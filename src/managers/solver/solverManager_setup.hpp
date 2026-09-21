@@ -245,23 +245,14 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
     "Schur pivot block index " + std::to_string(pivotBlock) + " is out of range for set " +
     std::to_string(set) + " with " + std::to_string(blockMaps.size()) + " blocks.");
 
-  // Basis setting precedence: RefMaxwell / Maxwell1, preconditioner/Schur, then block settings.
-  const Teuchos::ParameterList * refmaxwellSetupListPtr = nullptr;
-  auto pickSublist = [](const Teuchos::ParameterList & p) -> const Teuchos::ParameterList * {
-    if (p.isSublist("RefMaxwell Settings")) return &p.sublist("RefMaxwell Settings");
-    if (p.isSublist("Maxwell1 Settings"))   return &p.sublist("Maxwell1 Settings");
-    return nullptr;
+  // Basis settings live in Pivot or Schur Block Settings.
+  auto hasBasis = [](const Teuchos::ParameterList * p) {
+    return p->name() != "empty" && p->isParameter("hgrad basis name");
   };
-  if (pivotHasRefMaxwell)
-    refmaxwellSetupListPtr = pickSublist(cntxt->pivot_block_sublist);
-  else if (schurHasRefMaxwell)
-    refmaxwellSetupListPtr = pickSublist(cntxt->schur_block_sublist);
-  if (refmaxwellSetupListPtr == nullptr) {
-    if (cntxt->prec_sublist.name() != "empty" && cntxt->prec_sublist.isParameter("hgrad basis name"))
-      refmaxwellSetupListPtr = &cntxt->prec_sublist;
-    else if (cntxt->schur_block_sublist.name() != "empty" && cntxt->schur_block_sublist.isParameter("hgrad basis name"))
-      refmaxwellSetupListPtr = &cntxt->schur_block_sublist;
-  }
+  const Teuchos::ParameterList * refmaxwellSetupListPtr = nullptr;
+  if (hasBasis(&cntxt->pivot_block_sublist))      refmaxwellSetupListPtr = &cntxt->pivot_block_sublist;
+  else if (hasBasis(&cntxt->schur_block_sublist)) refmaxwellSetupListPtr = &cntxt->schur_block_sublist;
+  else if (hasBasis(&cntxt->prec_sublist))        refmaxwellSetupListPtr = &cntxt->prec_sublist;
   std::string hgrad_basis, hcurl_basis;
   int hgrad_order = 1, hcurl_order = 1;
   if (refmaxwellSetupListPtr != nullptr && refmaxwellSetupListPtr->isParameter("hgrad basis name")) {

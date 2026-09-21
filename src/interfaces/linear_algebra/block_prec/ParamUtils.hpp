@@ -155,8 +155,6 @@ inline Teuchos::ParameterList defaultMueLuParams() {
 inline std::set<std::string> defaultRefMaxwellAllowedParams() {
   const char * keys[] = {
     "xml param file",
-    "hgrad basis name", "hcurl basis name",
-    "hgrad basis order", "hcurl basis order",
     "filter SM", "filter threshold",
     "verify complex"
   };
@@ -170,8 +168,6 @@ inline std::set<std::string> defaultRefMaxwellAllowedSublists() {
 inline std::set<std::string> defaultMaxwell1AllowedParams() {
   const char * keys[] = {
     "xml param file",
-    "hgrad basis name", "hcurl basis name",
-    "hgrad basis order", "hcurl basis order",
     "filter SM", "filter threshold",
     "verify complex", "verify Kn consistency",
     "use Kn from M1"

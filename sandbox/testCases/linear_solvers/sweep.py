@@ -57,6 +57,9 @@ KRYLOV = {
     "tfqmr": "TFQMR",
 }
 
+SLOW_DIRECT = {"blocktri_directschur"}
+DIRECT_MAX_ELEMENTS = 24 * 12 * 6
+
 # Every cfl case is at the finest mesh, so only the h study has cases to trim.
 DEFAULT_CASES = {"h": ["N8x8x4", "N16x8x4", "N24x12x6", "N32x16x8"],
                  "cfl": [c[0] for c in STUDIES["cfl"]]}
@@ -145,6 +148,13 @@ ANONYMOUS:
     use preconditioner: true
     reuse preconditioner: true
     reuse Jacobian: true
+    # L2 projections solve a mass matrix, not the Maxwell system.
+    State L2 linear solver:
+      Belos solver: 'Pseudo Block CG'
+      linear TOL: 1.0e-10
+      max linear iters: 500
+      use preconditioner: true
+      preconditioner type: domain decomposition
     preconditioner reuse type: full
 {solver}
   Analysis:
@@ -180,11 +190,16 @@ def gen(names, cases, krylov):
     print("wrote %d decks under runs/%s" % (len(names) * len(cases), krylov))
 
 
-def run(names, cases, krylov):
+def run(names, cases, krylov, asked_for=()):
     if not EXE.is_file():
         sys.exit("no mrhyde at %s" % EXE)
     for name in names:
-        for tag, _, _, _, _ in cases:
+        for tag, nx, ny, nz, _ in cases:
+            if (name in SLOW_DIRECT and name not in asked_for
+                    and nx * ny * nz > DIRECT_MAX_ELEMENTS):
+                print("  %-26s %-10s skipped, direct solve above %d elements"
+                      % (name, tag, DIRECT_MAX_ELEMENTS), flush=True)
+                continue
             d = deck_dir(krylov, name, tag)
             if not (d / "input.yaml").exists():
                 sys.exit("%s/%s/%s not generated; run `sweep.py gen`"
@@ -279,12 +294,16 @@ def parse_args(argv):
     return (cmd,
             [a for a in rest if a in SOLVERS] or list(SOLVERS),
             [c for c in cases if c[0] in picked],
-            krylov[0] if krylov else "bicgstab")
+            krylov[0] if krylov else "bicgstab",
+            [a for a in rest if a in SOLVERS])
 
 
 def main():
-    cmd, names, cases, krylov = parse_args(sys.argv[1:])
-    COMMANDS[cmd](names, cases, krylov)
+    cmd, names, cases, krylov, asked_for = parse_args(sys.argv[1:])
+    if cmd == "run":
+        run(names, cases, krylov, asked_for)
+    else:
+        COMMANDS[cmd](names, cases, krylov)
 
 
 if __name__ == "__main__":

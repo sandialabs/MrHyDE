@@ -29,8 +29,4 @@ ANONYMOUS:
       hcurl basis name: E
       RefMaxwell Settings:
         xml param file: ../xml/refmaxwell_p2v3_addon.xml
-        hgrad basis name: phi_aux
-        hcurl basis name: E
-        hgrad basis order: 1
-        hcurl basis order: 1
 ...
