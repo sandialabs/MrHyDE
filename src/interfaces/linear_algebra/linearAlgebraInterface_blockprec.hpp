@@ -13,6 +13,7 @@
 #include "block_prec/SchurApproximation.hpp"
 #include "block_prec/TekoAdapter.hpp"
 #include "block_prec/BlockVerify.hpp"
+#include "block_prec/BlockTriangularFactory.hpp"
 
 #include <Ifpack2_Factory.hpp>
 #include <Xpetra_TripleMatrixMultiply.hpp>
@@ -75,18 +76,6 @@ namespace MrHyDE {
 
 template<class Node>
 using LATypes = block_prec::BlockTypes<Node>;
-
-// Load a complete MueLu parameter list from XML when configured.
-inline bool loadMueLuXmlIfPresent(const Teuchos::ParameterList & amgSublist,
-                                  Teuchos::ParameterList & outParams,
-                                  const std::string & context,
-                                  const Teuchos::RCP<const Teuchos::Comm<int> > & comm) {
-  if (!amgSublist.isParameter("xml param file")) return false;
-  const std::string xmlFile = amgSublist.get<std::string>("xml param file");
-  if (xmlFile.empty()) return false;
-  loadXmlBroadcast(xmlFile, outParams, *comm, context);
-  return true;
-}
 
 namespace block_prec {
 namespace detail {
@@ -179,7 +168,7 @@ buildAuxNodalMatrix(const typename LATypes<Node>::CrsMatrixRCP & A_edge,
 }
 
 template<class Node>
-Teuchos::RCP<typename LATypes<Node>::Operator>
+Teko::LinearOp
 buildAmgBlockOperator(const typename LATypes<Node>::CrsMatrixRCP & blockMat,
                       const Teuchos::ParameterList & blockList,
                       const Teuchos::RCP<Tpetra::MultiVector<
@@ -221,12 +210,11 @@ buildAmgBlockOperator(const typename LATypes<Node>::CrsMatrixRCP & blockMat,
     mueluList.sublist("user data").set("D0", wrapAsXpetraMatrix<Node>(D0_matrix));
   }
 
-  return MueLu::CreateTpetraPreconditioner(
-    Teuchos::rcp_implicit_cast<typename LATypes<Node>::Operator>(blockMat), mueluList);
+  return block_prec::buildLibraryInverse<Node>("MueLu", mueluList, "BlockDiag AMG", blockMat);
 }
 
 template<class Node>
-Teuchos::RCP<typename LATypes<Node>::Operator>
+Teko::LinearOp
 buildIfpack2BlockOperator(LinearAlgebraInterface<Node> & interface,
                           const typename LATypes<Node>::CrsMatrixRCP & blockMat,
                           const Teuchos::ParameterList & blockListIn,
@@ -252,24 +240,25 @@ buildIfpack2BlockOperator(LinearAlgebraInterface<Node> & interface,
     ensureRelaxationDampingDouble(ifpackList);
   }
 
-  Teuchos::RCP<Ifpack2::Preconditioner<ScalarT,LO,GO,Node> > prec =
-    Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,Node> >(method, blockMat);
-  prec->setParameters(ifpackList);
-  prec->initialize();
-  prec->compute();
-  return Teuchos::rcp_implicit_cast<typename LATypes<Node>::Operator>(prec);
+  Teuchos::ParameterList entry;
+  entry.set("Prec Type", method);
+  entry.sublist("Ifpack2 Settings").setParameters(ifpackList);
+  return block_prec::buildLibraryInverse<Node>("Ifpack2", entry,
+    "BlockDiag block " + std::to_string(blockIndex) + " Ifpack2", blockMat);
 }
 
 template<class Node>
-Teuchos::RCP<typename LATypes<Node>::Operator>
+Teko::LinearOp
 buildSingleBlockPreconditioner(LinearAlgebraInterface<Node> & interface,
                                const typename LATypes<Node>::CrsMatrixRCP & blockMat,
                                const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
                                const size_t blockIndex,
                                const bool useRefMaxwellOnBlock0) {
+  const std::string label = "BlockDiag block " + std::to_string(blockIndex);
   if (blockIndex == 0 && useRefMaxwellOnBlock0) {
-    interface.validateRefMaxwellBlockInputs(blockMat, cntxt);
-    return interface.buildRefMaxwellPreconditioner(blockMat, cntxt, cntxt->pivot_block_sublist);
+    return block_prec::buildBlockOperator<Node>(interface, blockMat, cntxt, cntxt->pivot_block_sublist,
+      BlockPrecType::RefMaxwell, false, label,
+      [] { return Teko::LinearOp(); });
   }
 
   Teuchos::ParameterList blockList = mergeBlockSettings<Node>(interface, cntxt, blockIndex);
@@ -280,46 +269,46 @@ buildSingleBlockPreconditioner(LinearAlgebraInterface<Node> & interface,
                              blockList.get<bool>("use mass matrix");
   if (useMassMatrix) {
     TEUCHOS_TEST_FOR_EXCEPTION(cntxt.is_null() ||
-      blockIndex >= cntxt->refMaxwell.block_mass_matrices.size() ||
-      cntxt->refMaxwell.block_mass_matrices[blockIndex].is_null(),
+      blockIndex >= cntxt->block.mass_matrices.size() ||
+      cntxt->block.mass_matrices[blockIndex].is_null(),
       std::runtime_error,
       "'use mass matrix: true' on Block " << blockIndex << " Settings but no block mass matrix "
       "was assembled. Check that block-diagonal preconditioning is active and that "
       "setupBlockTriangularAuxiliary ran (needs 'use mass matrix' on at least one Block N Settings).");
-    preconditioner_matrix = cntxt->refMaxwell.block_mass_matrices[blockIndex];
+    preconditioner_matrix = cntxt->block.mass_matrices[blockIndex];
     if (interface.verbosity >= 10 && interface.comm->getRank() == 0) {
       std::cout << "[BlockDiag] Block " << blockIndex
                 << ": substituting mass matrix for extracted Jacobian block" << std::endl;
     }
   }
 
+  // Block-diagonal blocks pick AMG or an Ifpack2 smoother by name, so they all
+  // take buildBlockOperator's generic branch.
   const std::string method = resolveBlockMethod(blockList);
-  Teuchos::RCP<typename LATypes<Node>::Operator> innerPrec;
-  if (toUpperAsciiCopy(method) == "AMG") {
-    if (interface.verbosity >= 15 && interface.comm->getRank() == 0) {
-      std::cout << "Preconditioner parameters (block diagonal, block " << blockIndex
-                << ", method AMG):" << std::endl;
-      blockList.print(std::cout);
-    }
-    typedef typename Teuchos::ScalarTraits<ScalarT>::coordinateType CoordScalar;
-    Teuchos::RCP<Tpetra::MultiVector<CoordScalar,LO,GO,Node> > dofCoords;
-    if (!cntxt.is_null() && blockIndex < cntxt->refMaxwell.block_dof_coords.size()) {
-      dofCoords = cntxt->refMaxwell.block_dof_coords[blockIndex];
-    }
-    // Associate D0 with the HCURL block by matching its range map.
-    typename LATypes<Node>::CrsMatrixRCP D0_for_block;
-    if (!cntxt.is_null() && !cntxt->refMaxwell.D0_matrix.is_null() &&
-        cntxt->refMaxwell.D0_matrix->getRangeMap()->isSameAs(*preconditioner_matrix->getRowMap())) {
-      D0_for_block = cntxt->refMaxwell.D0_matrix;
-    }
-    innerPrec = buildAmgBlockOperator<Node>(preconditioner_matrix, blockList, dofCoords, D0_for_block);
-  } else {
-    innerPrec = buildIfpack2BlockOperator<Node>(interface, preconditioner_matrix, blockList, method, blockIndex);
-  }
-
-  return block_prec::maybeWrapInInnerKrylov<Node>(
-    interface, preconditioner_matrix, innerPrec, blockList,
-    "BlockDiag block " + std::to_string(blockIndex), cntxt);
+  return block_prec::buildBlockOperator<Node>(interface, preconditioner_matrix, cntxt, blockList,
+    BlockPrecType::AMG, false, label,
+    [&] () -> Teko::LinearOp {
+      if (toUpperAsciiCopy(method) != "AMG") {
+        return buildIfpack2BlockOperator<Node>(interface, preconditioner_matrix, blockList, method, blockIndex);
+      }
+      if (interface.verbosity >= 15 && interface.comm->getRank() == 0) {
+        std::cout << "Preconditioner parameters (block diagonal, block " << blockIndex
+                  << ", method AMG):" << std::endl;
+        blockList.print(std::cout);
+      }
+      typedef typename Teuchos::ScalarTraits<ScalarT>::coordinateType CoordScalar;
+      Teuchos::RCP<Tpetra::MultiVector<CoordScalar,LO,GO,Node> > dofCoords;
+      if (!cntxt.is_null() && blockIndex < cntxt->block.dof_coords.size()) {
+        dofCoords = cntxt->block.dof_coords[blockIndex];
+      }
+      // Associate D0 with the HCURL block by matching its range map.
+      typename LATypes<Node>::CrsMatrixRCP D0_for_block;
+      if (!cntxt.is_null() && !cntxt->refMaxwell.D0_matrix.is_null() &&
+          cntxt->refMaxwell.D0_matrix->getRangeMap()->isSameAs(*preconditioner_matrix->getRowMap())) {
+        D0_for_block = cntxt->refMaxwell.D0_matrix;
+      }
+      return buildAmgBlockOperator<Node>(preconditioner_matrix, blockList, dofCoords, D0_for_block);
+    });
 }
 
 } // namespace detail
@@ -419,41 +408,33 @@ LinearAlgebraInterface<Node>::buildBlockDiagonalPreconditioner(const matrix_RCP 
 
   // Build one local map per variable block.
   vector<Teuchos::RCP<const LA_Map> > blockMaps = this->buildBlockMaps(set);
-  TEUCHOS_TEST_FOR_EXCEPTION(blockMaps.size() != 2, std::runtime_error,
-    "Block-diagonal preconditioner supports exactly two variable blocks, but set "
-    << set << " has " << blockMaps.size()
-    << ". N-block support through Teko is not implemented.");
+  TEUCHOS_TEST_FOR_EXCEPTION(blockMaps.size() < 2, std::runtime_error,
+    "Block-diagonal preconditioner needs at least two variable blocks, but set "
+    << set << " has " << blockMaps.size() << ".");
+  if (this->verbosity >= 10 && this->comm->getRank() == 0) {
+    std::cout << "[BlockDiag] " << blockMaps.size() << " variable blocks" << std::endl;
+  }
 
   const std::vector<std::vector<matrix_RCP> > remappedBlocks =
     block_prec::detail::extractAndRemapBlocks<Node>(J, blockMaps, true);
 
   // Build one diagonal-block preconditioner per block map.
-  vector<Teuchos::RCP<Tpetra::Operator<ScalarT,LO,GO,Node> > > blockPrecs(blockMaps.size());
+  vector<Teko::LinearOp> blockPrecs(blockMaps.size());
+  vector<matrix_RCP> diagBlocks(blockMaps.size());
   for (size_t b = 0; b < blockMaps.size(); ++b) {
+    diagBlocks[b] = remappedBlocks[b][b];
     blockPrecs[b] = block_prec::detail::buildSingleBlockPreconditioner<Node>(
-      *this, remappedBlocks[b][b], cntxt, b, useRefMaxwellOnBlock0);
+      *this, diagBlocks[b], cntxt, b, useRefMaxwellOnBlock0);
   }
 
   Teuchos::RCP<const LA_Map> fullMap = J->getRowMap();
   return block_prec::buildTekoNativeBlockDiagonal<Node>(
-    fullMap, blockMaps, remappedBlocks[0][0], remappedBlocks[1][1],
-    blockPrecs[0], blockPrecs[1]);
+    fullMap, blockMaps, diagBlocks, blockPrecs);
 }
 
 // ========================================================================================
 // Block triangular: MueLu and RefMaxwell
 // ========================================================================================
-// Map integer verbosity to MueLu string (none/low/medium/high).
-inline void normalizeMueLuVerbosity(Teuchos::ParameterList & mueluParams, const int verbosity) {
-  if (mueluParams.isParameter("verbosity") && mueluParams.getEntry("verbosity").isType<int>()) {
-    const int v = mueluParams.get<int>("verbosity");
-    mueluParams.set("verbosity", std::string(v <= 0 ? "none" : v <= 1 ? "low" : v <= 2 ? "medium" : "high"));
-  }
-  if (verbosity >= 20) {
-    mueluParams.set("verbosity", "high");
-  }
-}
-
 // Default MueLu parameter list for block-triangular pivot/Schur AMG.
 template<class Node>
 Teuchos::ParameterList
@@ -570,87 +551,9 @@ LinearAlgebraInterface<Node>::setupBlockTriangularPreconditioner(
     return cntxt->prec_block;
   }
 
-  // --- Phase 2: Extract block system ---
-  block_prec::BlockSystem<Node> blocks = block_prec::buildBlockSystemForSet<Node>(*this, J, cntxt, set);
-
-  // --- Phase 3: Build Schur approximation ---
-  matrix_RCP schurCorr;
-  matrix_RCP SchurApprox = this->buildBlockTriangularSchurApproximation(
-    blocks, cntxt, &schurCorr);
-
-  // Only the diag variant has a curl-curl term to read beta from.
-  // schur_addon_wanted is only known after the first XML read, so probe on that build too.
-  cntxt->refMaxwell.schur_addon_beta = 0.0;
-  if ((cntxt->refMaxwell.schur_addon_wanted || !cntxt->have_preconditioner) && !schurCorr.is_null() && !cntxt->refMaxwell.nodal_lumped_mass.is_null() &&
-      static_cast<size_t>(cntxt->schur.pivot_block) < cntxt->refMaxwell.block_mass_matrices.size() &&
-      !cntxt->refMaxwell.block_mass_matrices[cntxt->schur.pivot_block].is_null()) {
-    cntxt->refMaxwell.schur_addon_beta = block_prec::addonBeta<Node>(
-      blocks, schurCorr, cntxt->refMaxwell.block_mass_matrices[cntxt->schur.pivot_block],
-      cntxt->schur.diag_use_lumped_pivot_diagonal,
-      cntxt->stage_alpha_u, verbosity);
-  }
-
-  block_prec::verifyBlockSystem<Node>(blocks, J, SchurApprox,
-    cntxt->refMaxwell.D0_matrix, cntxt->refMaxwell.M1_matrix,
-    cntxt->refMaxwell.nodal_coords, cntxt->refMaxwell.nodal_lumped_mass,
-    cntxt->schur.damping,
-    cntxt->schur.diag_use_lumped_pivot_diagonal,
-    parseSchurVariant(cntxt->schur.approximation_type) == SchurVariant::Diag,
-    verbosity);
-
-  // --- Phase 4: Build/reuse AMG for pivot and Schur blocks ---
-  Teuchos::ParameterList schurMueLuParams = this->getBlockTriangularMueLuParams(cntxt);
-  Teuchos::ParameterList pivotMueLuParams(schurMueLuParams);
-  if (cntxt->pivot_block_sublist.name() != "empty" && cntxt->pivot_block_sublist.isSublist("AMG Settings")) {
-    const Teuchos::ParameterList & pivotAmgSublist = cntxt->pivot_block_sublist.sublist("AMG Settings");
-    Teuchos::ParameterList xmlLoaded;
-    if (loadMueLuXmlIfPresent(pivotAmgSublist, xmlLoaded, "pivot block", J->getComm())) {
-      pivotMueLuParams = xmlLoaded;
-      normalizeMueLuVerbosity(pivotMueLuParams, verbosity);
-    } else {
-      pivotMueLuParams = defaultMueLuParams();
-      Teuchos::ParameterList filteredPivotParams(pivotAmgSublist);
-      removeMrHyDEOwnedKeys(filteredPivotParams);
-      removeIfpack2OnlyKeys(filteredPivotParams);
-      pivotMueLuParams.setParameters(filteredPivotParams);
-      if (pivotAmgSublist.isSublist("smoother: params")) {
-        pivotMueLuParams.remove("smoother: params", false);
-        pivotMueLuParams.sublist("smoother: params").setParameters(
-          pivotAmgSublist.sublist("smoother: params"));
-      }
-    }
-  }
-
-  Teuchos::RCP<Tpetra::Operator<ScalarT,LO,GO,Node> > pivotPrec =
-    block_prec::buildPivotBlockPrec<Node>(
-      *this,
-      blocks.J00,
-      cntxt,
-      pivotMueLuParams);
-  Teuchos::RCP<Tpetra::Operator<ScalarT,LO,GO,Node> > SchurPrec =
-    block_prec::buildSchurBlockPrec<Node>(
-      *this,
-      SchurApprox,
-      cntxt,
-      schurMueLuParams);
-
-  // --- Phase 5: Assemble operator ---
-  Teuchos::RCP<const LA_Map> fullMap = J->getRowMap();
-  const TriangleSide triangle = parseTriangleSide(cntxt->schur.triangle);
-  const bool useUpperTriangular = (triangle == TriangleSide::Auto)
-    ? cntxt->right_preconditioner
-    : (triangle == TriangleSide::Upper);
-  if (this->verbosity >= 5 && this->comm->getRank() == 0) {
-    const ScalarT zero = Teuchos::ScalarTraits<ScalarT>::zero();
-    if (cntxt->schur.damping == zero) {
-      std::cout << "Schur damping is 0; diagonal correction disabled." << std::endl;
-    }
-  }
-  std::vector<Teuchos::RCP<const LA_Map> > triMaps = {blocks.pivotMap, blocks.targetMap};
-  return block_prec::buildTekoNativeBlockTriangular<Node>(
-    fullMap, triMaps,
-    blocks.J00, blocks.J01, blocks.J10, blocks.J11,
-    pivotPrec, SchurPrec, useUpperTriangular);
+  // --- Phases 2-5: extract, Schur approximation, block inverses, assemble ---
+  block_prec::BlockTriangularFactory<Node> factory(*this, J, cntxt, set);
+  return factory.build();
 }
 
 } // namespace MrHyDE

@@ -100,6 +100,29 @@ inline std::string canonicalReuseType(const std::string & raw) {
   return "update";
 }
 
+// Load a complete MueLu parameter list from XML when configured.
+inline bool loadMueLuXmlIfPresent(const Teuchos::ParameterList & amgSublist,
+                                  Teuchos::ParameterList & outParams,
+                                  const std::string & context,
+                                  const Teuchos::RCP<const Teuchos::Comm<int> > & comm) {
+  if (!amgSublist.isParameter("xml param file")) return false;
+  const std::string xmlFile = amgSublist.get<std::string>("xml param file");
+  if (xmlFile.empty()) return false;
+  loadXmlBroadcast(xmlFile, outParams, *comm, context);
+  return true;
+}
+
+// Map integer verbosity to MueLu string (none/low/medium/high).
+inline void normalizeMueLuVerbosity(Teuchos::ParameterList & mueluParams, const int verbosity) {
+  if (mueluParams.isParameter("verbosity") && mueluParams.getEntry("verbosity").isType<int>()) {
+    const int v = mueluParams.get<int>("verbosity");
+    mueluParams.set("verbosity", std::string(v <= 0 ? "none" : v <= 1 ? "low" : v <= 2 ? "medium" : "high"));
+  }
+  if (verbosity >= 20) {
+    mueluParams.set("verbosity", "high");
+  }
+}
+
 inline Teuchos::ParameterList defaultMueLuParams() {
   Teuchos::ParameterList mueluParams;
   mueluParams.set("verbosity", "none");

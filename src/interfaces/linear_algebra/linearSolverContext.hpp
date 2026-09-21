@@ -61,8 +61,6 @@ struct RefMaxwellData {
   typedef Tpetra::MultiVector<CoordScalar,LO,GO,Node> LA_CoordMultiVector;
   Teuchos::RCP<LA_CrsMatrix> D0_matrix;   /**< Discrete gradient (HGRAD -> HCURL). */
   Teuchos::RCP<LA_CrsMatrix> M1_matrix;   /**< Edge mass matrix for HCURL block. */
-  std::vector<Teuchos::RCP<LA_CrsMatrix> > block_mass_matrices;  /**< Mass matrix per variable block. */
-  std::vector<Teuchos::RCP<LA_CoordMultiVector> > block_dof_coords;  /**< Coordinates per variable block for MueLu. */
   Teuchos::RCP<LA_CoordMultiVector> nodal_coords;
   /** Lumped nodal mass, integral(N_n), for the RefMaxwell addon. */
   Teuchos::RCP<LA_MultiVector> nodal_lumped_mass;
@@ -74,6 +72,17 @@ struct RefMaxwellData {
   bool schur_addon_wanted = false;      /**< The Schur XML asked for the addon. */
   std::string xml_param_file_pivot = "";
   std::string xml_param_file_schur = "";
+};
+
+/** \brief Per-variable-block auxiliary data. Read by block-diagonal
+ *  preconditioning and by the block-triangular Schur mass correction. */
+template<class Node>
+struct BlockData {
+  typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node> LA_CrsMatrix;
+  typedef typename Teuchos::ScalarTraits<ScalarT>::coordinateType CoordScalar;
+  typedef Tpetra::MultiVector<CoordScalar,LO,GO,Node> LA_CoordMultiVector;
+  std::vector<Teuchos::RCP<LA_CrsMatrix> > mass_matrices;      /**< Mass matrix per variable block. */
+  std::vector<Teuchos::RCP<LA_CoordMultiVector> > dof_coords;  /**< Coordinates per variable block for MueLu. */
 };
 
 /** \brief Maxwell1 (Reitzinger-Schoberl / energy-min) configuration. Reuses
@@ -179,6 +188,8 @@ public:
   AMGData amg;
   /**< RefMaxwell matrices/vectors (D0, M1, coords) and debug/strict flags. */
   RefMaxwellData<Node> refMaxwell;
+
+  BlockData<Node> block;
   /**< Maxwell1 (Reitzinger-Schoberl / energy-min) configuration; reuses D0 + coords from refMaxwell. */
   Maxwell1Data<Node> maxwell1;
 

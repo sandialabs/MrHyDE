@@ -144,10 +144,9 @@ void SolverManager<Node>::completeSetup() {
         const auto & src = source_context->refMaxwell;
         dst.D0_matrix = src.D0_matrix;
         dst.M1_matrix = src.M1_matrix;
-        dst.block_mass_matrices = src.block_mass_matrices;
-        dst.block_dof_coords = src.block_dof_coords;
         dst.nodal_coords = src.nodal_coords;
         dst.nodal_lumped_mass = src.nodal_lumped_mass;
+        ctxVec[set]->block = source_context->block;
       }
     };
     share_auxiliary_data(linalg->context);
@@ -205,9 +204,9 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
   const int pivotBlock = cntxt->schur.pivot_block;
 
   // Cache block mass matrices for optional substitution.
-  cntxt->refMaxwell.block_mass_matrices.assign(blockMaps.size(), Teuchos::null);
+  cntxt->block.mass_matrices.assign(blockMaps.size(), Teuchos::null);
   for (size_t b = 0; b < blockMaps.size(); ++b) {
-    cntxt->refMaxwell.block_mass_matrices[b] = linalg->extractDiagonalBlock(assembled_mass_matrix, blockMaps[b]);
+    cntxt->block.mass_matrices[b] = linalg->extractDiagonalBlock(assembled_mass_matrix, blockMaps[b]);
   }
 
   // Complete HGRAD and HCURL settings request distance-laplacian coordinates.
@@ -533,13 +532,13 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
       "RefMaxwell setup: " << global_missing << " nodes have no coordinates.");
   }
 
-  if (cntxt->refMaxwell.block_dof_coords.size() != blockMaps.size()) {
-    cntxt->refMaxwell.block_dof_coords.assign(blockMaps.size(), Teuchos::null);
+  if (cntxt->block.dof_coords.size() != blockMaps.size()) {
+    cntxt->block.dof_coords.assign(blockMaps.size(), Teuchos::null);
   }
   auto edge_coords = buildEdgeAveragedNodeCoords<ScalarT,LO,GO,Node>(
     cntxt->refMaxwell.D0_matrix, edge_block_map, gid_to_coords, dimension);
-  cntxt->refMaxwell.block_dof_coords[edgeBlock] = edge_coords;
-  debugger->print("**** setupBlockTriangularAuxiliary: populated block_dof_coords[edgeBlock=" +
+  cntxt->block.dof_coords[edgeBlock] = edge_coords;
+  debugger->print("**** setupBlockTriangularAuxiliary: populated block.dof_coords[edgeBlock=" +
                   std::to_string(edgeBlock) + "] length " +
                   std::to_string(edge_coords->getGlobalLength()));
 

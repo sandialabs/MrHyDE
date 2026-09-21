@@ -3,7 +3,6 @@
 
 #include "block_prec/BlockTypes.hpp"
 
-#include <Amesos2.hpp>
 #include <KokkosKernels_ArithTraits.hpp>
 
 #include <algorithm>
@@ -112,55 +111,6 @@ private:
   Teuchos::RCP<LA_Vector> invDiag_;
   mutable bool maps_checked_ = false;
 };
-
-/** Wraps an Amesos2 direct solver as a Tpetra::Operator for block-level inversion. */
-template<class Node>
-class DirectSolveOperator : public Tpetra::Operator<ScalarT, LO, GO, Node> {
-public:
-  using Types = BlockTypes<Node>;
-  using LA_Map = typename Types::Map;
-  using LA_MultiVector = typename Types::MultiVector;
-  using CrsMatrix = typename Types::CrsMatrix;
-  using Solver = Amesos2::Solver<CrsMatrix, LA_MultiVector>;
-
-  DirectSolveOperator(const Teuchos::RCP<Solver> & solverIn,
-                      const Teuchos::RCP<const LA_Map> & mapIn)
-    : solver_(solverIn), map_(mapIn) {}
-
-  Teuchos::RCP<const LA_Map> getDomainMap() const override { return map_; }
-  Teuchos::RCP<const LA_Map> getRangeMap() const override { return map_; }
-  bool hasTransposeApply() const override { return false; }
-
-  void apply(const LA_MultiVector & X, LA_MultiVector & Y,
-             Teuchos::ETransp mode = Teuchos::NO_TRANS,
-             ScalarT alpha = Teuchos::ScalarTraits<ScalarT>::one(),
-             ScalarT beta = Teuchos::ScalarTraits<ScalarT>::zero()) const override {
-    TEUCHOS_TEST_FOR_EXCEPTION(mode != Teuchos::NO_TRANS, std::runtime_error,
-      "DirectSolveOperator does not support transpose.");
-    detail::checkApplyMaps<Node>(X, Y, map_, maps_checked_, "DirectSolveOperator");
-    const ScalarT zero = Teuchos::ScalarTraits<ScalarT>::zero();
-    if (beta == zero) {
-      solver_->setB(Teuchos::rcpFromRef(const_cast<LA_MultiVector &>(X)));
-      solver_->setX(Teuchos::rcpFromRef(Y));
-      solver_->solve();
-      if (alpha != Teuchos::ScalarTraits<ScalarT>::one()) Y.scale(alpha);
-    }
-    else {
-      Teuchos::RCP<LA_MultiVector> Yold = Teuchos::rcp(new LA_MultiVector(Y, Teuchos::Copy));
-      Teuchos::RCP<LA_MultiVector> Z = Teuchos::rcp(new LA_MultiVector(map_, Y.getNumVectors()));
-      solver_->setB(Teuchos::rcpFromRef(const_cast<LA_MultiVector &>(X)));
-      solver_->setX(Z);
-      solver_->solve();
-      Y.update(alpha, *Z, beta, *Yold, zero);
-    }
-  }
-
-private:
-  Teuchos::RCP<Solver> solver_;
-  Teuchos::RCP<const LA_Map> map_;
-  mutable bool maps_checked_ = false;
-};
-
 
 } // namespace block_prec
 } // namespace MrHyDE
