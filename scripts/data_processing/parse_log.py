@@ -16,8 +16,6 @@ ITER = re.compile(r"^Iter\s+(\d+),")
 VALUE = re.compile(r"([0-9.eE+-]+) \(")
 UNCONVERGED = "WARNING: Belos linear solve did not converge"
 
-# Measured spread across 1-8 ranks scales with the count, not with a constant, so the
-# band is proportional with a floor. See sandbox/testCases/linear_solvers/README.md.
 ITER_TOL_FLOOR = 2
 ITER_TOL_FRAC = 0.15
 
@@ -91,7 +89,7 @@ def band(ref, iter_tol=None):
     return max(ITER_TOL_FLOOR, int(math.ceil(ITER_TOL_FRAC * ref)))
 
 
-def check(solves, mean, imax, log="mrhyde.log", iter_tol=None):
+def check(solves, mean, imax, log="mrhyde.log", iter_tol=None, res=None):
     """Regression check against recorded counts. 0 on match, 1 with a reason printed."""
     fail = []
     s = stats(log)
@@ -110,12 +108,16 @@ def check(solves, mean, imax, log="mrhyde.log", iter_tol=None):
     if abs(s["max"] - imax) > max_tol:
         fail.append("max iters %d, expected %d +/- %d" % (s["max"], imax, max_tol))
 
+    detail = "; ".join(fail) if fail else ("%d solves, mean %.2f (+/- %d), max %d (+/- %d)"
+                                           % (s["solves"], s["mean"], mean_tol, s["max"], max_tol))
+    if res is not None:
+        res.add(not fail, "iteration counts", detail)
+        return 0
     for reason in fail:
         print("Failure: " + reason)
     if fail:
         return 1
-    print("Success.  %d solves, mean %.2f (+/- %d), max %d (+/- %d)"
-          % (s["solves"], s["mean"], mean_tol, s["max"], max_tol))
+    print("Success.  " + detail)
     return 0
 
 
@@ -142,3 +144,22 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+class Results:
+    """PASS/FAIL rows for one test, echoed to stdout and to mrhyde.results."""
+
+    def __init__(self, path="mrhyde.results"):
+        self.path, self.rows = path, []
+
+    def add(self, ok, label, detail=""):
+        self.rows.append((bool(ok), label, detail))
+
+    def write(self):
+        bad = sum(1 for ok, _, _ in self.rows if not ok)
+        lines = ["%-4s %-26s %s" % ("PASS" if ok else "FAIL", label, detail)
+                 for ok, label, detail in self.rows]
+        lines.append("%d of %d checks failed" % (bad, len(self.rows)))
+        Path(self.path).write_text("\n".join(lines) + "\n")
+        print("\n".join(lines))
+        return bad
