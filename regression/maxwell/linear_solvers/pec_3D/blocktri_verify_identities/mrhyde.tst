@@ -3,7 +3,9 @@
 import re
 import sys
 sys.path.append("../../../../scripts")
+sys.path.append("../../../../../scripts/data_processing")
 from mrhyde_test_support import *
+from parse_log import Results
 
 its = mrhyde_test_support('''Setup-time block identities: round-trip, J10*D0, Schur, D0 scale.''')
 its.opts.verbose = True
@@ -15,6 +17,7 @@ its.opts.verbose = True
 TOL = 1.0e-12
 EXPECTED = ["round-trip", "J10*D0", "schur", "D0-scale"]
 
+res = Results()
 status = its.call('mpiexec -n 4 ../../../../mrhyde input.yaml >& mrhyde.log')
 
 found = {}
@@ -24,14 +27,10 @@ for line in open("mrhyde.log"):
         found.setdefault(m.group(1), []).append(float(m.group(2)))
 
 for name in EXPECTED:
-    if name not in found:
-        print("Failure: no [BLOCK-VERIFY] %s line. Is verbosity 5 or higher set?" % name)
-        status += 1
+    vals = found.get(name)
+    if not vals:
+        res.add(False, name, "no [BLOCK-VERIFY] line; is verbosity 5 or higher set?")
         continue
-    worst = max(found[name])
-    print("%s: %d checks, worst %.3e" % (name, len(found[name]), worst))
-    if worst > TOL:
-        print("Failure: %s rel %.3e exceeds %.1e" % (name, worst, TOL))
-        status += 1
+    res.add(max(vals) <= TOL, name, "%d checks, worst %.3e, limit %.1e" % (len(vals), max(vals), TOL))
 
-sys.exit(status)
+sys.exit(status + res.write())

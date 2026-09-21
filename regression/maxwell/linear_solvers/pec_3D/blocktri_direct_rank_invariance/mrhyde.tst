@@ -4,7 +4,7 @@ import sys
 sys.path.append("../../../../scripts")
 sys.path.append("../../../../../scripts/data_processing")
 from mrhyde_test_support import *
-from parse_log import iterations, stats
+from parse_log import iterations, stats, Results
 
 its = mrhyde_test_support('''Block-triangular, KLU on both blocks, at 1/2/4 ranks.''')
 its.opts.verbose = True
@@ -16,38 +16,31 @@ its.opts.verbose = True
 RANKS = [1, 2, 4]
 ITER_TOL = 1
 
+res = Results()
 status = 0
 runs = {}
 for n in RANKS:
     log = "mrhyde_np%d.log" % n
     status += its.call("mpiexec -n %d ../../../../mrhyde input.yaml >& %s" % (n, log))
-    counts = iterations(open(log).read().splitlines())
-    s = stats(log)
+    counts, s = iterations(open(log).read().splitlines()), stats(log)
     if not counts or s is None:
-        print("Failure: %s has no Belos solves. Is verbosity 10 set?" % log)
-        status += 1
+        res.add(False, "np=%d ran" % n, "no Belos solves in " + log)
         continue
-    if s["unconv"]:
-        print("Failure: np=%d had %d of %d solves hit the iteration limit"
-              % (n, s["unconv"], s["solves"]))
-        status += 1
+    res.add(not s["unconv"], "np=%d converged" % n,
+            "%d solves, %d unconverged" % (s["solves"], s["unconv"]))
     runs[n] = counts
-    print("np=%d  %s" % (n, counts))
 
-if len(runs) == len(RANKS):
-    ref_n = RANKS[0]
-    ref = runs[ref_n]
-    for n in RANKS[1:]:
-        cur = runs[n]
-        if len(cur) != len(ref):
-            print("Failure: np=%d ran %d solves, np=%d ran %d"
-                  % (n, len(cur), ref_n, len(ref)))
-            status += 1
-            continue
-        for i, (a, b) in enumerate(zip(ref, cur)):
-            if abs(a - b) > ITER_TOL:
-                print("Failure: solve %d took %d iters at np=%d and %d at np=%d (tol %d)"
-                      % (i, b, n, a, ref_n, ITER_TOL))
-                status += 1
+ref = RANKS[0]
+for n in RANKS[1:]:
+    if n not in runs or ref not in runs:
+        continue
+    if len(runs[n]) != len(runs[ref]):
+        res.add(False, "np=%d vs np=%d" % (n, ref),
+                "%d solves against %d" % (len(runs[n]), len(runs[ref])))
+        continue
+    off = [i for i, (a, b) in enumerate(zip(runs[ref], runs[n])) if abs(a - b) > ITER_TOL]
+    res.add(not off, "np=%d vs np=%d" % (n, ref),
+            "solves %s differ by more than %d" % (off, ITER_TOL) if off
+            else "%d solves agree within %d" % (len(runs[n]), ITER_TOL))
 
-sys.exit(status)
+sys.exit(status + res.write())
