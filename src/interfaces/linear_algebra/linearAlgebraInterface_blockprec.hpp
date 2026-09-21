@@ -64,6 +64,14 @@ namespace MrHyDE {
 //   (all variants approximate the exact Schur complement above)
 //   base:  S = J11
 //   diag:  S = J11 - gamma * J10 * diag(J00)^{-1} * J01
+//
+// RefMaxwell addon (off by default, MueLu's default too):
+//   addon11 = M1 * D0 * M0(1/beta)^-1 * D0^T * M1, a Hodge-Laplacian term.
+//   beta = alpha_u^2 * gamma / (alpha_t * mu), the curl-curl coefficient of S.
+//   m_n = integral(N_n), the lumped nodal mass, built in the auxiliary setup.
+//   gamma/(alpha_t*mu) is read off the assembled Schur correction; alpha_u
+//   cancels there and is reapplied from the integrator.
+//   'refmaxwell: disable addon' in the XML is the only switch.
 
 template<class Node>
 using LATypes = block_prec::BlockTypes<Node>;
@@ -150,18 +158,6 @@ inline bool mueluParamsWantHiptmair(const Teuchos::ParameterList & pl) {
     if (sub.isParameter("smoother: type") && isHiptmairSmoother(sub.get<std::string>("smoother: type"))) return true;
   }
   return false;
-}
-
-template<class Node>
-Teuchos::RCP<Xpetra::Matrix<ScalarT,LO,GO,Node> >
-wrapAsXpetraMatrix(const typename LATypes<Node>::CrsMatrixRCP & A) {
-  using TpetraCrs = Tpetra::CrsMatrix<ScalarT,LO,GO,Node>;
-  using XpetraCrs = Xpetra::TpetraCrsMatrix<ScalarT,LO,GO,Node>;
-  using XpetraCrsMatrix = Xpetra::CrsMatrix<ScalarT,LO,GO,Node>;
-  using XpetraCrsWrap = Xpetra::CrsMatrixWrap<ScalarT,LO,GO,Node>;
-  return Teuchos::rcp(new XpetraCrsWrap(
-    Teuchos::rcp_implicit_cast<XpetraCrsMatrix>(
-      Teuchos::rcp(new XpetraCrs(Teuchos::rcp_const_cast<TpetraCrs>(A))))));
 }
 
 // A_n = D0^T * A_edge * D0, wrapped as Xpetra for MueLu 'user data.NodeMatrix'.
@@ -579,7 +575,6 @@ LinearAlgebraInterface<Node>::setupBlockTriangularPreconditioner(
   using LA_Map = typename Types::Map;
 
   // --- Phase 1: Reuse short-circuit and mode validation ---
-  BlockPrecType pivotType = parseBlockPrecType(cntxt->schur.pivot_block_preconditioner_type);
 
   // Reuse policy at operator level:
   //  - FULL: keep current operator
@@ -598,11 +593,26 @@ LinearAlgebraInterface<Node>::setupBlockTriangularPreconditioner(
   block_prec::BlockSystem<Node> blocks = block_prec::buildBlockSystemForSet<Node>(*this, J, cntxt, set);
 
   // --- Phase 3: Build Schur approximation ---
+  matrix_RCP schurCorr;
   matrix_RCP SchurApprox = this->buildBlockTriangularSchurApproximation(
-    blocks, cntxt, nullptr);
+    blocks, cntxt, &schurCorr);
+
+  // Only the diag variant has a curl-curl term to read beta from.
+  // addon_wanted is only known after the first XML read, so probe on that build too.
+  cntxt->refMaxwell.addon_beta = 0.0;
+  if ((cntxt->refMaxwell.addon_wanted || !cntxt->have_preconditioner) && !schurCorr.is_null() && !cntxt->refMaxwell.nodal_lumped_mass.is_null() &&
+      static_cast<size_t>(cntxt->schur.pivot_block) < cntxt->refMaxwell.block_mass_matrices.size() &&
+      !cntxt->refMaxwell.block_mass_matrices[cntxt->schur.pivot_block].is_null()) {
+    cntxt->refMaxwell.addon_beta = block_prec::addonBeta<Node>(
+      blocks, schurCorr, cntxt->refMaxwell.block_mass_matrices[cntxt->schur.pivot_block],
+      cntxt->schur.diag_use_lumped_pivot_diagonal,
+      cntxt->stage_alpha_u, verbosity);
+  }
 
   block_prec::verifyBlockSystem<Node>(blocks, J, SchurApprox,
-    cntxt->refMaxwell.D0_matrix, cntxt->schur.damping,
+    cntxt->refMaxwell.D0_matrix, cntxt->refMaxwell.M1_matrix,
+    cntxt->refMaxwell.nodal_coords, cntxt->refMaxwell.nodal_lumped_mass,
+    cntxt->schur.damping,
     cntxt->schur.diag_use_lumped_pivot_diagonal,
     parseSchurVariant(cntxt->schur.variant, cntxt->schur.approximation_type) == SchurVariant::Diag,
     verbosity);

@@ -71,6 +71,50 @@ void validateTekoTypeCompatibility() {
 
 template<class Node>
 MatrixRCP<Node>
+buildScaledInverseDiagonalMatrix(const Teuchos::RCP<typename BlockTypes<Node>::MultiVector> & v,
+                                 const ScalarT scale) {
+  using CrsMatrix = typename BlockTypes<Node>::CrsMatrix;
+  auto map = v->getMap();
+  MatrixRCP<Node> out = Teuchos::rcp(new CrsMatrix(map, 1));
+  auto vv = v->getLocalViewHost(Tpetra::Access::ReadOnly);
+  Teuchos::Array<GO> col(1);
+  Teuchos::Array<ScalarT> val(1);
+  for (LO i = 0; i < static_cast<LO>(map->getLocalNumElements()); ++i) {
+    col[0] = map->getGlobalElement(i);
+    val[0] = scale / vv(i, 0);
+    out->insertGlobalValues(col[0], col(), val());
+  }
+  out->fillComplete(map, map);
+  return out;
+}
+
+// Deterministic: randomize() would perturb MueLu's Chebyshev eigenvalue estimates.
+template<class Node>
+void fillProbe(typename BlockTypes<Node>::Vector & v) {
+  auto vv = v.getLocalViewHost(Tpetra::Access::OverwriteAll);
+  auto map = v.getMap();
+  for (size_t i = 0; i < map->getLocalNumElements(); ++i) {
+    const GO g = map->getGlobalElement(static_cast<LO>(i));
+    vv(i, 0) = static_cast<ScalarT>(1.0 + (g % 7)) * ((g % 2) ? 1.0 : -1.0);
+  }
+}
+
+// Xpetra view of a Tpetra matrix, not a copy.
+template<class Node>
+Teuchos::RCP<Xpetra::Matrix<ScalarT,LO,GO,Node> >
+wrapAsXpetraMatrix(const MatrixRCP<Node> & A) {
+  using TpetraCrs = Tpetra::CrsMatrix<ScalarT,LO,GO,Node>;
+  using XpetraCrs = Xpetra::TpetraCrsMatrix<ScalarT,LO,GO,Node>;
+  using XpetraCrsMatrix = Xpetra::CrsMatrix<ScalarT,LO,GO,Node>;
+  using XpetraCrsWrap = Xpetra::CrsMatrixWrap<ScalarT,LO,GO,Node>;
+  if (A.is_null()) return Teuchos::null;
+  return Teuchos::rcp(new XpetraCrsWrap(
+    Teuchos::rcp_implicit_cast<XpetraCrsMatrix>(
+      Teuchos::rcp(new XpetraCrs(Teuchos::rcp_const_cast<TpetraCrs>(A))))));
+}
+
+template<class Node>
+MatrixRCP<Node>
 remapBlockToMaps(const ConstMatrixRCP<Node> & src,
                  const MapRCP<Node> & rowMap,
                  const MapRCP<Node> & domainMap) {
@@ -251,115 +295,6 @@ void reportInverseDiagonal(const InverseDiagonalResult<Node> & result,
   }
 }
 
-template<class Node>
-Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,Node>>
-buildLumpedM0inv(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node> > & D0,
-                 const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node> > & M1,
-                 const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > & nodal_map,
-                 const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > & edge_map,
-                 const int verbosity = 0) {
-  using Types = BlockTypes<Node>;
-  using LA_CrsMatrix = typename Types::CrsMatrix;
-  using LA_MultiVector = typename Types::MultiVector;
-  using HostInds = typename Types::HostInds;
-  using HostVals = typename Types::HostVals;
-
-  TEUCHOS_TEST_FOR_EXCEPTION(M1.is_null(), std::runtime_error, "buildLumpedM0inv: M1 is null.");
-  TEUCHOS_TEST_FOR_EXCEPTION(M1->getGlobalNumRows() != edge_map->getGlobalNumElements() ||
-                             M1->getGlobalNumCols() != edge_map->getGlobalNumElements() ||
-                             !M1->getRowMap()->isSameAs(*edge_map) ||
-                             !M1->getDomainMap()->isSameAs(*edge_map),
-    std::runtime_error, "buildLumpedM0inv: M1 must match edge_map.");
-
-  Teuchos::RCP<Tpetra::Vector<ScalarT,LO,GO,Node> > m1diag =
-    Teuchos::rcp(new Tpetra::Vector<ScalarT,LO,GO,Node>(edge_map));
-  M1->getLocalDiagCopy(*m1diag);
-  auto m1diag_2d = m1diag->getLocalViewHost(Tpetra::Access::ReadOnly);
-
-  Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > d0_col_map = D0->getColMap();
-  Teuchos::RCP<LA_MultiVector> nodalMassCol = Teuchos::rcp(new LA_MultiVector(d0_col_map, 1));
-  nodalMassCol->putScalar(0.0);
-  {
-    auto nodal_mass_col_2d = nodalMassCol->getLocalViewHost(Tpetra::Access::ReadWrite);
-    forEachLocalRow<Node>(D0, [&](GO rowGid, const HostInds & col_lids, const HostVals & row_vals, size_t nent,
-                                 const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > &) {
-      const LO row_lid = edge_map->getLocalElement(rowGid);
-      const ScalarT edgeWeight = m1diag_2d(row_lid, 0);
-      for (size_t k = 0; k < nent; ++k) {
-        const ScalarT d = row_vals(k);
-        nodal_mass_col_2d(col_lids(k), 0) += d * d * edgeWeight;
-      }
-    });
-  }
-
-  Teuchos::RCP<LA_MultiVector> nodalMass = Teuchos::rcp(new LA_MultiVector(nodal_map, 1));
-  nodalMass->putScalar(0.0);
-  Teuchos::RCP<Tpetra::Export<LO,GO,Node> > col_to_domain =
-    Teuchos::rcp(new Tpetra::Export<LO,GO,Node>(d0_col_map, nodal_map));
-  nodalMass->doExport(*nodalMassCol, *col_to_domain, Tpetra::ADD);
-
-  Teuchos::RCP<LA_CrsMatrix> M0inv = Teuchos::rcp(new LA_CrsMatrix(nodal_map, 1));
-  auto nodal_mass_2d = nodalMass->getLocalViewHost(Tpetra::Access::ReadOnly);
-  using MagT = typename Teuchos::ScalarTraits<ScalarT>::magnitudeType;
-  const size_t numLocal = nodal_map->getLocalNumElements();
-
-  MagT localMax = Teuchos::ScalarTraits<MagT>::zero();
-  for (size_t i = 0; i < numLocal; ++i) {
-    const MagT a = Teuchos::ScalarTraits<ScalarT>::magnitude(nodal_mass_2d(Teuchos::as<LO>(i), 0));
-    if (a > localMax) localMax = a;
-  }
-  MagT globalMax = localMax;
-  Teuchos::reduceAll<int,MagT>(*(nodal_map->getComm()), Teuchos::REDUCE_MAX, 1, &localMax, &globalMax);
-  const MagT zeroMag = Teuchos::ScalarTraits<MagT>::zero();
-  const MagT thresh = Teuchos::ScalarTraits<MagT>::eps() * globalMax;
-  const ScalarT fallback = (globalMax > zeroMag)
-    ? (Teuchos::ScalarTraits<ScalarT>::one() / static_cast<ScalarT>(globalMax))
-    : Teuchos::ScalarTraits<ScalarT>::one();
-
-  GO localDegenerate = 0;
-  for (size_t i = 0; i < numLocal; ++i) {
-    const GO gid = nodal_map->getGlobalElement(Teuchos::as<LO>(i));
-    const ScalarT m = nodal_mass_2d(Teuchos::as<LO>(i), 0);
-    const MagT amag = Teuchos::ScalarTraits<ScalarT>::magnitude(m);
-    ScalarT invm;
-    if (amag > thresh) {
-      invm = Teuchos::ScalarTraits<ScalarT>::one() / m;
-    }
-    else {
-      invm = fallback;
-      ++localDegenerate;
-    }
-    M0inv->insertGlobalValues(gid, Teuchos::tuple<GO>(gid), Teuchos::tuple<ScalarT>(invm));
-  }
-  M0inv->fillComplete(nodal_map, nodal_map);
-
-  if (verbosity >= 5) {
-    GO globalDegenerate = 0;
-    Teuchos::reduceAll<int,GO>(*(nodal_map->getComm()), Teuchos::REDUCE_SUM, 1,
-                               &localDegenerate, &globalDegenerate);
-    if (nodal_map->getComm()->getRank() == 0 && globalDegenerate > 0) {
-      std::cout << "Lumped M0inv: " << globalDegenerate << " of "
-                << nodal_map->getGlobalNumElements()
-                << " nodal masses below " << thresh << "; used 1/" << globalMax
-                << std::endl;
-    }
-  }
-  return M0inv;
-}
-
-template<class Node>
-Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,Node>>
-buildM0invIdentity(const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > & nodal_map) {
-  using LA_CrsMatrix = typename BlockTypes<Node>::CrsMatrix;
-  Teuchos::RCP<LA_CrsMatrix> M0inv = Teuchos::rcp(new LA_CrsMatrix(nodal_map, 1));
-  const size_t numLocal = nodal_map->getLocalNumElements();
-  for (size_t i = 0; i < numLocal; ++i) {
-    const GO gid = nodal_map->getGlobalElement(Teuchos::as<LO>(i));
-    M0inv->insertGlobalValues(gid, Teuchos::tuple<GO>(gid), Teuchos::tuple<ScalarT>(1.0));
-  }
-  M0inv->fillComplete(nodal_map, nodal_map);
-  return M0inv;
-}
 
 template<class Node>
 struct FilterResult {
@@ -553,7 +488,6 @@ bool verifyMaxwellComplex(
     const int rank,
     const std::string & label) {
   using MagT = typename Teuchos::ScalarTraits<ScalarT>::magnitudeType;
-  using CoordT = typename Teuchos::ScalarTraits<ScalarT>::coordinateType;
   using LA_CrsMatrix = typename BlockTypes<Node>::CrsMatrix;
   using LA_MultiVector = Tpetra::MultiVector<ScalarT,LO,GO,Node>;
   using host_inds_t = typename LA_CrsMatrix::nonconst_local_inds_host_view_type;
