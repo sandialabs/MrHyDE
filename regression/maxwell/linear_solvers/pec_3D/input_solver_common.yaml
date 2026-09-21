@@ -26,4 +26,12 @@ ANONYMOUS:
     reuse preconditioner: true
     preconditioner reuse type: full
     right preconditioner: true
+    # Initial-condition L2 projections solve a mass matrix; without this they
+    # inherit the block-triangular settings meant for the Maxwell system.
+    State L2 linear solver:
+      Belos solver: "Pseudo Block CG"
+      linear TOL: 1.0e-10
+      max linear iters: 500
+      use preconditioner: true
+      preconditioner type: domain decomposition
 ...

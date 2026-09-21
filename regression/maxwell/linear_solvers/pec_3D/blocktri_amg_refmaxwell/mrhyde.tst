@@ -16,6 +16,6 @@ its.opts.verbose = True
 
 status = enable_trilinos_debug()
 status += its.call('mpiexec -n 4 ../../../../mrhyde >& mrhyde.log')
-status += check(solves=12, mean=7.42, imax=9)
+status += check(solves=10, mean=8.5, imax=9)
 
 sys.exit(status)

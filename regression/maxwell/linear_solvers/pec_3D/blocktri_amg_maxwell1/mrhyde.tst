@@ -18,6 +18,6 @@ its.opts.verbose = True
 # builds an overlapping column map with a non-overlapping global size.
 status = enable_trilinos_debug(tpetra=False)
 status += its.call('mpiexec -n 4 ../../../../mrhyde >& mrhyde.log')
-status += check(solves=12, mean=6.0, imax=8)
+status += check(solves=10, mean=7.1, imax=8)
 
 sys.exit(status)

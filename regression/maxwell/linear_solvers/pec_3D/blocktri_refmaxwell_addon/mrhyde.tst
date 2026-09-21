@@ -33,7 +33,7 @@ flags = re.findall(r"refmaxwell: disable addon : bool = ([01])", text)
 res.add(flags and flags[-1] == "0", "addon on for the last build",
         "flag per build: %s" % ("".join(flags) or "MueLu never echoed it"))
 
-# The +/- 2 band cannot separate this from the no-addon deck's 7.42.
-check(solves=12, mean=7.67, imax=9, res=res)
+# The +/- 2 band cannot separate this from the no-addon deck's 8.50.
+check(solves=10, mean=8.8, imax=9, res=res)
 
 sys.exit(status + res.write())

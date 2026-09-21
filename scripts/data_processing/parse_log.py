@@ -16,6 +16,7 @@ HEADER = re.compile(r"^\*+\s*Belos Iterative Solver:\s*(.*?)\s*$")
 ITER = re.compile(r"^Iter\s+(\d+),")
 VALUE = re.compile(r"([0-9.eE+-]+) \(")
 UNCONVERGED = "WARNING: Belos linear solve did not converge"
+TIME_STEP = "Beginning Time Step"
 
 ITER_TOL_FLOOR = 2
 ITER_TOL_FRAC = 0.15
@@ -28,9 +29,11 @@ TIMERS = {
 
 
 def iterations(lines):
-    """Last Iter n in each outer Belos block. Inner Krylov solves are skipped."""
+    """Last Iter n in each outer Belos block. Inner Krylov solves are skipped,
+    as are the initial-condition L2 projections that run before stepping."""
+    first_step = next((i for i, l in enumerate(lines) if TIME_STEP in l), 0)
     outer, counts, n = None, [], None
-    for line in lines:
+    for line in lines[first_step:]:
         m = HEADER.match(line)
         if m:
             if n is not None:

@@ -23,3 +23,4 @@ mrhyde
 !regression/**/*.xml
 !sandbox/**/*.xml
 regression/**/mrhyde.results
+regression/TEST-package.xml

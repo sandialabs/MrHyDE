@@ -18,6 +18,6 @@ its.opts.verbose = True
 # with a non-overlapping global size, which trips Tpetra's own check.
 status = enable_trilinos_debug(tpetra=False)
 status += its.call('mpiexec -n 4 ../../../../mrhyde >& mrhyde.log')
-status += check(solves=12, mean=6.33, imax=8)
+status += check(solves=10, mean=7.4, imax=8)
 
 sys.exit(status)
