@@ -27,6 +27,8 @@ public:
     Teuchos::RCP<Stratimikos::DefaultLinearSolverBuilder> builder =
       Teuchos::rcp(new Stratimikos::DefaultLinearSolverBuilder);
     Stratimikos::enableMueLu<ScalarT,LO,GO,Node>(*builder);
+    Stratimikos::enableMueLuRefMaxwell<ScalarT,LO,GO,Node>(*builder);
+    Stratimikos::enableMueLuMaxwell1<ScalarT,LO,GO,Node>(*builder);
     lib_ = Teko::InverseLibrary::buildFromStratimikos(builder);
   }
 
@@ -39,7 +41,8 @@ public:
     Teuchos::RCP<Teko::InverseFactory> factory = registerInverse(type, params, label);
     Entry & entry = cache_[label];
     const Teko::LinearOp source = tpetraToThyraConst<Node>(A);
-    const bool haveCached = reuse_ && entry.type == type && !entry.inverse.is_null();
+    const bool haveCached = reuse_ && entry.type == type && !entry.inverse.is_null()
+                            && !carriesNodeMatrix(params);
     if (haveCached && precOp.is_null()) {
       Teko::rebuildInverse(*factory, source, entry.inverse);
     }
@@ -69,6 +72,12 @@ private:
     entry.set("Type", type);
     lib_->addInverse(label, entry);
     return lib_->getInverseFactory(label);
+  }
+
+  // MueLu reuse swaps only the level-0 operator, so a stale D0^T A D0 would survive.
+  static bool carriesNodeMatrix(const Teuchos::ParameterList & params) {
+    return params.isSublist("user data") &&
+           params.sublist("user data").isParameter("NodeMatrix");
   }
 
   void logBuild(const std::string & label, const char * action) const {

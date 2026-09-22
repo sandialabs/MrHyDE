@@ -238,8 +238,7 @@ LinearAlgebraInterface<Node>::createBelosSolverManager(
     const std::string & belosType) const {
   using BelosMV = Tpetra::MultiVector<ScalarT,LO,GO,Node>;
   const std::string belosUpper = toUpperAsciiCopy(belosType);
-  // Belos_Details_Tpetra_registerSolverFactory.cpp registers RCG only as
-  // register_RCG_KDV and never registers stochastic CG.
+  // The Belos solver factory registers neither of these, so construct them directly.
   if (belosUpper == "PSEUDO BLOCK STOCHASTIC CG") {
     return Teuchos::rcp(new Belos::PseudoBlockStochasticCGSolMgr<ScalarT,BelosMV,LA_Operator>(problem, belosList));
   }

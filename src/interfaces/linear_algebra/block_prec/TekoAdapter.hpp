@@ -1,6 +1,8 @@
 /***********************************************************************
  MrHyDE - Adapter wrapping a Teko block preconditioner as a Tpetra::Operator
  on the full (multi-block) map.
+
+ Teko's BlockedTpetraOperator re-indexes blocks onto contiguous maps, so MrHyDE supplies the blocks.
  ************************************************************************/
 
 #ifndef MRHYDE_LINEAR_ALGEBRA_TEKO_ADAPTER_H
