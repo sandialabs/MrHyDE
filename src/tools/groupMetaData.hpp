@@ -101,7 +101,8 @@ namespace MrHyDE {
     bool compute_diff, use_fine_scale, load_sensor_files, write_sensor_files, use_basis_database = false, use_mass_database = false;
     bool mortar_objective, use_ip_database = false, use_phase_database = false; // probably override phase
     bool exodus_sensors = false, compute_sol_avg = false, store_mass = true;
-    bool multiscale = false, have_phi, have_rotation, have_extra_data, have_multidata, have_quadrature_data;
+    bool multiscale = false, have_phi = false, have_rotation = false, have_extra_data = false,
+         have_multidata = false, have_quadrature_data = false;
     
     // database of database basis information (optional)
     // Note that these are not CompressedViews.  CompressedViews use these.
