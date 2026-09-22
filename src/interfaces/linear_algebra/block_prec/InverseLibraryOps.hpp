@@ -8,53 +8,80 @@
 #include <Stratimikos_DefaultLinearSolverBuilder.hpp>
 #include <Stratimikos_MueLuHelpers.hpp>
 
+#include <iostream>
+#include <map>
 #include <string>
 
 namespace MrHyDE {
 namespace block_prec {
 
-/** Registry for the sub-solvers Teko can build itself: Amesos2, Ifpack2,
- *  MueLu and Belos.
- */
+// Teko's sub-solver registry plus the inverses built from it; labels must be
+// unique per block. Per context: addInverse retains every list it is handed.
 template<class Node>
-inline Teuchos::RCP<Teko::InverseLibrary> genericInverseLibrary() {
-  static Teuchos::RCP<Teko::InverseLibrary> lib;
-  if (lib.is_null()) {
+class InverseLibraryCache {
+public:
+  using CrsMatrixRCP = typename BlockTypes<Node>::CrsMatrixRCP;
+
+  InverseLibraryCache(const bool reuse, const int verbosity, const int rank)
+    : reuse_(reuse), verbosity_(verbosity), rank_(rank) {
     Teuchos::RCP<Stratimikos::DefaultLinearSolverBuilder> builder =
       Teuchos::rcp(new Stratimikos::DefaultLinearSolverBuilder);
     Stratimikos::enableMueLu<ScalarT,LO,GO,Node>(*builder);
-    lib = Teko::InverseLibrary::buildFromStratimikos(builder);
+    lib_ = Teko::InverseLibrary::buildFromStratimikos(builder);
   }
-  return lib;
-}
 
-/** Build one sub-solver inverse.
- */
-template<class Node>
-inline Teko::LinearOp buildLibraryInverse(const std::string & type,
-                                          const Teuchos::ParameterList & params,
-                                          const std::string & label,
-                                          const typename BlockTypes<Node>::CrsMatrixRCP & A) {
-  Teuchos::ParameterList entry(params);
-  entry.set("Type", type);
-  Teuchos::RCP<Teko::InverseLibrary> lib = genericInverseLibrary<Node>();
-  lib->addInverse(label, entry);
-  return Teko::buildInverse(*lib->getInverseFactory(label), tpetraToThyraConst<Node>(A));
-}
+  // Teko::rebuildInverse re-initializes a cached inverse in place.
+  Teko::LinearOp build(const std::string & type,
+                       const Teuchos::ParameterList & params,
+                       const std::string & label,
+                       const CrsMatrixRCP & A,
+                       const Teko::LinearOp & precOp = Teuchos::null) {
+    Teuchos::RCP<Teko::InverseFactory> factory = registerInverse(type, params, label);
+    Entry & entry = cache_[label];
+    const Teko::LinearOp source = tpetraToThyraConst<Node>(A);
+    const bool haveCached = reuse_ && entry.type == type && !entry.inverse.is_null();
+    if (haveCached && precOp.is_null()) {
+      Teko::rebuildInverse(*factory, source, entry.inverse);
+    }
+    else if (haveCached) {
+      Teko::rebuildInverse(*factory, source, precOp, entry.inverse);
+    }
+    else {
+      entry.type = type;
+      entry.inverse = precOp.is_null() ? Teko::buildInverse(*factory, source)
+                                       : Teko::buildInverse(*factory, source, precOp);
+    }
+    logBuild(label, haveCached ? "rebuilt in place" : "built new");
+    return entry.inverse;
+  }
 
-template<class Node>
-inline Teko::LinearOp buildLibraryInverse(const std::string & type,
-                                          const Teuchos::ParameterList & params,
-                                          const std::string & label,
-                                          const typename BlockTypes<Node>::CrsMatrixRCP & A,
-                                          const Teko::LinearOp & precOp) {
-  Teuchos::ParameterList entry(params);
-  entry.set("Type", type);
-  Teuchos::RCP<Teko::InverseLibrary> lib = genericInverseLibrary<Node>();
-  lib->addInverse(label, entry);
-  return Teko::buildInverse(*lib->getInverseFactory(label),
-                            tpetraToThyraConst<Node>(A), precOp);
-}
+private:
+  struct Entry {
+    std::string type;
+    Teko::InverseLinearOp inverse;
+  };
+
+  // Re-registering drops the previous list, releasing its MueLu 'user data' RCPs.
+  Teuchos::RCP<Teko::InverseFactory> registerInverse(const std::string & type,
+                                                     const Teuchos::ParameterList & params,
+                                                     const std::string & label) {
+    Teuchos::ParameterList entry(params);
+    entry.set("Type", type);
+    lib_->addInverse(label, entry);
+    return lib_->getInverseFactory(label);
+  }
+
+  void logBuild(const std::string & label, const char * action) const {
+    if (verbosity_ < 10 || rank_ != 0) return;
+    std::cout << "[InverseLibrary] " << label << ": " << action << std::endl;
+  }
+
+  Teuchos::RCP<Teko::InverseLibrary> lib_;
+  std::map<std::string, Entry> cache_;
+  bool reuse_ = false;
+  int verbosity_ = 0;
+  int rank_ = 0;
+};
 
 } // namespace block_prec
 } // namespace MrHyDE

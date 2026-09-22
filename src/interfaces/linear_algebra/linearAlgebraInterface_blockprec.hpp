@@ -169,8 +169,11 @@ buildAuxNodalMatrix(const typename LATypes<Node>::CrsMatrixRCP & A_edge,
 
 template<class Node>
 Teko::LinearOp
-buildAmgBlockOperator(const typename LATypes<Node>::CrsMatrixRCP & blockMat,
+buildAmgBlockOperator(LinearAlgebraInterface<Node> & interface,
+                      const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
+                      const typename LATypes<Node>::CrsMatrixRCP & blockMat,
                       const Teuchos::ParameterList & blockList,
+                      const size_t blockIndex,
                       const Teuchos::RCP<Tpetra::MultiVector<
                           typename Teuchos::ScalarTraits<ScalarT>::coordinateType,LO,GO,Node> > & dofCoords,
                       const typename LATypes<Node>::CrsMatrixRCP & D0_matrix = Teuchos::null) {
@@ -210,12 +213,14 @@ buildAmgBlockOperator(const typename LATypes<Node>::CrsMatrixRCP & blockMat,
     mueluList.sublist("user data").set("D0", wrapAsXpetraMatrix<Node>(D0_matrix));
   }
 
-  return block_prec::buildLibraryInverse<Node>("MueLu", mueluList, "BlockDiag AMG", blockMat);
+  return interface.inverseLibrary(cntxt).build("MueLu", mueluList,
+    "BlockDiag block " + std::to_string(blockIndex) + " MueLu", blockMat);
 }
 
 template<class Node>
 Teko::LinearOp
 buildIfpack2BlockOperator(LinearAlgebraInterface<Node> & interface,
+                          const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
                           const typename LATypes<Node>::CrsMatrixRCP & blockMat,
                           const Teuchos::ParameterList & blockListIn,
                           const std::string & method,
@@ -243,7 +248,7 @@ buildIfpack2BlockOperator(LinearAlgebraInterface<Node> & interface,
   Teuchos::ParameterList entry;
   entry.set("Prec Type", method);
   entry.sublist("Ifpack2 Settings").setParameters(ifpackList);
-  return block_prec::buildLibraryInverse<Node>("Ifpack2", entry,
+  return interface.inverseLibrary(cntxt).build("Ifpack2", entry,
     "BlockDiag block " + std::to_string(blockIndex) + " Ifpack2", blockMat);
 }
 
@@ -289,7 +294,8 @@ buildSingleBlockPreconditioner(LinearAlgebraInterface<Node> & interface,
     BlockPrecType::AMG, false, label,
     [&] () -> Teko::LinearOp {
       if (toUpperAsciiCopy(method) != "AMG") {
-        return buildIfpack2BlockOperator<Node>(interface, preconditioner_matrix, blockList, method, blockIndex);
+        return buildIfpack2BlockOperator<Node>(interface, cntxt, preconditioner_matrix, blockList,
+                                               method, blockIndex);
       }
       if (interface.verbosity >= 15 && interface.comm->getRank() == 0) {
         std::cout << "Preconditioner parameters (block diagonal, block " << blockIndex
@@ -307,7 +313,8 @@ buildSingleBlockPreconditioner(LinearAlgebraInterface<Node> & interface,
           cntxt->refMaxwell.D0_matrix->getRangeMap()->isSameAs(*preconditioner_matrix->getRowMap())) {
         D0_for_block = cntxt->refMaxwell.D0_matrix;
       }
-      return buildAmgBlockOperator<Node>(preconditioner_matrix, blockList, dofCoords, D0_for_block);
+      return buildAmgBlockOperator<Node>(interface, cntxt, preconditioner_matrix, blockList,
+                                         blockIndex, dofCoords, D0_for_block);
     });
 }
 
@@ -539,19 +546,10 @@ LinearAlgebraInterface<Node>::setupBlockTriangularPreconditioner(
     const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
     const size_t & set) {
   Teuchos::TimeMonitor localtimer(*prectimer);
-  using Types = LATypes<Node>;
-  using LA_Map = typename Types::Map;
 
-  // --- Phase 1: Reuse short-circuit and mode validation ---
-
-  // full keeps the operator, update keeps it while J is unchanged, none rebuilds.
-  if (!cntxt->prec_block.is_null() &&
-      reuseKeepsOperator(cntxt->preconditioner_reuse_type,
-                                     cntxt->jacobian_rebuilt_this_step)) {
+  if (!this->preconditionerNeedsRebuild(cntxt, !cntxt->prec_block.is_null())) {
     return cntxt->prec_block;
   }
-
-  // --- Phases 2-5: extract, Schur approximation, block inverses, assemble ---
   block_prec::BlockTriangularFactory<Node> factory(*this, J, cntxt, set);
   return factory.build();
 }

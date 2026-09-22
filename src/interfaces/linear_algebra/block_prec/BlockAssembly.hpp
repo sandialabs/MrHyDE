@@ -11,6 +11,7 @@
 #include <BelosTpetraOperator.hpp>
 #include <MueLu_CreateTpetraPreconditioner.hpp>
 #include <Xpetra_MatrixFactory.hpp>
+#include <Xpetra_TpetraVector.hpp>
 #include <Xpetra_VectorFactory.hpp>
 
 #include <algorithm>
@@ -62,22 +63,16 @@ template<class Node>
 using ConstMatrixRCP = Teuchos::RCP<const typename BlockTypes<Node>::CrsMatrix>;
 
 template<class Node>
-MatrixRCP<Node>
-buildScaledInverseDiagonalMatrix(const Teuchos::RCP<typename BlockTypes<Node>::MultiVector> & v,
-                                 const ScalarT scale) {
-  using CrsMatrix = typename BlockTypes<Node>::CrsMatrix;
-  auto map = v->getMap();
-  MatrixRCP<Node> out = Teuchos::rcp(new CrsMatrix(map, 1));
-  auto vv = v->getLocalViewHost(Tpetra::Access::ReadOnly);
-  Teuchos::Array<GO> col(1);
-  Teuchos::Array<ScalarT> val(1);
-  for (LO i = 0; i < static_cast<LO>(map->getLocalNumElements()); ++i) {
-    col[0] = map->getGlobalElement(i);
-    val[0] = scale / vv(i, 0);
-    out->insertGlobalValues(col[0], col(), val());
-  }
-  out->fillComplete(map, map);
-  return out;
+Teuchos::RCP<Xpetra::Matrix<ScalarT,LO,GO,Node> >
+buildRefMaxwellM0inv(const Teuchos::RCP<typename BlockTypes<Node>::MultiVector> & nodalLumpedMass,
+                     const ScalarT beta) {
+  using LA_Vector = typename BlockTypes<Node>::Vector;
+  Teuchos::RCP<LA_Vector> inv = Teuchos::rcp(new LA_Vector(nodalLumpedMass->getMap(), false));
+  inv->reciprocal(*nodalLumpedMass->getVector(0));
+  inv->scale(beta);
+  Teuchos::RCP<const Xpetra::Vector<ScalarT,LO,GO,Node> > xinv =
+    Teuchos::rcp(new Xpetra::TpetraVector<ScalarT,LO,GO,Node>(inv));
+  return Xpetra::MatrixFactory<ScalarT,LO,GO,Node>::Build(xinv);
 }
 
 // Deterministic: randomize() would perturb MueLu's Chebyshev eigenvalue estimates.
@@ -346,21 +341,23 @@ filterExplicitZeros(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Nod
 
   FilterResult<Node> result;
   GO emptiedRow = -1;
+  host_inds_t cols("flt_cols", maxEnt);
+  host_vals_t vals("flt_vals", maxEnt);
+  std::vector<GO> keepGids;
+  std::vector<ScalarT> keepVals;
+  keepGids.reserve(maxEnt);
+  keepVals.reserve(maxEnt);
   const LO n_rows = static_cast<LO>(rowMap->getLocalNumElements());
   for (LO lid = 0; lid < n_rows; ++lid) {
     const GO rowGid = rowMap->getGlobalElement(lid);
     size_t nent = src->getNumEntriesInLocalRow(lid);
     if (nent == 0) continue;
-    host_inds_t cols("flt_cols", nent);
-    host_vals_t vals("flt_vals", nent);
     src->getLocalRowCopy(lid, cols, vals, nent);
 
     const MagT aii = Teuchos::ScalarTraits<ScalarT>::magnitude(rowDiagView(lid, 0));
 
-    std::vector<GO> keepGids;
-    std::vector<ScalarT> keepVals;
-    keepGids.reserve(nent);
-    keepVals.reserve(nent);
+    keepGids.clear();
+    keepVals.clear();
     for (size_t k = 0; k < nent; ++k) {
       const LO colLid = cols(k);
       const GO colGid = colMap->getGlobalElement(colLid);
@@ -409,6 +406,12 @@ void assertStructuralSymmetry(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT
   Tpetra::RowMatrixTransposer<ScalarT,LO,GO,Node> transposer(Teuchos::rcp_const_cast<LA_CrsMatrix>(A));
   Teuchos::RCP<LA_CrsMatrix> At = transposer.createTranspose();
   const LO n = static_cast<LO>(A->getRowMap()->getLocalNumElements());
+  const size_t maxEnt = std::max<size_t>(1, std::max(A->getLocalMaxNumRowEntries(),
+                                                     At->getLocalMaxNumRowEntries()));
+  host_inds_t colsA("sym_colsA", maxEnt), colsT("sym_colsT", maxEnt);
+  host_vals_t valsA("sym_valsA", maxEnt), valsT("sym_valsT", maxEnt);
+  const auto colMapA = A->getColMap();
+  const auto colMapT = At->getColMap();
   for (LO lid = 0; lid < n; ++lid) {
     size_t nA = A->getNumEntriesInLocalRow(lid);
     size_t nT = At->getNumEntriesInLocalRow(lid);
@@ -416,13 +419,11 @@ void assertStructuralSymmetry(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT
       label << ": row " << A->getRowMap()->getGlobalElement(lid)
       << " has " << nA << " entries; its transpose has " << nT << ".");
     if (nA == 0) continue;
-    host_inds_t colsA("sym_colsA", nA), colsT("sym_colsT", nT);
-    host_vals_t valsA("sym_valsA", nA), valsT("sym_valsT", nT);
     A->getLocalRowCopy(lid, colsA, valsA, nA);
     At->getLocalRowCopy(lid, colsT, valsT, nT);
     std::set<GO> gA, gT;
-    for (size_t k = 0; k < nA; ++k) gA.insert(A->getColMap()->getGlobalElement(colsA(k)));
-    for (size_t k = 0; k < nT; ++k) gT.insert(At->getColMap()->getGlobalElement(colsT(k)));
+    for (size_t k = 0; k < nA; ++k) gA.insert(colMapA->getGlobalElement(colsA(k)));
+    for (size_t k = 0; k < nT; ++k) gT.insert(colMapT->getGlobalElement(colsT(k)));
     TEUCHOS_TEST_FOR_EXCEPTION(gA != gT, std::runtime_error,
       label << ": row " << A->getRowMap()->getGlobalElement(lid)
       << " has different columns in A and A^T.");
@@ -784,18 +785,20 @@ snapCrsMatrixSigns(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node
   const Teuchos::RCP<const Tpetra::Map<LO,GO,Node>> colMap = src->getColMap();
   const size_t maxEnt = std::max<size_t>(1, src->getLocalMaxNumRowEntries());
   Teuchos::RCP<LA_CrsMatrix> out = Teuchos::rcp(new LA_CrsMatrix(rowMap, maxEnt));
+  host_inds_t cols("snap_cols", maxEnt);
+  host_vals_t vals("snap_vals", maxEnt);
+  std::vector<GO> keepGids;
+  std::vector<ScalarT> keepVals;
+  keepGids.reserve(maxEnt);
+  keepVals.reserve(maxEnt);
   const LO n_rows = static_cast<LO>(rowMap->getLocalNumElements());
   for (LO lid = 0; lid < n_rows; ++lid) {
     size_t nent = src->getNumEntriesInLocalRow(lid);
     if (nent == 0) continue;
-    host_inds_t cols("snap_cols", nent);
-    host_vals_t vals("snap_vals", nent);
     src->getLocalRowCopy(lid, cols, vals, nent);
     const GO rowGid = rowMap->getGlobalElement(lid);
-    std::vector<GO> keepGids;
-    std::vector<ScalarT> keepVals;
-    keepGids.reserve(nent);
-    keepVals.reserve(nent);
+    keepGids.clear();
+    keepVals.clear();
     for (size_t k = 0; k < nent; ++k) {
       const ScalarT v = vals(k);
       const MagT m = Teuchos::ScalarTraits<ScalarT>::magnitude(v);
@@ -831,18 +834,20 @@ dropBCRows(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & src
   TEUCHOS_TEST_FOR_EXCEPTION(static_cast<size_t>(bcHost.extent(0)) != static_cast<size_t>(n_rows),
     std::runtime_error, "dropBCRows: bcRows has " << bcHost.extent(0)
     << " entries; expected " << n_rows << ".");
+  host_inds_t cols("bcdrop_cols", maxEnt);
+  host_vals_t vals("bcdrop_vals", maxEnt);
+  std::vector<GO> keepGids;
+  std::vector<ScalarT> keepVals;
+  keepGids.reserve(maxEnt);
+  keepVals.reserve(maxEnt);
   for (LO lid = 0; lid < n_rows; ++lid) {
     if (bcHost(lid)) continue;
     size_t nent = src->getNumEntriesInLocalRow(lid);
     if (nent == 0) continue;
-    host_inds_t cols("bcdrop_cols", nent);
-    host_vals_t vals("bcdrop_vals", nent);
     src->getLocalRowCopy(lid, cols, vals, nent);
     const GO rowGid = rowMap->getGlobalElement(lid);
-    std::vector<GO> keepGids;
-    std::vector<ScalarT> keepVals;
-    keepGids.reserve(nent);
-    keepVals.reserve(nent);
+    keepGids.clear();
+    keepVals.clear();
     for (size_t k = 0; k < nent; ++k) {
       const GO colGid = colMap->getGlobalElement(cols(k));
       if (colGid == Teuchos::OrdinalTraits<GO>::invalid()) continue;
@@ -921,14 +926,16 @@ buildDiagonalBlockInverse(const typename BlockTypes<Node>::CrsMatrixRCP & J00,
 
 template<class Node>
 Teko::LinearOp
-buildDirectBlockInverse(const typename BlockTypes<Node>::CrsMatrixRCP & A,
-                        const std::string & label,
-                        const std::string & solverName) {
+buildDirectBlockInverse(LinearAlgebraInterface<Node> & interface,
+                        const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
+                        const typename BlockTypes<Node>::CrsMatrixRCP & A,
+                        const std::string & label) {
+  const std::string & solverName = cntxt->amesos_type;
   Teuchos::ParameterList entry;
   entry.set("Solver Type", solverName);
   // Block row maps are extracted from the monolithic map, so they are not contiguous.
   entry.sublist("Amesos2 Settings").sublist(solverName).set("IsContiguous", false);
-  return buildLibraryInverse<Node>("Amesos2", entry, label + " Amesos2", A);
+  return interface.inverseLibrary(cntxt).build("Amesos2", entry, label + " Amesos2", A);
 }
 
 
@@ -970,7 +977,8 @@ maybeWrapInInnerKrylov(LinearAlgebraInterface<Node> & interface,
               << innerSolver << "' (max iters=" << innerMaxIters
               << ", tol=" << innerTol << ")" << std::endl;
   }
-  return buildLibraryInverse<Node>("Belos", belosList, label + " inner", blockMat, innerPrec);
+  return interface.inverseLibrary(cntxt).build("Belos", belosList, label + " inner",
+                                              blockMat, innerPrec);
 }
 
 template<class Node, class GenericFn>
@@ -995,8 +1003,7 @@ buildBlockOperator(LinearAlgebraInterface<Node> & interface,
       tpetraPrec = interface.buildMaxwell1Preconditioner(mat, cntxt, blockList, forSchur);
       break;
     case BlockPrecType::Direct:
-      innerPrec = buildDirectBlockInverse<Node>(mat, label,
-        cntxt.is_null() ? std::string("KLU2") : cntxt->amesos_type);
+      innerPrec = buildDirectBlockInverse<Node>(interface, cntxt, mat, label);
       break;
     case BlockPrecType::Diagonal:
       // S is formed from J00, so inverting its diagonal is not an approximation of it.
@@ -1024,7 +1031,8 @@ buildPivotBlockPrec(LinearAlgebraInterface<Node> & interface,
   return buildBlockOperator<Node>(interface, J00, cntxt, cntxt->pivot_block_sublist,
     parseBlockPrecType(cntxt->schur.pivot_block_preconditioner_type), false, "BlockTri pivot",
     [&] {
-      return buildLibraryInverse<Node>("MueLu", pivotMueLuParams, "BlockTri pivot MueLu", J00);
+      return interface.inverseLibrary(cntxt).build("MueLu", pivotMueLuParams,
+                                                   "BlockTri pivot MueLu", J00);
     });
 }
 
@@ -1037,7 +1045,8 @@ buildSchurBlockPrec(LinearAlgebraInterface<Node> & interface,
   return buildBlockOperator<Node>(interface, SchurApprox, cntxt, cntxt->schur_block_sublist,
     parseBlockPrecType(cntxt->schur.schur_block_preconditioner_type), true, "BlockTri Schur",
     [&] {
-      return buildLibraryInverse<Node>("MueLu", schurMueLuParams, "BlockTri Schur MueLu", SchurApprox);
+      return interface.inverseLibrary(cntxt).build("MueLu", schurMueLuParams,
+                                                   "BlockTri Schur MueLu", SchurApprox);
     });
 }
 

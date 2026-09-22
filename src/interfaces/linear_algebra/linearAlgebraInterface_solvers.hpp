@@ -34,9 +34,6 @@ RefMaxwellXpetraInputs<Node> buildRefMaxwellXpetraInputs(
     const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT, LO, GO, Node> > & M1,
     const Teuchos::RCP<const Tpetra::MultiVector<typename Teuchos::ScalarTraits<ScalarT>::coordinateType, LO, GO, Node> > & nodal_coords) {
   using CoordScalarT = typename Teuchos::ScalarTraits<ScalarT>::coordinateType;
-  using XpetraCrs = Xpetra::TpetraCrsMatrix<ScalarT, LO, GO, Node>;
-  using XpetraCrsMatrix = Xpetra::CrsMatrix<ScalarT, LO, GO, Node>;
-  using XpetraCrsWrap = Xpetra::CrsMatrixWrap<ScalarT, LO, GO, Node>;
   using TpetraCoordMV = Tpetra::MultiVector<CoordScalarT, LO, GO, Node>;
   RefMaxwellXpetraInputs<Node> out;
   out.SM_wrap = wrapAsXpetraMatrix<Node>(J);
@@ -159,27 +156,20 @@ Teuchos::RCP<Tpetra::Operator<ScalarT,LO,GO,Node> >
 LinearAlgebraInterface<Node>::buildOrUpdatePreconditioner(
     const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
     const matrix_RCP & J) {
-  if (cntxt->prec_type == "domain decomposition") {
-    if (!cntxt->reuse_preconditioner || !cntxt->have_preconditioner) {
+  const bool isSchwarz = (cntxt->prec_type == "domain decomposition");
+  if (isSchwarz || cntxt->prec_type == "Ifpack2") {
+    // Ifpack2 keeps no hierarchy, so rebuilding against the new J is all 'update' can do.
+    if (this->preconditionerNeedsRebuild(cntxt, !cntxt->prec_dd.is_null())) {
       Teuchos::ParameterList & ifpackList = cntxt->prec_sublist;
-      ifpackList.set("schwarz: subdomain solver","garbage");
-      cntxt->prec_dd = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,Node> > ("SCHWARZ", J);
-      cntxt->prec_dd->setParameters(ifpackList);
-      cntxt->prec_dd->initialize();
-      cntxt->prec_dd->compute();
-      cntxt->have_preconditioner = true;
-    }
-    return Teuchos::rcp_implicit_cast<LA_Operator>(cntxt->prec_dd);
-  }
-
-  if (cntxt->prec_type == "Ifpack2") {
-    if (!cntxt->reuse_preconditioner || !cntxt->have_preconditioner) {
-      Teuchos::ParameterList & ifpackList = cntxt->prec_sublist;
-      if (verbosity >= 15 && comm->getRank() == 0) {
-        std::cout << "Preconditioner parameters (monolithic Ifpack2 RELAXATION):" << std::endl;
+      const string method = isSchwarz ? string("SCHWARZ")
+        : settings->sublist("Solver").get("preconditioner variant","RELAXATION");
+      if (isSchwarz) {
+        ifpackList.set("schwarz: subdomain solver","garbage");
+      }
+      else if (verbosity >= 15 && comm->getRank() == 0) {
+        std::cout << "Preconditioner parameters (monolithic Ifpack2 " << method << "):" << std::endl;
         ifpackList.print(std::cout);
       }
-      string method = settings->sublist("Solver").get("preconditioner variant","RELAXATION");
       cntxt->prec_dd = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,Node> >(method, J);
       cntxt->prec_dd->setParameters(ifpackList);
       cntxt->prec_dd->initialize();
@@ -191,10 +181,7 @@ LinearAlgebraInterface<Node>::buildOrUpdatePreconditioner(
 
   if (cntxt->prec_type == "block diagonal") {
     const size_t set = cntxt->equation_set_index;
-    const bool keepExisting = cntxt->have_preconditioner && !cntxt->prec_block.is_null() &&
-      reuseKeepsOperator(cntxt->preconditioner_reuse_type,
-                                     cntxt->jacobian_rebuilt_this_step);
-    if (!keepExisting) {
+    if (this->preconditionerNeedsRebuild(cntxt, !cntxt->prec_block.is_null())) {
       cntxt->prec_block = this->buildBlockDiagonalPreconditioner(J, cntxt, set);
       cntxt->have_preconditioner = true;
     }
@@ -209,11 +196,13 @@ LinearAlgebraInterface<Node>::buildOrUpdatePreconditioner(
   }
 
   if (cntxt->prec_type == "AMG") {
-    if (!cntxt->reuse_preconditioner || !cntxt->have_preconditioner) {
+    if (cntxt->preconditioner_reuse_type == "none" || !cntxt->have_preconditioner ||
+        cntxt->prec.is_null()) {
       cntxt->prec = this->buildAMGPreconditioner(J, cntxt);
       cntxt->have_preconditioner = true;
     }
-    else {
+    else if (!reuseKeepsOperator(cntxt->preconditioner_reuse_type,
+                                 cntxt->jacobian_rebuilt_this_step)) {
       MueLu::ReuseTpetraPreconditioner(J, *(cntxt->prec));
     }
     return Teuchos::rcp_implicit_cast<LA_Operator>(cntxt->prec);
@@ -249,44 +238,19 @@ LinearAlgebraInterface<Node>::createBelosSolverManager(
     const std::string & belosType) const {
   using BelosMV = Tpetra::MultiVector<ScalarT,LO,GO,Node>;
   const std::string belosUpper = toUpperAsciiCopy(belosType);
-  if (belosUpper == "MINRES") {
-    return Teuchos::rcp(new Belos::MinresSolMgr<ScalarT,BelosMV,LA_Operator>(problem, belosList));
-  }
-  if (belosUpper == "BLOCK GMRES") {
-    return Teuchos::rcp(new Belos::BlockGmresSolMgr<ScalarT,BelosMV,LA_Operator>(problem, belosList));
-  }
-  if (belosUpper == "BLOCK CG") {
-    return Teuchos::rcp(new Belos::BlockCGSolMgr<ScalarT,BelosMV,LA_Operator>(problem, belosList));
-  }
-  if (belosUpper == "BICGSTAB") {
-    return Teuchos::rcp(new Belos::BiCGStabSolMgr<ScalarT,BelosMV,LA_Operator>(problem, belosList));
-  }
-  if (belosUpper == "GCRODR") {
-    return Teuchos::rcp(new Belos::GCRODRSolMgr<ScalarT,BelosMV,LA_Operator>(problem, belosList));
-  }
-  if (belosUpper == "PCPG") {
-    return Teuchos::rcp(new Belos::PCPGSolMgr<ScalarT,BelosMV,LA_Operator>(problem, belosList));
-  }
-  if (belosUpper == "PSEUDO BLOCK CG") {
-    return Teuchos::rcp(new Belos::PseudoBlockCGSolMgr<ScalarT,BelosMV,LA_Operator>(problem, belosList));
-  }
-  if (belosUpper == "PSEUDO BLOCK GMRES") {
-    return Teuchos::rcp(new Belos::PseudoBlockGmresSolMgr<ScalarT,BelosMV,LA_Operator>(problem, belosList));
-  }
+  // Belos_Details_Tpetra_registerSolverFactory.cpp registers RCG only as
+  // register_RCG_KDV and never registers stochastic CG.
   if (belosUpper == "PSEUDO BLOCK STOCHASTIC CG") {
     return Teuchos::rcp(new Belos::PseudoBlockStochasticCGSolMgr<ScalarT,BelosMV,LA_Operator>(problem, belosList));
-  }
-  if (belosUpper == "PSEUDO BLOCK TFQMR") {
-    return Teuchos::rcp(new Belos::PseudoBlockTFQMRSolMgr<ScalarT,BelosMV,LA_Operator>(problem, belosList));
   }
   if (belosUpper == "RCG") {
     return Teuchos::rcp(new Belos::RCGSolMgr<ScalarT,BelosMV,LA_Operator>(problem, belosList));
   }
-  if (belosUpper == "TFQMR") {
-    return Teuchos::rcp(new Belos::TFQMRSolMgr<ScalarT,BelosMV,LA_Operator>(problem, belosList));
-  }
-  TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error, "Error: unrecognized Belos solver: " + belosType);
-  return Teuchos::null;
+  Belos::SolverFactory<ScalarT,BelosMV,LA_Operator> factory;
+  Teuchos::RCP<Belos::SolverManager<ScalarT,BelosMV,LA_Operator> > solver =
+    factory.create(belosType, belosList);
+  solver->setProblem(problem);
+  return solver;
 }
 
 template<class Node>
@@ -504,8 +468,9 @@ LinearAlgebraInterface<Node>::buildRefMaxwellPreconditioner(
   const ScalarT betaTarget = (forSchur && cntxt->refMaxwell.schur_addon_wanted)
     ? cntxt->refMaxwell.schur_addon_beta : 0.0;
   const ScalarT betaWas = forSchur ? cntxt->refMaxwell.schur_addon_beta_built : 0.0;
+  // Relative, so round-off in the beta probe does not discard the hierarchy.
   if (std::abs(betaTarget - betaWas) >
-      1.0e-12 * std::max(std::abs(betaTarget), std::abs(betaWas))) {
+      1.0e-6 * std::max(std::abs(betaTarget), std::abs(betaWas))) {
     precCache = Teuchos::null;
   }
   const bool canReuse = !precCache.is_null() &&
@@ -603,9 +568,8 @@ LinearAlgebraInterface<Node>::buildRefMaxwellPreconditioner(
   // The no-addon overload is this same call with Ms = M1 and a null M0inv.
   Teuchos::RCP<XpetraMatrix> M0inv_wrap;
   if (haveAddon) {
-    M0inv_wrap = block_prec::detail::wrapAsXpetraMatrix<Node>(
-      block_prec::detail::buildScaledInverseDiagonalMatrix<Node>(
-        cntxt->refMaxwell.nodal_lumped_mass, cntxt->refMaxwell.schur_addon_beta));
+    M0inv_wrap = block_prec::detail::buildRefMaxwellM0inv<Node>(
+      cntxt->refMaxwell.nodal_lumped_mass, cntxt->refMaxwell.schur_addon_beta);
   }
   // Null nullspace: MueLu forms D0*coords itself, which is what we would pass.
   precCache = Teuchos::rcp(new RefMaxwellType(

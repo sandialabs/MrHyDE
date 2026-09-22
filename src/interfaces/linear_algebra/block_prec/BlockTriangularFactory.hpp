@@ -5,7 +5,6 @@
 #include "block_prec/BlockVerify.hpp"
 #include "block_prec/TekoAdapter.hpp"
 
-#include <Teko_BlockPreconditionerFactory.hpp>
 #include <Teko_GaussSeidelPreconditionerFactory.hpp>
 
 #include <vector>
@@ -13,10 +12,10 @@
 namespace MrHyDE {
 namespace block_prec {
 
-/** \brief Block-triangular preconditioner for a 2x2 system.
- */
+// 2x2 block-triangular preconditioner. Not a Teko::BlockPreconditionerFactory:
+// it builds a GaussSeidelPreconditionerFactory and applies it here.
 template<class Node>
-class BlockTriangularFactory : public Teko::BlockPreconditionerFactory {
+class BlockTriangularFactory {
 public:
   using Types = BlockTypes<Node>;
   using matrix_rcp = typename Types::CrsMatrixRCP;
@@ -32,14 +31,12 @@ public:
     blocks_ = buildBlockSystemForSet<Node>(interface_, J_, cntxt_, set_);
     Teko::BlockedLinearOp blocked =
       buildThyraBlocked2x2<Node>(blocks_.J00, blocks_.J01, blocks_.J10, blocks_.J11);
-    Teko::BlockPreconditionerState state;
-    Teko::LinearOp prec = this->buildPreconditionerOperator(blocked, state);
+    Teko::LinearOp prec = this->buildPreconditionerOperator(blocked);
     const std::vector<map_rcp> triMaps = {blocks_.pivotMap, blocks_.targetMap};
     return Teuchos::rcp(new TekoTpetraAdapter<Node>(J_->getRowMap(), triMaps, prec));
   }
 
-  Teko::LinearOp buildPreconditionerOperator(Teko::BlockedLinearOp & blocked,
-                                             Teko::BlockPreconditionerState & /* state */) const override {
+  Teko::LinearOp buildPreconditionerOperator(Teko::BlockedLinearOp & blocked) const {
     matrix_rcp schurCorr;
     matrix_rcp schurApprox =
       interface_.buildBlockTriangularSchurApproximation(blocks_, cntxt_, &schurCorr);
@@ -71,17 +68,29 @@ public:
 
 private:
   void recordSchurAddonBeta(const matrix_rcp & schurCorr) const {
-    cntxt_->refMaxwell.schur_addon_beta = 0.0;
+    RefMaxwellData<Node> & refMaxwell = cntxt_->refMaxwell;
     const size_t pivot = static_cast<size_t>(cntxt_->schur.pivot_block);
-    if ((cntxt_->refMaxwell.schur_addon_wanted || !cntxt_->have_preconditioner) &&
-        !schurCorr.is_null() && !cntxt_->refMaxwell.nodal_lumped_mass.is_null() &&
-        pivot < cntxt_->block.mass_matrices.size() &&
-        !cntxt_->block.mass_matrices[pivot].is_null()) {
-      cntxt_->refMaxwell.schur_addon_beta = addonBeta<Node>(
-        blocks_, schurCorr, cntxt_->block.mass_matrices[pivot],
-        cntxt_->schur.diag_use_lumped_pivot_diagonal,
-        cntxt_->stage_alpha_u, interface_.verbosity);
+    // The Schur XML is read during the RefMaxwell build, so the first pass assumes the addon.
+    const bool wanted = refMaxwell.schur_addon_wanted || !cntxt_->have_preconditioner;
+    const bool haveInputs = !schurCorr.is_null() && !refMaxwell.nodal_lumped_mass.is_null() &&
+      pivot < cntxt_->block.mass_matrices.size() &&
+      !cntxt_->block.mass_matrices[pivot].is_null();
+    if (!wanted || !haveInputs) {
+      refMaxwell.schur_addon_beta = 0.0;
+      refMaxwell.schur_addon_beta_valid = false;
+      return;
     }
+    // beta depends on the DIRK stage scaling, not on J.
+    if (refMaxwell.schur_addon_beta_valid &&
+        refMaxwell.schur_addon_beta_alpha_u == cntxt_->stage_alpha_u) {
+      return;
+    }
+    refMaxwell.schur_addon_beta = addonBeta<Node>(
+      blocks_, schurCorr, cntxt_->block.mass_matrices[pivot],
+      cntxt_->schur.diag_use_lumped_pivot_diagonal,
+      cntxt_->stage_alpha_u, interface_.verbosity);
+    refMaxwell.schur_addon_beta_alpha_u = cntxt_->stage_alpha_u;
+    refMaxwell.schur_addon_beta_valid = true;
   }
 
   Teuchos::ParameterList pivotMueLuParams(const Teuchos::ParameterList & schurParams) const {

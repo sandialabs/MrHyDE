@@ -4,8 +4,6 @@
 #include "trilinos.hpp"
 #include "preferences.hpp"
 
-#include <Ifpack2_Preconditioner.hpp>
-#include <MueLu_TpetraOperator.hpp>
 #include <Tpetra_CrsMatrix.hpp>
 #include <Tpetra_Export.hpp>
 #include <Tpetra_Import.hpp>
@@ -41,8 +39,6 @@ struct BlockTypes {
   using Export = Tpetra::Export<LO,GO,Node>;
   using ImportRCP = Teuchos::RCP<Import>;
   using ExportRCP = Teuchos::RCP<Export>;
-  using Preconditioner = Ifpack2::Preconditioner<ScalarT,LO,GO,Node>;
-  using MueLuOperator = MueLu::TpetraOperator<ScalarT,LO,GO,Node>;
   using HostInds = typename CrsMatrix::nonconst_local_inds_host_view_type;
   using HostVals = typename CrsMatrix::nonconst_values_host_view_type;
 };

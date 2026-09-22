@@ -12,6 +12,7 @@
 #include "trilinos.hpp"
 #include "preferences.hpp"
 #include "block_prec/ParamUtils.hpp"
+#include "block_prec/InverseLibraryOps.hpp"
 #include <cctype>
 
 // Belos
@@ -64,10 +65,12 @@ struct RefMaxwellData {
   Teuchos::RCP<LA_CoordMultiVector> nodal_coords;
   /** Lumped nodal mass, integral(N_n), for the RefMaxwell addon. */
   Teuchos::RCP<LA_MultiVector> nodal_lumped_mass;
-  /** Curl-curl coefficient of S, read off the Schur correction, so it applies
-   *  to the Schur block only. The pivot hierarchy is cached separately and has
-   *  no beta of its own. */
+  /** Curl-curl coefficient of S, alpha_u^2 * gamma / (alpha_t * mu), read off
+   *  the Schur correction. The pivot hierarchy has no beta of its own. */
   ScalarT schur_addon_beta = 0.0;
+  /** Memo for schur_addon_beta: the probe was taken at this stage_alpha_u. */
+  bool schur_addon_beta_valid = false;
+  ScalarT schur_addon_beta_alpha_u = 0.0;
   ScalarT schur_addon_beta_built = 0.0; /**< beta baked into the cached Schur hierarchy. */
   bool schur_addon_wanted = false;      /**< The Schur XML asked for the addon. */
   std::string xml_param_file_pivot = "";
@@ -163,6 +166,7 @@ public:
     schur_maxwell1_prec = Teuchos::null;
     belos_solver_mgr = Teuchos::null;
     belos_problem = Teuchos::null;
+    inverse_library = Teuchos::null;
     jacobian_rebuilt_this_step = true;
   }
   
@@ -174,7 +178,6 @@ public:
   bool use_direct;            /**< Use direct Amesos2 solver. */
   bool use_preconditioner;      /**< Whether to apply a preconditioner. */
   bool right_preconditioner;    /**< Whether to apply right preconditioning. */
-  bool reuse_preconditioner;    /**< Whether to reuse an existing preconditioner. */
   string preconditioner_reuse_type; /**< Reuse mode (none, update, or full). */
   bool reuse_matrix;          /**< Whether to reuse an existing Jacobian. */
   ScalarT stage_alpha_u = 1.0; /**< DIRK spatial-term scaling a_ss/b_s. */
@@ -223,7 +226,18 @@ public:
 
   size_t equation_set_index; /**< Set index when linearSolver(set,...) is used; for block prec. */
 
+  /** Built on first use; block preconditioner paths only. */
+  block_prec::InverseLibraryCache<Node> & inverseLibrary(const int verbosity, const int rank) {
+    if (inverse_library.is_null()) {
+      inverse_library = Teuchos::rcp(new block_prec::InverseLibraryCache<Node>(
+        reuseKeepsHierarchy(preconditioner_reuse_type), verbosity, rank));
+    }
+    return *inverse_library;
+  }
+
 private:
+  Teuchos::RCP<block_prec::InverseLibraryCache<Node> > inverse_library;
+
   void parseBelosAndAmesosSettings(Teuchos::ParameterList & settings) {
     amesos_type = settings.get<string>("Amesos solver","KLU2");
     belos_type = settings.get<string>("Belos solver","Block GMRES");
@@ -263,35 +277,26 @@ private:
     use_direct = settings.get<bool>("use direct solver",false);
     prec_type = canonicalPreconditionerType(settings.get<string>("preconditioner type","AMG"));
     use_preconditioner = settings.get<bool>("use preconditioner",true);
-    reuse_preconditioner = settings.get<bool>("reuse preconditioner",true);
     preconditioner_reuse_type = canonicalReuseType(settings.get<string>("preconditioner reuse type","update"));
+    // 'reuse preconditioner' predates the string and only ever meant none-or-not.
+    if (settings.isType<bool>("reuse preconditioner") &&
+        !settings.get<bool>("reuse preconditioner")) {
+      preconditioner_reuse_type = "none";
+    }
     right_preconditioner = settings.get<bool>("right preconditioner",false);
     reuse_matrix = settings.get<bool>("reuse Jacobian",false);
-    schur.approximation_type = canonicalSchurApproximationType(settings.get<string>("Schur approximation type","base"));
-    schur.pivot_block = settings.get<int>("Schur pivot block",0);
-    schur.damping = settings.get<ScalarT>("Schur damping",Teuchos::ScalarTraits<ScalarT>::one());
-    schur.diag_use_lumped_pivot_diagonal =
-      settings.get<bool>("Schur diag use lumped pivot diagonal", false);
-    schur.triangle = canonicalSchurTriangle(settings.get<string>("Schur triangle","auto"));
-    schur.pivot_block_preconditioner_type =
-      canonicalBlockPrecType(settings.get<string>("Pivot block preconditioner type","AMG"));
-    schur.pivot_block_diag_use_lumped_diagonal =
-      settings.get<bool>("Pivot block diag use lumped diagonal", false);
+    schur.approximation_type = "base";
+    schur.pivot_block = 0;
+    schur.damping = Teuchos::ScalarTraits<ScalarT>::one();
+    schur.diag_use_lumped_pivot_diagonal = false;
+    schur.triangle = "auto";
+    schur.pivot_block_preconditioner_type = "AMG";
+    schur.pivot_block_diag_use_lumped_diagonal = false;
     schur.schur_block_preconditioner_type = "AMG";
   }
 
   void parsePreconditionerSublist() {
     if (prec_sublist.name() == "empty") return;
-    if (prec_sublist.isParameter("Schur pivot block")) {
-      schur.pivot_block = prec_sublist.get<int>("Schur pivot block");
-    }
-    if (prec_sublist.isParameter("Schur diag use lumped pivot diagonal")) {
-      schur.diag_use_lumped_pivot_diagonal =
-        prec_sublist.get<bool>("Schur diag use lumped pivot diagonal");
-    }
-    if (prec_sublist.isParameter("Schur triangle")) {
-      schur.triangle = canonicalSchurTriangle(prec_sublist.get<string>("Schur triangle"));
-    }
     if (prec_sublist.isParameter("xml param file")) {
       amg.xml_param_file = prec_sublist.get<string>("xml param file");
     }
@@ -331,12 +336,6 @@ private:
       schur.schur_block_preconditioner_type =
         canonicalBlockPrecType(schur_block_sublist.get<string>("preconditioner type"));
     }
-    else if (schur_block_sublist.isSublist("RefMaxwell Settings") &&
-             schur_block_sublist.sublist("RefMaxwell Settings").isParameter("preconditioner type")) {
-      schur.schur_block_preconditioner_type =
-        canonicalBlockPrecType(
-          schur_block_sublist.sublist("RefMaxwell Settings").template get<string>("preconditioner type"));
-    }
     if (schur_block_sublist.isParameter("approximation type")) {
       schur.approximation_type =
         canonicalSchurApproximationType(schur_block_sublist.get<string>("approximation type"));
@@ -350,6 +349,9 @@ private:
     }
     if (schur_block_sublist.isParameter("triangle")) {
       schur.triangle = canonicalSchurTriangle(schur_block_sublist.get<string>("triangle"));
+    }
+    if (schur_block_sublist.isParameter("damping")) {
+      schur.damping = schur_block_sublist.get<ScalarT>("damping");
     }
     if (schur_block_sublist.isSublist("RefMaxwell Settings")) {
       Teuchos::ParameterList & refmaxwellSettings = schur_block_sublist.sublist("RefMaxwell Settings");

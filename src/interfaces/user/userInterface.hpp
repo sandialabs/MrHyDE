@@ -127,7 +127,6 @@ public:
       bool have_mesh = false;
       bool have_phys = false;
       bool have_disc = false;
-      bool have_solver = false;
       bool have_analysis = false;
       bool have_pp = false; // optional
       bool have_params = false; //optional
@@ -161,8 +160,6 @@ public:
         have_phys = true;
       if (settings->isSublist("Discretization"))
         have_disc = true;
-      if (settings->isSublist("Solver"))
-        have_solver = true;
       if (settings->isSublist("Analysis"))
         have_analysis = true;
       if (settings->isSublist("Postprocess"))

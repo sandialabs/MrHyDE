@@ -24,6 +24,8 @@ Read with BlockTypes first, then this file, then BlockAssembly/solvers call site
 
 namespace MrHyDE {
 
+// Not Teuchos::updateParametersFromXmlFileAndBroadcast: it throws on rank 0
+// before its broadcast, so a bad path hangs the other ranks.
 inline void loadXmlBroadcast(const std::string & file,
                              Teuchos::ParameterList & out,
                              const Teuchos::Comm<int> & comm,
@@ -80,7 +82,8 @@ inline std::string canonicalSchurTriangle(const std::string & raw) {
   return triangleSideName(parseTriangleSide(raw));
 }
 
-// preconditioner_reuse_type is stored canonical lowercase by canonicalReuseType.
+// Hierarchy: keep the preconditioner and re-setup it against the new J, which
+// is where MueLu applies its own 'reuse: type'. Operator: keep it untouched.
 inline bool reuseKeepsHierarchy(const std::string & t) {
   return t == "update" || t == "full";
 }
@@ -177,6 +180,7 @@ inline Teuchos::ParameterList validSchurBlockParams() {
   v.set("approximation type", "base");
   v.set("pivot block", 0);
   v.set("triangle", "auto");
+  v.set("damping", 1.0);
   v.set("diag use lumped pivot diagonal", false);
   v.set("smoother: type", "");
   v.sublist("smoother: params").disableRecursiveValidation();
@@ -248,10 +252,7 @@ inline const std::vector<std::string> & mrhydeOwnedKeys() {
     "hgrad basis name", "hcurl basis name",
     "hgrad basis order", "hcurl basis order",
     "inner krylov solver", "inner krylov max iters", "inner krylov tol",
-    "Schur approximation type", "Schur pivot block", "Schur triangle", "Schur damping",
-    "Schur diag use lumped pivot diagonal",
-    "Pivot block preconditioner type", "Pivot block diag use lumped diagonal",
-    "approximation type", "pivot block", "triangle",
+    "approximation type", "pivot block", "triangle", "damping",
     "diag use lumped diagonal", "diag use lumped pivot diagonal",
     "filter SM", "filter threshold", "verify complex", "verify Kn consistency",
     "use Kn from M1"
