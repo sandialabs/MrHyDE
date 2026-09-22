@@ -1,0 +1,34 @@
+%YAML 1.1
+---
+# AMG on both blocks, several Newton steps per time step, so every solve rebuilds
+# the sub-block preconditioners. Covers the reuse path for the MueLu sub-blocks.
+ANONYMOUS:
+  debug level: 0
+  verbosity: 10
+  disable timers: true
+
+  Mesh input file: ../input_common_maxwell_hex3d.yaml
+  Physics input file: ../input_common_maxwell_hex3d.yaml
+  Discretization input file: ../input_common_maxwell_hex3d.yaml
+  Functions input file: ../input_common_maxwell_hex3d.yaml
+  Solver input file: ../input_solver_common.yaml
+  Analysis input file: ../input_common_maxwell_hex3d.yaml
+  Postprocess input file: ../input_common_maxwell_hex3d.yaml
+
+  Solver:
+    max nonlinear iters: 2
+    preconditioner reuse type: none
+    reuse Jacobian: false   # else the block operator is cached whole and reuse never runs
+    preconditioner type: block triangular
+    Pivot Block Settings:
+      preconditioner type: AMG
+      AMG Settings:
+        xml param file: ../xml/amg_reuse.xml
+    Schur Block Settings:
+      pivot block: 1
+      approximation type: diag
+      diag use lumped pivot diagonal: true
+      preconditioner type: AMG
+      AMG Settings:
+        xml param file: ../xml/amg_reuse.xml
+...

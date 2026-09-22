@@ -69,12 +69,12 @@ def auxspace(kind, xml, extra=""):
 def blocktri(pivot, schur, iters=500, approx="diag", lumped_weight=True,
              damping=None, triangle=None):
     head = "    max linear iters: %d\n" % iters
-    if damping is not None:
-        head += "    Schur damping: %s\n" % damping
     opts = ("      pivot block: 1\n"
             "      approximation type: %s\n"
             "      diag use lumped pivot diagonal: %s\n"
             % (approx, "true" if lumped_weight else "false"))
+    if damping is not None:
+        opts += "      damping: %s\n" % damping
     if triangle is not None:
         opts += "      triangle: %s\n" % triangle
     return (head +

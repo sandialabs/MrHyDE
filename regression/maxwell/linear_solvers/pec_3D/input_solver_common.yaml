@@ -23,7 +23,6 @@ ANONYMOUS:
     storage proportion: 1.0
     enable autotune: false
     use preconditioner: true
-    reuse preconditioner: true
     preconditioner reuse type: full
     right preconditioner: true
     # Initial-condition L2 projections solve a mass matrix; without this they

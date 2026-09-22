@@ -57,8 +57,9 @@ KRYLOV = {
     "tfqmr": "TFQMR",
 }
 
-SLOW_DIRECT = {"blocktri_directschur"}
 DIRECT_MAX_ELEMENTS = 24 * 12 * 6
+SLOW_DIRECT = {name for name, (body, _) in SOLVERS.items()
+               if "preconditioner type: Direct" in body}
 
 # Every cfl case is at the finest mesh, so only the h study has cases to trim.
 DEFAULT_CASES = {"h": ["N8x8x4", "N16x8x4", "N24x12x6", "N32x16x8"],
@@ -146,7 +147,6 @@ ANONYMOUS:
     right preconditioner: true
     use direct solver: false
     use preconditioner: true
-    reuse preconditioner: true
     reuse Jacobian: true
     # L2 projections solve a mass matrix, not the Maxwell system.
     State L2 linear solver:

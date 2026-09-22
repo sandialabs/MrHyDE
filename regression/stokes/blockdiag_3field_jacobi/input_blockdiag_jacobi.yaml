@@ -32,7 +32,6 @@ ANONYMOUS:
     initial type: none
     use direct solver: false
     use preconditioner: true
-    reuse preconditioner: false
     preconditioner type: block diagonal
     Block 0 Settings:
       preconditioner variant: RELAXATION

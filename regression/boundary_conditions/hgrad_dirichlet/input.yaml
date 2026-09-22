@@ -36,7 +36,6 @@ ANONYMOUS:
     max nonlinear iters: 2
     use strong DBCs: true
     use preconditioner: true
-    reuse preconditioner: true
     right preconditioner: true
     reuse Jacobian: true
     preconditioner type: Ifpack2

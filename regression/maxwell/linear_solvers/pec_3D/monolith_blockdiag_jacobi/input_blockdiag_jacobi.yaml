@@ -12,7 +12,6 @@ ANONYMOUS:
   Solver:
     final time: 0.2  # 1-sweep Jacobi stalls by dt 0.1
     use preconditioner: true
-    reuse preconditioner: false
     preconditioner type: block diagonal
     Block 0 Settings:
       preconditioner variant: RELAXATION
