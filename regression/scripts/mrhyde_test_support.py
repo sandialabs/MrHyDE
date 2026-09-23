@@ -307,4 +307,121 @@ class mrhyde_test_support:
     f.writelines(lines)
     f.close()
 
-    return status
+
+# ==============================================================================
+# Summary-tag health checks
+#
+# Byte-diffing mrhyde.log against a gold file is not portable across BLAS/MPI
+# implementations - low-order digits drift by roundoff. For FD-check /
+# magnitude-scan tests, assert on the summary tags they already emit with
+# tolerance-based predicates instead.
+# ==============================================================================
+
+import re
+
+def extract_scalar(log_text, tag, group=1):
+  """Pull the first floating-point number after `tag` on the same line.
+
+  Example: extract_scalar(text, '[GRAD-CHECK] best rel_err =') matches
+  '[GRAD-CHECK] best rel_err = 2.12e-05   at h = 1.00e-07'
+  and returns 2.12e-05.
+  """
+  pat = re.escape(tag) + r'\s*([-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?)'
+  m = re.search(pat, log_text)
+  if m is None:
+    return None
+  try:
+    return float(m.group(group))
+  except ValueError:
+    return None
+
+def extract_scalars(log_text, pattern):
+  """Pull every floating-point number matched by the first capture group of
+  `pattern`. Returns a list of floats (possibly empty)."""
+  vals = []
+  for m in re.finditer(pattern, log_text):
+    try:
+      vals.append(float(m.group(1)))
+    except (ValueError, IndexError):
+      pass
+  return vals
+
+def check_predicates(log_path, checks, verbose=True):
+  """Run a list of (name, predicate) checks against a log file.
+
+  `predicate` is a callable that takes the full log text and returns either:
+    - (True, message)  -> pass
+    - (False, message) -> fail
+
+  Prints per-check outcomes when verbose. Returns 0 if all pass, else 1.
+  """
+  try:
+    with open(log_path, 'r') as f:
+      log_text = f.read()
+  except (OSError, IOError) as e:
+    print('  CHECK-FAIL: cannot open %s: %s' % (log_path, e))
+    return 1
+
+  all_ok = True
+  print('  --- summary-tag checks on %s ---' % log_path)
+  for name, pred in checks:
+    ok, msg = pred(log_text)
+    tag = 'PASS' if ok else 'FAIL'
+    if verbose or not ok:
+      print('  [%s] %s: %s' % (tag, name, msg))
+    if not ok:
+      all_ok = False
+  return 0 if all_ok else 1
+
+
+# Convenience predicate builders. Each returns a function suitable for
+# check_predicates(); they close over the tag name and the tolerance.
+
+def pred_scalar_lt(tag, upper, extractor=None):
+  """Assert extract_scalar(text, tag) < upper."""
+  def _p(text):
+    v = (extractor(text) if extractor is not None else extract_scalar(text, tag))
+    if v is None:
+      return False, 'tag not found (%r)' % tag
+    return (v < upper), 'value=%.3e < %.3e ? -> %s' % (v, upper, 'yes' if v < upper else 'no')
+  return _p
+
+def pred_scalar_gt(tag, lower, extractor=None):
+  """Assert extract_scalar(text, tag) > lower."""
+  def _p(text):
+    v = (extractor(text) if extractor is not None else extract_scalar(text, tag))
+    if v is None:
+      return False, 'tag not found (%r)' % tag
+    return (v > lower), 'value=%.3e > %.3e ? -> %s' % (v, lower, 'yes' if v > lower else 'no')
+  return _p
+
+def pred_scalar_in(tag, lower, upper, extractor=None):
+  """Assert lower <= extract_scalar(text, tag) <= upper."""
+  def _p(text):
+    v = (extractor(text) if extractor is not None else extract_scalar(text, tag))
+    if v is None:
+      return False, 'tag not found (%r)' % tag
+    return (lower <= v <= upper), 'value=%.3e in [%.3e, %.3e] ? -> %s' \
+      % (v, lower, upper, 'yes' if (lower <= v <= upper) else 'no')
+  return _p
+
+def pred_scalar_rel(tag, expected, rel_tol, extractor=None):
+  """Assert |extract_scalar(text, tag) - expected| / |expected| <= rel_tol."""
+  def _p(text):
+    v = (extractor(text) if extractor is not None else extract_scalar(text, tag))
+    if v is None:
+      return False, 'tag not found (%r)' % tag
+    denom = abs(expected) if expected != 0.0 else 1.0
+    rel = abs(v - expected) / denom
+    ok = rel <= rel_tol
+    return ok, 'value=%.6g vs expected=%.6g (rel=%.3e <= %.3e ? -> %s)' \
+      % (v, expected, rel, rel_tol, 'yes' if ok else 'no')
+  return _p
+
+def pred_contains(needle, description=None):
+  """Assert the string `needle` appears in the log."""
+  def _p(text):
+    ok = needle in text
+    return ok, 'contains %r ? -> %s' % (needle if description is None else description,
+                                        'yes' if ok else 'no')
+  return _p

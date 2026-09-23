@@ -4,6 +4,7 @@
 *.exo
 *.exo.*
 *.log
+*.dat
 *.bak
 *.xml
 *._*

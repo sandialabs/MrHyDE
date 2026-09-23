@@ -157,6 +157,8 @@ namespace MrHyDE {
     bool save_data, is_transient;
     vector<regularization> regularizations;
     vector<ScalarT> response_times, objective_times, objective_values;
+    vector<ScalarT> objective_unweighted_self; // magnitude-scan only
+    vector<vector<ScalarT>> regularization_unweighted; // magnitude-scan only
     vector<ScalarT> scalar_response_data; // [time] or [realization]
     vector<Kokkos::View<ScalarT*,HostDevice> > response_data; // [time](sensor) or [realization](sensor)
     

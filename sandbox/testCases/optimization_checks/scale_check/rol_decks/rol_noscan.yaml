@@ -1,0 +1,24 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Analysis:
+    analysis type: ROL2
+    ROL2:
+      General:
+        Output Level: 2
+        Do magnitude scan: false
+        FD Check Random Seed: 42
+        FD Check Random Scale: 1.0
+        Do grad+hessvec check: false
+        Bound Optimization Variables: false
+        Secant:
+          Type: Limited-Memory BFGS
+          Maximum Storage: 20
+      Step:
+        Type: Line Search
+      Status Test:
+        Gradient Tolerance: 1.0e-6
+        Constraint Tolerance: 1.0e-08
+        Step Tolerance: 1.0e-50
+        Iteration Limit: 1
+...

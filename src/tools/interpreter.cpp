@@ -104,7 +104,12 @@ void Interpreter<EvalT>::split(vector<Branch<EvalT> > & branches, const size_t &
       }
       else if (paren == 0) {//} && i>0) {
         if (s[i] == '+' || s[i] == '-') {
-          num_pm += 1;
+          // Skip exponent sign in scientific notation (1e-4, 2.5E+10).
+          bool sci_sign = (i >= 2 && (s[i-1] == 'e' || s[i-1] == 'E')
+                           && (isdigit(s[i-2]) || s[i-2] == '.'));
+          if (!sci_sign) {
+            num_pm += 1;
+          }
         }
         if (s[i] == '*' || s[i] == '/'
             || s[i] == '<' || s[i] == '>') {
@@ -135,6 +140,13 @@ void Interpreter<EvalT>::split(vector<Branch<EvalT> > & branches, const size_t &
         }
         else if (s[i] == ')'){
           paren += -1;
+          currbranch += s[i];
+        }
+        else if (paren == 0 && (s[i] == '+' || s[i] == '-')
+                 && currbranch.length() >= 2
+                 && (currbranch[currbranch.length()-1] == 'e' || currbranch[currbranch.length()-1] == 'E')
+                 && (isdigit(currbranch[currbranch.length()-2]) || currbranch[currbranch.length()-2] == '.')) {
+          // Exponent sign in scientific notation; keep in token.
           currbranch += s[i];
         }
         else if (paren == 0 && s[i] == '+' && currbranch.length() > 0){

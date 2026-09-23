@@ -1,0 +1,55 @@
+%YAML 1.1
+---
+# Check deck: FD gradient check + LQ Hessian-vector identity checks.
+# Same physics as input_solve.yaml.template but with the check-enabled ROL
+# deck and no state output. Runs in seconds.
+ANONYMOUS:
+  debug level: 0
+  verbosity: 0
+  Mesh:
+    dimension: 3
+    element type: hex
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    zmin: 0.0
+    zmax: 1.0
+    NX: 8
+    NY: 8
+    NZ: 8
+    Xprocs: 2
+    Yprocs: 2
+    Zprocs: 1
+  Physics:
+    modules: thermal
+    active controls: true
+    Initial conditions:
+      T: '0.0'
+    Dirichlet conditions:
+      T:
+        all boundaries: '0.0'
+  Discretization:
+    order:
+      T: 1
+    quadrature: 2
+  Parameters input file: other_decks/exact/input_params.yaml
+  Functions input file: other_decks/exact/input_functions.yaml
+  Analysis input file: rol_decks/rol_check.yaml
+  Solver:
+    solver: steady-state
+    workset size: 100
+    linear TOL: 1.0e-14
+    max linear iters: 200
+    nonlinear TOL: 1.0e-12
+    max nonlinear iters: 3
+    use preconditioner: true
+  Postprocess:
+    write solution: false
+    compute objective: true
+    Objective functions:
+      Thermal Energy:
+        type: integrated control
+        function: '0.5*T*T'
+        weight: 1.0
+...
