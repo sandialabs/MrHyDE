@@ -117,6 +117,12 @@ SOLVERS = {
                          [AMG_PIVOT, "jacobi_1level.xml"]),
     "blocktri_cheb": (blocktri(diagonal(), amg(CHEB)), [AMG_PIVOT, CHEB]),
     "blocktri_amg": (blocktri(amg(AMG_PIVOT), amg(AMG_PIVOT)), [AMG_PIVOT]),
+    # blocktri_amg with Hiptmair on the fine level of the Schur hierarchy; the
+    # basis names are what let setupBlockTriangularAuxiliary build D0.
+    "blocktri_hiptmair": (blocktri(amg(AMG_PIVOT),
+                                   "hgrad basis name: phi_aux\n"
+                                   "hcurl basis name: E\n" + amg("amg_hiptmair.xml")),
+                          [AMG_PIVOT, "amg_hiptmair.xml"]),
 
     # --- RefMaxwell and Maxwell1 on the Schur block ---
     "refmaxwell_p2v3": (refmaxwell("refmaxwell_p2v3.xml"),
@@ -139,6 +145,22 @@ SOLVERS = {
                                 auxspace("Maxwell1", "maxwell1_emin0.xml"),
                                 iters=200),
                        [AMG_PIVOT, "maxwell1_emin0.xml"]),
+
+    # --- Christian's Maxwell1 prolongator-smoothing variants ---
+    "maxwell1_sa_rs": (blocktri(amg(AMG_PIVOT),
+                                auxspace("Maxwell1", "maxwell1_sa_rs.xml"),
+                                iters=200),
+                       [AMG_PIVOT, "maxwell1_sa_rs.xml"]),
+    "maxwell1_sa_rs_edge": (blocktri(amg(AMG_PIVOT),
+                                     auxspace("Maxwell1", "maxwell1_sa_rs_edge.xml"),
+                                     iters=200),
+                            [AMG_PIVOT, "maxwell1_sa_rs_edge.xml"]),
+    "maxwell1_sa_rs_nodal": (blocktri(amg(AMG_PIVOT),
+                                      auxspace("Maxwell1", "maxwell1_sa_rs_nodal.xml"),
+                                      iters=200),
+                             [AMG_PIVOT, "maxwell1_sa_rs_nodal.xml"]),
+    "refmaxwell_unsmoothed": (refmaxwell("refmaxwell_unsmoothed.xml"),
+                              [AMG_PIVOT, "refmaxwell_unsmoothed.xml"]),
 
     # --- ILU on the Schur block; dies above CFL 2 ---
     "blocktri_ilu0": (blocktri(diagonal(), amg("ilu0_1level.xml")),
