@@ -50,7 +50,7 @@ public:
       parseSchurVariant(cntxt_->schur.approximation_type) == SchurVariant::Diag,
       interface_.verbosity);
 
-    Teuchos::ParameterList schurMueLuParams = interface_.getBlockTriangularMueLuParams(cntxt_);
+    Teuchos::ParameterList schurMueLuParams = interface_.getBlockTriangularMueLuParams(cntxt_, schurApprox);
     Teuchos::ParameterList pivotParams = this->pivotMueLuParams(schurMueLuParams);
 
     Teko::LinearOp pivotPrec =

@@ -651,7 +651,8 @@ public:
                                                     const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
                                                     matrix_RCP * diagTermOut = nullptr);
   /** @brief Build filtered MueLu parameters shared by block-triangular build/reuse paths. */
-  Teuchos::ParameterList getBlockTriangularMueLuParams(const Teuchos::RCP<LinearSolverContext<Node> > & cntxt);
+  Teuchos::ParameterList getBlockTriangularMueLuParams(const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
+                                                      const matrix_RCP & SchurApprox);
   /** @brief Build or refresh block-triangular preconditioner from current Jacobian and reuse policy. */
   Teuchos::RCP<LA_Operator> setupBlockTriangularPreconditioner(
       const matrix_RCP & J,

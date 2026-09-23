@@ -16,6 +16,7 @@
 #include "block_prec/BlockTriangularFactory.hpp"
 
 #include <Ifpack2_Factory.hpp>
+#include <MueLu_Maxwell_Utils.hpp>
 #include <Xpetra_TripleMatrixMultiply.hpp>
 #include <Xpetra_MatrixFactory.hpp>
 #include <algorithm>
@@ -168,6 +169,38 @@ buildAuxNodalMatrix(const typename LATypes<Node>::CrsMatrixRCP & A_edge,
 }
 
 template<class Node>
+void addHiptmairUserData(Teuchos::ParameterList & mueluList,
+                         const typename LATypes<Node>::CrsMatrixRCP & mat,
+                         const typename LATypes<Node>::CrsMatrixRCP & D0_matrix,
+                         const std::string & settingsName) {
+  if (!mueluParamsWantHiptmair(mueluList)) return;
+  TEUCHOS_TEST_FOR_EXCEPTION(D0_matrix.is_null(), std::runtime_error,
+    "MueLu params request HIPTMAIR smoothing but no D0 (discrete gradient) matrix was "
+    "supplied. Set 'hgrad basis name' and 'hcurl basis name' in the corresponding "
+    << settingsName << " so setupBlockTriangularAuxiliary can build D0.");
+  TEUCHOS_TEST_FOR_EXCEPTION(!D0_matrix->getRangeMap()->isSameAs(*mat->getRowMap()), std::runtime_error,
+    "HIPTMAIR setup: D0 range map does not match the matrix row map "
+    "(D0 range=" << D0_matrix->getRangeMap()->getGlobalNumElements()
+    << ", rows=" << mat->getGlobalNumRows() << ").");
+  // A Dirichlet row of mat is an identity row. Left in D0, those edges let the
+  // nodal correction D0*dphi write into constrained DOFs.
+  using dev_mem_space = typename Node::device_type::memory_space;
+  Teuchos::RCP<Xpetra::Matrix<ScalarT,LO,GO,Node>> mat_x = wrapAsXpetraMatrix<Node>(mat);
+  Teuchos::RCP<Xpetra::Matrix<ScalarT,LO,GO,Node>> D0_raw = wrapAsXpetraMatrix<Node>(D0_matrix);
+  Kokkos::View<bool*, dev_mem_space> BCrows, BCcols, BCdomain;
+  bool allEdgesBnd = false, allNodesBnd = false;
+  int BCedges = 0, BCnodes = 0;
+  MueLu::Maxwell_Utils<ScalarT, LO, GO, Node>::detectBoundaryConditionsSM(
+      mat_x, D0_raw, /*rowSumTol=*/ -1.0,
+      BCrows, BCcols, BCdomain, BCedges, BCnodes, allEdgesBnd, allNodesBnd);
+  Kokkos::View<const bool*, dev_mem_space> BCrows_const = BCrows;
+  const typename LATypes<Node>::CrsMatrixRCP D0 = dropBCRows<Node>(D0_matrix, BCrows_const);
+
+  mueluList.sublist("user data").set("NodeMatrix", buildAuxNodalMatrix<Node>(mat, D0));
+  mueluList.sublist("user data").set("D0", wrapAsXpetraMatrix<Node>(D0));
+}
+
+template<class Node>
 Teko::LinearOp
 buildAmgBlockOperator(LinearAlgebraInterface<Node> & interface,
                       const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
@@ -199,19 +232,7 @@ buildAmgBlockOperator(LinearAlgebraInterface<Node> & interface,
     mueluList.sublist("user data").set("Coordinates", dofCoords);
   }
 
-  // A_n = D0^T A D0 must be rebuilt whenever blockMat changes (mass swap, Newton rebuild).
-  if (mueluParamsWantHiptmair(mueluList)) {
-    TEUCHOS_TEST_FOR_EXCEPTION(D0_matrix.is_null(), std::runtime_error,
-      "MueLu params request HIPTMAIR smoothing but no D0 (discrete gradient) matrix was "
-      "supplied for this block. Set 'hgrad basis name' and 'hcurl basis name' in the "
-      "corresponding Block N Settings so setupBlockTriangularAuxiliary can build D0.");
-    TEUCHOS_TEST_FOR_EXCEPTION(!D0_matrix->getRangeMap()->isSameAs(*blockMat->getRowMap()), std::runtime_error,
-      "HIPTMAIR setup: D0 range map does not match block matrix row map "
-      "(D0 range=" << D0_matrix->getRangeMap()->getGlobalNumElements()
-      << ", block rows=" << blockMat->getGlobalNumRows() << ").");
-    mueluList.sublist("user data").set("NodeMatrix", buildAuxNodalMatrix<Node>(blockMat, D0_matrix));
-    mueluList.sublist("user data").set("D0", wrapAsXpetraMatrix<Node>(D0_matrix));
-  }
+  addHiptmairUserData<Node>(mueluList, blockMat, D0_matrix, "Block N Settings");
 
   return interface.inverseLibrary(cntxt).build("MueLu", mueluList,
     "BlockDiag block " + std::to_string(blockIndex) + " MueLu", blockMat);
@@ -442,10 +463,26 @@ LinearAlgebraInterface<Node>::buildBlockDiagonalPreconditioner(const matrix_RCP 
 // ========================================================================================
 // Block triangular: MueLu and RefMaxwell
 // ========================================================================================
+// Return D0 if the Schur block is the HCURL block, null otherwise.
+template<class Node>
+typename LATypes<Node>::CrsMatrixRCP
+schurBlockD0(const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
+             const typename LATypes<Node>::CrsMatrixRCP & SchurApprox) {
+  if (cntxt.is_null() || cntxt->refMaxwell.D0_matrix.is_null() || SchurApprox.is_null()) {
+    return Teuchos::null;
+  }
+  if (!cntxt->refMaxwell.D0_matrix->getRangeMap()->isSameAs(*SchurApprox->getRowMap())) {
+    return Teuchos::null;
+  }
+  return cntxt->refMaxwell.D0_matrix;
+}
+
 // Default MueLu parameter list for block-triangular pivot/Schur AMG.
+// Also attaches D0 and NodeMatrix when the list asks for Hiptmair.
 template<class Node>
 Teuchos::ParameterList
-LinearAlgebraInterface<Node>::getBlockTriangularMueLuParams(const Teuchos::RCP<LinearSolverContext<Node> > & cntxt) {
+LinearAlgebraInterface<Node>::getBlockTriangularMueLuParams(const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
+                                                           const matrix_RCP & SchurApprox) {
   Teuchos::ParameterList mueluParams;
   const bool hasNestedSchurAmg =
     (cntxt->schur_block_sublist.name() != "empty") &&
@@ -453,6 +490,8 @@ LinearAlgebraInterface<Node>::getBlockTriangularMueLuParams(const Teuchos::RCP<L
   if (hasNestedSchurAmg &&
       loadMueLuXmlIfPresent(cntxt->schur_block_sublist.sublist("AMG Settings"), mueluParams, "Schur block", comm)) {
     normalizeMueLuVerbosity(mueluParams, verbosity);
+    block_prec::detail::addHiptmairUserData<Node>(mueluParams, SchurApprox,
+      schurBlockD0(cntxt, SchurApprox), "Schur Block Settings");
     return mueluParams;
   }
   mueluParams = defaultMueLuParams();
@@ -470,6 +509,8 @@ LinearAlgebraInterface<Node>::getBlockTriangularMueLuParams(const Teuchos::RCP<L
     mueluParams.sublist("smoother: params").set("chebyshev: zero starting solution", true);
   }
   normalizeMueLuVerbosity(mueluParams, verbosity);
+  block_prec::detail::addHiptmairUserData<Node>(mueluParams, SchurApprox,
+    schurBlockD0(cntxt, SchurApprox), "Schur Block Settings");
   return mueluParams;
 }
 
@@ -486,8 +527,7 @@ LinearAlgebraInterface<Node>::buildBlockTriangularSchurApproximation(
   return block_prec::buildSchurApproximation<Node>(blocks, *cntxt, diagTermOut, this->verbosity);
 }
 
-// Check D0, M1, nodal_coords and map compatibility for RefMaxwell pivot block. Assumes J00 comes
-// from the same discretization pipeline as the Jacobian (block extraction only; no separate assembly).
+// Check D0, M1, nodal_coords and map compatibility for RefMaxwell pivot block.
 template<class Node>
 void LinearAlgebraInterface<Node>::validateRefMaxwellBlockInputs(
     const matrix_RCP & J00,
