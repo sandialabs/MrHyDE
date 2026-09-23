@@ -46,7 +46,7 @@ beats the FD fallback on secant and bilinearity residuals.
 
 ### HessVec, exact vs FD
 
-| Config   | path  | `|secant|/ref` | `|bilin|/ref` | `|hv0|` | `<v,Hv>_min` |
+| Config   | path  | `\|secant\|/ref` | `\|bilin\|/ref` | `\|hv0\|` | `<v,Hv>_min` |
 | :------- | :---- | -------------: | ------------: | ------: | -----------: |
 | baseline | exact |       3.83e-08 |      7.24e-08 |       0 |     9.42e+11 |
 | baseline | fd    |       1.35e-05 |      6.89e-05 |       0 |     9.42e+11 |
