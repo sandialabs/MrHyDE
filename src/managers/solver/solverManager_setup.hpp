@@ -10,6 +10,12 @@
 // ========================================================================================
 
 namespace {
+// A sublist naming both bases is asking for D0, whatever preconditioner uses it.
+inline bool declaresAuxiliaryBases(const Teuchos::ParameterList & p) {
+  return p.name() != "empty" && p.isParameter("hgrad basis name")
+                             && p.isParameter("hcurl basis name");
+}
+
 // Detect block settings that require mass matrices or distance-laplacian coordinates.
 inline bool anyBlockSettingsRequestsAuxiliary(const Teuchos::ParameterList & solverList) {
   for (Teuchos::ParameterList::ConstIterator it = solverList.begin(); it != solverList.end(); ++it) {
@@ -115,6 +121,11 @@ void SolverManager<Node>::completeSetup() {
       (use_block_tri && (use_refmaxwell || use_refmaxwell_schur)) ||
       (use_block_diag && use_refmaxwell);
     if (needs_refmaxwell_auxiliary) return true;
+    if ((use_block_tri || use_block_diag) &&
+        (declaresAuxiliaryBases(cntxt->pivot_block_sublist) ||
+         declaresAuxiliaryBases(cntxt->schur_block_sublist))) {
+      return true;
+    }
     // Block-diagonal mass swaps and coordinate aggregation also need auxiliary data.
     if (use_block_diag && settings != Teuchos::null) {
       return anyBlockSettingsRequestsAuxiliary(settings->sublist("Solver"));
@@ -180,6 +191,9 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
      cntxt->schur_block_sublist.isSublist("Maxwell1 Settings"));
   const bool use_unit_mass = pivotHasRefMaxwell || schurHasRefMaxwell;
 
+  const bool blockSublistWantsD0 = declaresAuxiliaryBases(cntxt->pivot_block_sublist) ||
+                                   declaresAuxiliaryBases(cntxt->schur_block_sublist);
+
   // Assemble full H(curl) mass matrix M1 (overlapped then exported). Used for RefMaxwell edge block.
   matrix_RCP M1_over = linalg->getNewOverlappedMatrix(set);
   vector_RCP diagM1_over = linalg->getNewOverlappedVector(set);
@@ -234,7 +248,8 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
   }
 
   // The mass-only path does not need D0 or coordinates.
-  if (!pivotHasRefMaxwell && !schurHasRefMaxwell && !needs_distance_laplacian_coords) {
+  if (!pivotHasRefMaxwell && !schurHasRefMaxwell && !needs_distance_laplacian_coords &&
+      !blockSublistWantsD0) {
     debugger->print("**** setupBlockTriangularAuxiliary: done (mass-only, set " + std::to_string(set) + ")");
     return;
   }
@@ -442,6 +457,8 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
   for (size_t block = 0; block < mesh->block_names.size(); ++block) {
     const std::string block_name = mesh->block_names[block];
     const size_t num_elem = disc->my_elements[block].extent(0);
+    // A rank can own no elements of a block; Intrepid2 rejects an empty workset.
+    if (num_elem == 0) continue;
     // STK expects all-mesh element IDs, not block-local indices.
     vector<size_t> elem_ids(num_elem);
     for (size_t e = 0; e < num_elem; ++e) elem_ids[e] = disc->my_elements[block](e);
