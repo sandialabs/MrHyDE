@@ -154,7 +154,7 @@ inline Teuchos::ParameterList validMaxwell1Params() {
   Teuchos::ParameterList v = validRefMaxwellParams();
   v.setName("Maxwell1 Settings");
   v.set("verify Kn consistency", false);
-  v.set("use Kn from M1", false);
+  v.set("use Kn from M1", true);
   return v;
 }
 
@@ -292,18 +292,30 @@ inline void removeIfpack2OnlyKeys(Teuchos::ParameterList & list) {
   }
 }
 
-// Remove coarse: params when coarse solver is direct (e.g. KLU).
-inline void sanitizeDirectCoarseParams(Teuchos::ParameterList & sublist) {
-  if (!sublist.isParameter("coarse: type")) return;
-  const std::string coarseType = sublist.get<std::string>("coarse: type");
-  const bool isDirect =
-    coarseType == "DirectSolver" || coarseType == "DIRECTSOLVER" ||
-    coarseType == "KLU" || coarseType == "Klu" || coarseType == "klu" ||
-    coarseType == "Amesos2" || coarseType == "AMESOS2" ||
-    coarseType == "Amesos-KLU" || coarseType == "Amesos-KLU2";
-  if (isDirect) {
-    sublist.remove("coarse: params", false);
+inline bool isHiptmairSmoother(const std::string & type) {
+  return toUpperAsciiCopy(type).find("HIPTMAIR") != std::string::npos;
+}
+
+// Check top-level and per-level smoother settings.
+inline bool mueluParamsWantHiptmair(const Teuchos::ParameterList & pl) {
+  if (pl.isParameter("smoother: type") && isHiptmairSmoother(pl.get<std::string>("smoother: type"))) return true;
+  for (Teuchos::ParameterList::ConstIterator it = pl.begin(); it != pl.end(); ++it) {
+    const std::string & key = pl.name(it);
+    if (key.rfind("level ", 0) != 0 || !pl.isSublist(key)) continue;
+    const auto & sub = pl.sublist(key);
+    if (sub.isParameter("smoother: type") && isHiptmairSmoother(sub.get<std::string>("smoother: type"))) return true;
   }
+  return false;
+}
+
+inline void sanitizeDirectCoarseParams(Teuchos::ParameterList & sublist) {
+  static const std::set<std::string> directCoarse = {
+    "DIRECTSOLVER", "KLU", "KLU2", "AMESOS2", "AMESOS-KLU", "AMESOS-KLU2",
+    "SUPERLU", "SUPERLU_DIST"};
+  if (!sublist.isParameter("coarse: type") || !sublist.isSublist("coarse: params")) return;
+  if (!directCoarse.count(toUpperAsciiCopy(sublist.get<std::string>("coarse: type")))) return;
+  // Dropping the whole sublist would also discard legitimate Amesos2 options.
+  removeIfpack2OnlyKeys(sublist.sublist("coarse: params"));
 }
 
 // Print warning on rank 0 if RefMaxwell sublist uses Krylov smoother.

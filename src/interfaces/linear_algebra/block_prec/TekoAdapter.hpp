@@ -239,30 +239,6 @@ buildTekoNativeBlockDiagonal(const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > 
     });
 }
 
-// TODO: generalize to N-block via Teko's variadic block factories.
-template<class Node>
-Teuchos::RCP<Tpetra::Operator<ScalarT,LO,GO,Node> >
-buildTekoNativeBlockTriangular(const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > & fullMap,
-                               const std::vector<Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > > & blockMaps,
-                               const typename BlockTypes<Node>::CrsMatrixRCP & J00,
-                               const typename BlockTypes<Node>::CrsMatrixRCP & J01,
-                               const typename BlockTypes<Node>::CrsMatrixRCP & J10,
-                               const typename BlockTypes<Node>::CrsMatrixRCP & J11,
-                               const Teko::LinearOp & inv0,
-                               const Teko::LinearOp & inv1,
-                               const bool useUpperTriangular) {
-  TEUCHOS_TEST_FOR_EXCEPTION(blockMaps.size() != 2, std::runtime_error,
-    "buildTekoNativeBlockTriangular currently supports only 2x2 systems.");
-  Teko::BlockedLinearOp blocked = buildThyraBlocked2x2<Node>(J00, J01, J10, J11);
-  const Teko::TriSolveType triType = useUpperTriangular ? Teko::GS_UseUpperTriangle
-                                                        : Teko::GS_UseLowerTriangle;
-  return detail::finalizeTekoNativeBlockOp<Node>(
-    fullMap, blockMaps, blocked, {inv0, inv1},
-    [triType](const Teuchos::RCP<Teko::BlockInvDiagonalStrategy> & s) {
-      return Teuchos::rcp(new Teko::GaussSeidelPreconditionerFactory(triType, s));
-    });
-}
-
 } // namespace block_prec
 } // namespace MrHyDE
 
