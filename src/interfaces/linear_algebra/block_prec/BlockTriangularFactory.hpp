@@ -51,8 +51,7 @@ public:
       interface_.verbosity);
 
     Teuchos::ParameterList schurMueLuParams = interface_.getBlockTriangularMueLuParams(cntxt_, schurApprox);
-    Teuchos::ParameterList pivotParams = this->pivotMueLuParams(schurMueLuParams);
-
+    Teuchos::ParameterList pivotParams = this->pivotMueLuParams();
     Teko::LinearOp pivotPrec =
       buildPivotBlockPrec<Node>(interface_, blocks_.J00, cntxt_, pivotParams);
     Teko::LinearOp schurPrec =
@@ -93,28 +92,26 @@ private:
     refMaxwell.schur_addon_beta_valid = true;
   }
 
-  Teuchos::ParameterList pivotMueLuParams(const Teuchos::ParameterList & schurParams) const {
-    Teuchos::ParameterList params(schurParams);
-    if (cntxt_->pivot_block_sublist.name() == "empty" ||
-        !cntxt_->pivot_block_sublist.isSublist("AMG Settings")) {
-      return params;
+  // Never inherit the Schur list: it is tuned for curl-curl, not the mass pivot.
+  Teuchos::ParameterList pivotMueLuParams() const {
+    Teuchos::ParameterList params = defaultMueLuParams();
+    if (cntxt_->pivot_block_sublist.isSublist("AMG Settings")) {
+      const Teuchos::ParameterList & amg = cntxt_->pivot_block_sublist.sublist("AMG Settings");
+      Teuchos::ParameterList xmlLoaded;
+      if (loadMueLuXmlIfPresent(amg, xmlLoaded, "pivot block", J_->getComm())) {
+        params = xmlLoaded;
+      }
+      else {
+        Teuchos::ParameterList filtered(amg);
+        removeMrHyDEOwnedKeys(filtered);
+        removeIfpack2OnlyKeys(filtered);
+        params.setParameters(filtered);
+        if (amg.isSublist("smoother: params")) {
+          params.sublist("smoother: params").setParameters(amg.sublist("smoother: params"));
+        }
+      }
     }
-    const Teuchos::ParameterList & amg = cntxt_->pivot_block_sublist.sublist("AMG Settings");
-    Teuchos::ParameterList xmlLoaded;
-    if (loadMueLuXmlIfPresent(amg, xmlLoaded, "pivot block", J_->getComm())) {
-      params = xmlLoaded;
-      normalizeMueLuVerbosity(params, interface_.verbosity);
-      return params;
-    }
-    params = defaultMueLuParams();
-    Teuchos::ParameterList filtered(amg);
-    removeMrHyDEOwnedKeys(filtered);
-    removeIfpack2OnlyKeys(filtered);
-    params.setParameters(filtered);
-    if (amg.isSublist("smoother: params")) {
-      params.remove("smoother: params", false);
-      params.sublist("smoother: params").setParameters(amg.sublist("smoother: params"));
-    }
+    normalizeMueLuVerbosity(params, interface_.verbosity);
     return params;
   }
 
