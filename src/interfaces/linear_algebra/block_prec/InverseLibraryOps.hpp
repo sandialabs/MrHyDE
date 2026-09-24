@@ -42,7 +42,7 @@ public:
     Entry & entry = cache_[label];
     const Teko::LinearOp source = tpetraToThyraConst<Node>(A);
     const bool haveCached = reuse_ && entry.type == type && !entry.inverse.is_null()
-                            && !carriesNodeMatrix(params);
+                            && !carriesStaleUserData(params);
     if (haveCached && precOp.is_null()) {
       Teko::rebuildInverse(*factory, source, entry.inverse);
     }
@@ -74,10 +74,14 @@ private:
     return lib_->getInverseFactory(label);
   }
 
-  // MueLu reuse swaps only the level-0 operator, so a stale D0^T A D0 would survive.
-  static bool carriesNodeMatrix(const Teuchos::ParameterList & params) {
-    return params.isSublist("user data") &&
-           params.sublist("user data").isParameter("NodeMatrix");
+  // Anything derived from J goes stale on reuse; coordinates do not.
+  static bool carriesStaleUserData(const Teuchos::ParameterList & params) {
+    if (!params.isSublist("user data")) return false;
+    const Teuchos::ParameterList & data = params.sublist("user data");
+    for (Teuchos::ParameterList::ConstIterator it = data.begin(); it != data.end(); ++it) {
+      if (data.name(it) != "Coordinates") return true;
+    }
+    return false;
   }
 
   void logBuild(const std::string & label, const char * action) const {
