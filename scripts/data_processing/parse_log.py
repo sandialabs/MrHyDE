@@ -28,17 +28,31 @@ TIMERS = {
 }
 
 
+def outer_solver(lines):
+    step, steps_seen = 0, {}
+    for line in lines:
+        if TIME_STEP in line:
+            step += 1
+        m = HEADER.match(line)
+        if m:
+            steps_seen.setdefault(m.group(1), set()).add(step)
+    if not steps_seen:
+        return None
+    return max(steps_seen, key=lambda name: len(steps_seen[name]))
+
+
 def iterations(lines):
     """Last Iter n in each outer Belos block. Inner Krylov solves are skipped,
     as are the initial-condition L2 projections that run before stepping."""
     first_step = next((i for i, l in enumerate(lines) if TIME_STEP in l), 0)
-    outer, counts, n = None, [], None
-    for line in lines[first_step:]:
+    body = lines[first_step:]
+    outer = outer_solver(body)
+    counts, n = [], None
+    for line in body:
         m = HEADER.match(line)
         if m:
             if n is not None:
                 counts.append(n)
-            outer = outer if outer is not None else m.group(1)
             n = 0 if m.group(1) == outer else None
             continue
         it = ITER.match(line)
