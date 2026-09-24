@@ -10,7 +10,10 @@
 #include <BelosLinearProblem.hpp>
 #include <BelosTpetraOperator.hpp>
 #include <MueLu_CreateTpetraPreconditioner.hpp>
+#include <Teuchos_VerboseObject.hpp>
+#include <Teuchos_oblackholestream.hpp>
 #include <Xpetra_MatrixFactory.hpp>
+#include <Xpetra_MatrixUtils.hpp>
 #include <Xpetra_TpetraVector.hpp>
 #include <Xpetra_VectorFactory.hpp>
 
@@ -106,6 +109,21 @@ wrapAsXpetraMatrix(const ConstMatrixRCP<Node> & A) {
       Teuchos::rcp(new XpetraCrs(Teuchos::rcp_const_cast<TpetraCrs>(A))))));
 }
 
+// Rows with no diagonal get one
+template<class Node>
+void repairNodalDiagonal(Teuchos::RCP<Xpetra::Matrix<ScalarT,LO,GO,Node> > & Kn,
+                         const int verbosity) {
+  using STS = Teuchos::ScalarTraits<ScalarT>;
+  static const Teuchos::RCP<Teuchos::FancyOStream> quiet =
+    Teuchos::fancyOStream(Teuchos::rcp(new Teuchos::oblackholestream()));
+  const ScalarT maxDiag =
+    MueLu::UtilitiesBase<ScalarT,LO,GO,Node>::GetMatrixDiagonal(*Kn)->normInf();
+  Xpetra::MatrixUtils<ScalarT,LO,GO,Node>::CheckRepairMainDiagonal(
+    Kn, true,
+    (verbosity >= 10) ? *Teuchos::VerboseObjectBase::getDefaultOStream() : *quiet,
+    STS::zero(), maxDiag > STS::zero() ? maxDiag : STS::one());
+}
+
 template<class Node>
 MatrixRCP<Node>
 remapBlockToMaps(const ConstMatrixRCP<Node> & src,
@@ -152,6 +170,10 @@ remapBlockToMaps(const ConstMatrixRCP<Node> & src,
   auto markerData = colMarker->getData(0);
 
   const LO nRows = rowMap->getLocalNumElements();
+  std::vector<GO> keepCols;
+  std::vector<ScalarT> keepVals;
+  keepCols.reserve(maxEnt);
+  keepVals.reserve(maxEnt);
   for (LO rowLid = 0; rowLid < nRows; ++rowLid) {
     const GO rowGid = rowMap->getGlobalElement(rowLid);
     const LO srcRowLid = srcRowMap->getLocalElement(rowGid);
@@ -161,10 +183,8 @@ remapBlockToMaps(const ConstMatrixRCP<Node> & src,
     if (nent == 0) continue;
     src->getLocalRowCopy(srcRowLid, colLids, colVals, nent);
 
-    std::vector<GO> keepCols;
-    std::vector<ScalarT> keepVals;
-    keepCols.reserve(nent);
-    keepVals.reserve(nent);
+    keepCols.clear();
+    keepVals.clear();
     for (size_t k = 0; k < nent; ++k) {
       if (markerData[colLids(k)] == 0) continue;
       const GO colGid = srcColMap->getGlobalElement(colLids(k));
@@ -224,17 +244,17 @@ buildInverseDiagonal(const ConstMatrixRCP<Node> & mat,
   LA_Vector diag(rowMap, false);
   mat->getLocalDiagCopy(diag);
 
-  LA_Vector lumped(mat->getRangeMap(), false);
+  Teuchos::RCP<LA_Vector> lumped;
   if (useLumpedDiagonal) {
+    lumped = Teuchos::rcp(new LA_Vector(mat->getRangeMap(), false));
     LA_Vector ones(mat->getDomainMap(), false);
     ones.putScalar(one);
-    mat->apply(ones, lumped);   // row sums
-  } else {
-    lumped.putScalar(zero);
+    mat->apply(ones, *lumped);   // row sums
   }
 
   auto dView = diag.getLocalViewDevice(Tpetra::Access::ReadOnly);
-  auto lView = lumped.getLocalViewDevice(Tpetra::Access::ReadOnly);
+  auto lView = useLumpedDiagonal ? lumped->getLocalViewDevice(Tpetra::Access::ReadOnly)
+                                 : dView;
   auto iView = inv->getLocalViewDevice(Tpetra::Access::OverwriteAll);
   const size_t nrows = static_cast<size_t>(rowMap->getLocalNumElements());
   const bool wantLumped = useLumpedDiagonal;
@@ -243,7 +263,7 @@ buildInverseDiagonal(const ConstMatrixRCP<Node> & mat,
     Kokkos::RangePolicy<typename Node::execution_space, size_t>(0, nrows),
     KOKKOS_LAMBDA(const size_t i, GO & ad, GO & al, GO & am) {
       const ScalarT d = dView(i, 0);
-      const ScalarT sum = lView(i, 0);
+      const ScalarT sum = wantLumped ? lView(i, 0) : zero;
       // Keep the lumped fallback sign-consistent with the true diagonal.
       const bool useLumped = wantLumped && sum != zero && (d == zero || (d * sum) > zero);
       const ScalarT pivot = useLumped ? sum : d;
@@ -955,7 +975,8 @@ maybeWrapInInnerKrylov(LinearAlgebraInterface<Node> & interface,
                              !cntxt->flexible_gmres || !cntxt->right_preconditioner,
     std::runtime_error,
     "[" << label << "] 'inner krylov solver' requires Block GMRES with "
-    "'Flexible Gmres: true' and 'right preconditioner: true'.");
+    "'Flexible Gmres: true' and 'right preconditioner: true'; deck has '"
+    << (cntxt.is_null() ? std::string("none") : cntxt->belos_type) << "'.");
   const std::string innerSolver = blockList.get<std::string>("inner krylov solver");
   const int innerMaxIters = blockList.isParameter("inner krylov max iters")
     ? blockList.get<int>("inner krylov max iters") : 5;

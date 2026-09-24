@@ -47,7 +47,8 @@ RefMaxwellXpetraInputs<Node> buildRefMaxwellXpetraInputs(
 template<class Node>
 void applyDirichletBCsToKn(
     Teuchos::RCP<Xpetra::Matrix<ScalarT, LO, GO, Node> > & Kn,
-    const Kokkos::View<bool*, typename Node::device_type::memory_space> & BCdomainNodal) {
+    const Kokkos::View<bool*, typename Node::device_type::memory_space> & BCdomainNodal,
+    const int verbosity) {
   using dev_mem_space = typename Node::device_type::memory_space;
   using XpetraVector = Xpetra::Vector<ScalarT, LO, GO, Node>;
   Teuchos::RCP<XpetraVector> saved = Xpetra::VectorFactory<ScalarT, LO, GO, Node>::Build(
@@ -82,6 +83,7 @@ void applyDirichletBCsToKn(
         }
       });
   Kn->fillComplete(Kn->getDomainMap(), Kn->getRangeMap());
+  repairNodalDiagonal<Node>(Kn, verbosity);
 }
 
 } // namespace detail
@@ -664,7 +666,10 @@ LinearAlgebraInterface<Node>::buildMaxwell1Preconditioner(
   const bool knFromXml = knXmlSet && maxwell1Params.get<bool>("maxwell1: use Kn from M1");
   maxwell1Params.remove("maxwell1: use Kn from M1", false);
   const bool knInYaml = m1Settings.isParameter("use Kn from M1");
-  const bool useKnFromM1 = knInYaml ? m1Settings.get<bool>("use Kn from M1") : knFromXml;
+  
+  bool useKnFromM1 = true;
+  if (knInYaml)      useKnFromM1 = m1Settings.get<bool>("use Kn from M1");
+  else if (knXmlSet) useKnFromM1 = knFromXml;
   if (rank == 0) {
     if (knXmlSet && knInYaml && knFromXml != useKnFromM1) {
       std::cout << "WARNING: 'use Kn from M1' is " << (useKnFromM1 ? "true" : "false")
@@ -682,12 +687,6 @@ LinearAlgebraInterface<Node>::buildMaxwell1Preconditioner(
     Kn_from_M1 = MueLu::Maxwell_Utils<ScalarT, LO, GO, Node>::PtAPWrapper(
         xpetraInputs.M1_wrap, D0_wrap, rapList, "Kn_from_M1");
 
-    auto computeKnGlobalConstants = [&]() {
-      // MueLu hierarchy statistics require the global graph constants.
-      Teuchos::rcp_const_cast<Xpetra::CrsGraph<LO, GO, Node> >(
-          Kn_from_M1->getCrsGraph())->computeGlobalConstants();
-    };
-
     using dev_mem_space = typename Node::device_type::memory_space;
     Kokkos::View<bool*, dev_mem_space> BCrowsK, BCcolsK_d0, BCdomainK;
     bool allEdgesBnd = false, allNodesBnd = false;
@@ -702,11 +701,15 @@ LinearAlgebraInterface<Node>::buildMaxwell1Preconditioner(
     }
 
     if (BCnodes > 0) {
-      block_prec::detail::applyDirichletBCsToKn<Node>(Kn_from_M1, BCdomainK);
+      block_prec::detail::applyDirichletBCsToKn<Node>(Kn_from_M1, BCdomainK, verbosity);
     }
-    computeKnGlobalConstants();
+    // MueLu hierarchy statistics require the global graph constants.
+    Teuchos::rcp_const_cast<Xpetra::CrsGraph<LO, GO, Node> >(
+        Kn_from_M1->getCrsGraph())->computeGlobalConstants();
 
-    // Warn if Kn_from_M1 differs from D0^T SM D0 beyond roundoff on non-BC rows.
+    // Already pinned above. MueLu would overwrite it with a fixed 1.0.
+    maxwell1Params.set("rap: fix zero diagonals", false);
+
     if (filterOpts.verifyKnConsistency) {
       block_prec::verifyKnConsistency<Node>(Kn_from_M1, SM_wrap, D0_wrap, BCdomainK,
                                             *J->getComm(), verbosity);

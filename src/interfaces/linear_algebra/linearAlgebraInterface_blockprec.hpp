@@ -125,10 +125,6 @@ inline std::string resolveBlockMethod(Teuchos::ParameterList & blockList) {
   return method;
 }
 
-inline bool isHiptmairSmoother(const std::string & type) {
-  return toUpperAsciiCopy(type).find("HIPTMAIR") != std::string::npos;
-}
-
 inline bool mueluParamsWantCoordinates(const Teuchos::ParameterList & pl) {
   const auto contains = [&](const std::string & key) {
     return pl.isParameter(key) &&
@@ -136,18 +132,6 @@ inline bool mueluParamsWantCoordinates(const Teuchos::ParameterList & pl) {
   };
   return contains("aggregation: drop scheme") ||
          contains("aggregation: strength-of-connection: matrix");
-}
-
-// Check top-level and per-level smoother settings.
-inline bool mueluParamsWantHiptmair(const Teuchos::ParameterList & pl) {
-  if (pl.isParameter("smoother: type") && isHiptmairSmoother(pl.get<std::string>("smoother: type"))) return true;
-  for (Teuchos::ParameterList::ConstIterator it = pl.begin(); it != pl.end(); ++it) {
-    const std::string & key = pl.name(it);
-    if (key.rfind("level ", 0) != 0 || !pl.isSublist(key)) continue;
-    const auto & sub = pl.sublist(key);
-    if (sub.isParameter("smoother: type") && isHiptmairSmoother(sub.get<std::string>("smoother: type"))) return true;
-  }
-  return false;
 }
 
 // A_n = D0^T * A_edge * D0, wrapped as Xpetra for MueLu 'user data.NodeMatrix'.
@@ -172,7 +156,8 @@ template<class Node>
 void addHiptmairUserData(Teuchos::ParameterList & mueluList,
                          const typename LATypes<Node>::CrsMatrixRCP & mat,
                          const typename LATypes<Node>::CrsMatrixRCP & D0_matrix,
-                         const std::string & settingsName) {
+                         const std::string & settingsName,
+                         const int verbosity) {
   if (!mueluParamsWantHiptmair(mueluList)) return;
   TEUCHOS_TEST_FOR_EXCEPTION(D0_matrix.is_null(), std::runtime_error,
     "MueLu params request HIPTMAIR smoothing but no D0 (discrete gradient) matrix was "
@@ -196,7 +181,9 @@ void addHiptmairUserData(Teuchos::ParameterList & mueluList,
   Kokkos::View<const bool*, dev_mem_space> BCrows_const = BCrows;
   const typename LATypes<Node>::CrsMatrixRCP D0 = dropBCRows<Node>(D0_matrix, BCrows_const);
 
-  mueluList.sublist("user data").set("NodeMatrix", buildAuxNodalMatrix<Node>(mat, D0));
+  Teuchos::RCP<Xpetra::Matrix<ScalarT,LO,GO,Node> > Kn = buildAuxNodalMatrix<Node>(mat, D0);
+  repairNodalDiagonal<Node>(Kn, verbosity);
+  mueluList.sublist("user data").set("NodeMatrix", Kn);
   mueluList.sublist("user data").set("D0", wrapAsXpetraMatrix<Node>(D0));
 }
 
@@ -232,7 +219,8 @@ buildAmgBlockOperator(LinearAlgebraInterface<Node> & interface,
     mueluList.sublist("user data").set("Coordinates", dofCoords);
   }
 
-  addHiptmairUserData<Node>(mueluList, blockMat, D0_matrix, "Block N Settings");
+  addHiptmairUserData<Node>(mueluList, blockMat, D0_matrix, "Block N Settings",
+                            interface.verbosity);
 
   return interface.inverseLibrary(cntxt).build("MueLu", mueluList,
     "BlockDiag block " + std::to_string(blockIndex) + " MueLu", blockMat);
@@ -491,7 +479,7 @@ LinearAlgebraInterface<Node>::getBlockTriangularMueLuParams(const Teuchos::RCP<L
       loadMueLuXmlIfPresent(cntxt->schur_block_sublist.sublist("AMG Settings"), mueluParams, "Schur block", comm)) {
     normalizeMueLuVerbosity(mueluParams, verbosity);
     block_prec::detail::addHiptmairUserData<Node>(mueluParams, SchurApprox,
-      schurBlockD0(cntxt, SchurApprox), "Schur Block Settings");
+      schurBlockD0(cntxt, SchurApprox), "Schur Block Settings", verbosity);
     return mueluParams;
   }
   mueluParams = defaultMueLuParams();
@@ -510,7 +498,7 @@ LinearAlgebraInterface<Node>::getBlockTriangularMueLuParams(const Teuchos::RCP<L
   }
   normalizeMueLuVerbosity(mueluParams, verbosity);
   block_prec::detail::addHiptmairUserData<Node>(mueluParams, SchurApprox,
-    schurBlockD0(cntxt, SchurApprox), "Schur Block Settings");
+    schurBlockD0(cntxt, SchurApprox), "Schur Block Settings", verbosity);
   return mueluParams;
 }
 
