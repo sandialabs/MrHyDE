@@ -1,0 +1,33 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  debug level: 0
+  verbosity: 10
+  disable timers: true
+
+  Mesh input file: ../input_common_maxwell_hex3d.yaml
+  Physics input file: ../input_common_maxwell_hex3d.yaml
+  Discretization input file: ../input_common_maxwell_hex3d.yaml
+  Functions input file: ../input_common_maxwell_hex3d.yaml
+  Solver input file: ../input_solver_common.yaml
+  Analysis input file: ../input_common_maxwell_hex3d.yaml
+  Postprocess input file: ../input_common_maxwell_hex3d.yaml
+
+  Solver:
+    preconditioner reuse type: update
+    reuse Jacobian: false   # else the block operator is cached whole and reuse never runs
+    preconditioner type: block triangular
+    Pivot Block Settings:
+      preconditioner type: AMG
+      AMG Settings:
+        xml param file: ../xml/amg_pivot.xml
+    Schur Block Settings:
+      pivot block: 1
+      approximation type: diag
+      diag use lumped pivot diagonal: true
+      preconditioner type: RefMaxwell
+      hgrad basis name: phi_aux
+      hcurl basis name: E
+      RefMaxwell Settings:
+        xml param file: ../xml/refmaxwell_p2v3.xml
+...

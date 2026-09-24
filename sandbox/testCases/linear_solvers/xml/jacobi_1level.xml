@@ -1,0 +1,12 @@
+<ParameterList name="MueLu">
+  <!-- Jacobi
+       1-level -->
+  <Parameter name="verbosity" type="string" value="none"/>
+  <Parameter name="max levels" type="int" value="1"/>
+  <Parameter name="coarse: type" type="string" value="RELAXATION"/>
+  <ParameterList name="coarse: params">
+    <Parameter name="relaxation: type" type="string" value="Jacobi"/>
+    <Parameter name="relaxation: sweeps" type="int" value="2"/>
+    <Parameter name="relaxation: damping factor" type="double" value="0.5"/>
+  </ParameterList>
+</ParameterList>

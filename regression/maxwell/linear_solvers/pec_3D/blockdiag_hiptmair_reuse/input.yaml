@@ -1,0 +1,29 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  debug level: 0
+  verbosity: 10
+  disable timers: true
+
+  Mesh input file: ../input_common_maxwell_hex3d.yaml
+  Physics input file: ../input_common_maxwell_hex3d.yaml
+  Discretization input file: ../input_common_maxwell_hex3d.yaml
+  Functions input file: ../input_common_maxwell_hex3d.yaml
+  Solver input file: ../input_solver_common.yaml
+  Analysis input file: ../input_common_maxwell_hex3d.yaml
+  Postprocess input file: ../input_common_maxwell_hex3d.yaml
+
+  Solver:
+    final time: 0.5
+    preconditioner reuse type: update
+    reuse Jacobian: false
+    preconditioner type: block diagonal
+    Block 0 Settings:
+      preconditioner variant: AMG
+      hgrad basis name: phi_aux
+      hcurl basis name: E
+      xml param file: ../xml/amg_hiptmair.xml
+    Block 1 Settings:
+      preconditioner variant: AMG
+      xml param file: ../xml/amg_reuse.xml
+...

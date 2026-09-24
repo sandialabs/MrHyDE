@@ -1,0 +1,27 @@
+%YAML 1.1
+---
+# Block-diagonal with AMG on the mass matrices M1 and M2 rather than the Jacobian blocks.
+ANONYMOUS:
+  debug level: 0
+  verbosity: 10
+  disable timers: true
+
+  Mesh input file: ../input_common_maxwell_hex3d.yaml
+  Physics input file: ../input_common_maxwell_hex3d.yaml
+  Discretization input file: ../input_common_maxwell_hex3d.yaml
+  Functions input file: ../input_common_maxwell_hex3d.yaml
+  Solver input file: ../input_solver_common.yaml
+  Analysis input file: ../input_common_maxwell_hex3d.yaml
+  Postprocess input file: ../input_common_maxwell_hex3d.yaml
+
+  Solver:
+    final time: 0.5  # mass-AMG runs past 500 iters by dt 0.2; 0.05 keeps margin
+    preconditioner reuse type: none  # only test here that rebuilds every solve
+    preconditioner type: block diagonal
+    Block 0 Settings:
+      preconditioner variant: AMG
+      use mass matrix: true
+    Block 1 Settings:
+      preconditioner variant: AMG
+      use mass matrix: true
+...

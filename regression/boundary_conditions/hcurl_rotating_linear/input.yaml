@@ -73,7 +73,6 @@ ANONYMOUS:
     number of steps: 10
     initial type: L2-projection
     use preconditioner: true
-    reuse preconditioner: true
     right preconditioner: true
     reuse Jacobian: true
     preconditioner type: Ifpack2

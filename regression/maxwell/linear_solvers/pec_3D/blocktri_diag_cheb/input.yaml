@@ -1,0 +1,28 @@
+%YAML 1.1
+---
+# Block-triangular: diagonal pivot on B, Chebyshev on the diag Schur complement.
+ANONYMOUS:
+  debug level: 0
+  verbosity: 10
+  disable timers: true
+
+  Mesh input file: ../input_common_maxwell_hex3d.yaml
+  Physics input file: ../input_common_maxwell_hex3d.yaml
+  Discretization input file: ../input_common_maxwell_hex3d.yaml
+  Functions input file: ../input_common_maxwell_hex3d.yaml
+  Solver input file: ../input_solver_common.yaml
+  Analysis input file: ../input_common_maxwell_hex3d.yaml
+  Postprocess input file: ../input_common_maxwell_hex3d.yaml
+
+  Solver:
+    preconditioner type: block triangular
+    Pivot Block Settings:
+      preconditioner type: Diagonal
+    Schur Block Settings:
+      pivot block: 1
+      approximation type: diag
+      diag use lumped pivot diagonal: true
+      preconditioner type: AMG
+      AMG Settings:
+        xml param file: ../xml/cheb_1level.xml
+...

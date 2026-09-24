@@ -1,0 +1,10 @@
+<ParameterList name="MueLu">
+  <!-- ILU(1)
+       1-level -->
+  <Parameter name="verbosity" type="string" value="none"/>
+  <Parameter name="max levels" type="int" value="1"/>
+  <Parameter name="coarse: type" type="string" value="RILUK"/>
+  <ParameterList name="coarse: params">
+    <Parameter name="fact: iluk level-of-fill" type="int" value="1"/>
+  </ParameterList>
+</ParameterList>

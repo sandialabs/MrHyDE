@@ -344,7 +344,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
   
     bool build_jacobian = !linalg->getJacobianReuse(set);
     matrix_RCP J, J_over;
-    
+
     J = linalg->getNewMatrix(set);
     if (build_jacobian) {
       J_over = linalg->getNewOverlappedMatrix(set);
@@ -525,6 +525,12 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
       
       current_du->putScalar(0.0);
       current_du_over->putScalar(0.0);
+      if (set < linalg->context.size() && !linalg->context[set].is_null()) {
+        linalg->context[set]->jacobian_rebuilt_this_step = build_jacobian;
+        linalg->context[set]->stage_alpha_u =
+          (isTransient && butcher_b[set](stage) != 0.0)
+            ? butcher_A[set](stage, stage) / butcher_b[set](stage) : 1.0;
+      }
       linalg->linearSolver(set, J, current_res, current_du);
       
       // doesn't always write to file - only if requested
