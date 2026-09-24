@@ -1,6 +1,6 @@
 %YAML 1.1
 ---
-# SA-AMG on the HDIV pivot, Maxwell1 on the Schur block.
+# Block-triangular Maxwell1 Schur with Kn built from SM, not from M1.
 ANONYMOUS:
   debug level: 0
   verbosity: 10
@@ -28,6 +28,6 @@ ANONYMOUS:
       hgrad basis name: phi_aux
       hcurl basis name: E
       Maxwell1 Settings:
-        use Kn from M1: true
+        use Kn from M1: false
         xml param file: ../xml/maxwell1_sa.xml
 ...

@@ -6,7 +6,6 @@
   <Parameter name="maxwell1: use as preconditioner" type="bool" value="true"/>
   <Parameter name="maxwell1: enable reuse" type="bool" value="true"/>
   <Parameter name="maxwell1: dump matrices" type="bool" value="false"/>
-  <Parameter name="maxwell1: use Kn from M1" type="bool" value="true"/>
   <Parameter name="fuse prolongation and update" type="bool" value="true"/>
 
   <ParameterList name="maxwell1: 11list">

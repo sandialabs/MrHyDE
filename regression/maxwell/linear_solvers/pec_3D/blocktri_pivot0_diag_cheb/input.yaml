@@ -1,6 +1,6 @@
 %YAML 1.1
 ---
-# SA-AMG on the HDIV pivot, Maxwell1 on the Schur block.
+# Block-triangular with pivot block 0: the Schur complement forms on the HDIV block.
 ANONYMOUS:
   debug level: 0
   verbosity: 10
@@ -17,17 +17,12 @@ ANONYMOUS:
   Solver:
     preconditioner type: block triangular
     Pivot Block Settings:
-      preconditioner type: AMG
-      AMG Settings:
-        xml param file: ../xml/amg_pivot.xml
+      preconditioner type: Diagonal
     Schur Block Settings:
-      pivot block: 1
+      pivot block: 0
       approximation type: diag
       diag use lumped pivot diagonal: true
-      preconditioner type: Maxwell1
-      hgrad basis name: phi_aux
-      hcurl basis name: E
-      Maxwell1 Settings:
-        use Kn from M1: true
-        xml param file: ../xml/maxwell1_sa.xml
+      preconditioner type: AMG
+      AMG Settings:
+        xml param file: ../xml/cheb_1level.xml
 ...

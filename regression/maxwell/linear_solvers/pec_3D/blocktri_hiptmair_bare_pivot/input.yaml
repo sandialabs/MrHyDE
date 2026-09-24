@@ -1,6 +1,7 @@
 %YAML 1.1
 ---
-# SA-AMG on the HDIV pivot, Maxwell1 on the Schur block.
+# Hiptmair Schur with an AMG pivot that has no 'AMG Settings': the pivot must
+# not inherit the Schur list, whose D0/NodeMatrix live on the E-block maps.
 ANONYMOUS:
   debug level: 0
   verbosity: 10
@@ -18,16 +19,13 @@ ANONYMOUS:
     preconditioner type: block triangular
     Pivot Block Settings:
       preconditioner type: AMG
-      AMG Settings:
-        xml param file: ../xml/amg_pivot.xml
     Schur Block Settings:
       pivot block: 1
       approximation type: diag
       diag use lumped pivot diagonal: true
-      preconditioner type: Maxwell1
+      preconditioner type: AMG
       hgrad basis name: phi_aux
       hcurl basis name: E
-      Maxwell1 Settings:
-        use Kn from M1: true
-        xml param file: ../xml/maxwell1_sa.xml
+      AMG Settings:
+        xml param file: ../xml/amg_hiptmair.xml
 ...

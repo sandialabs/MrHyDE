@@ -1,6 +1,7 @@
 %YAML 1.1
 ---
-# SA-AMG on the HDIV pivot, Maxwell1 on the Schur block.
+# One mesh of the RefMaxwell h-independence sequence. The gate is in mrhyde.tst:
+# iteration counts must stay nearly flat as the mesh refines.
 ANONYMOUS:
   debug level: 0
   verbosity: 10
@@ -14,6 +15,11 @@ ANONYMOUS:
   Analysis input file: ../input_common_maxwell_hex3d.yaml
   Postprocess input file: ../input_common_maxwell_hex3d.yaml
 
+  Mesh:
+    NX: 8
+    NY: 8
+    NZ: 4
+
   Solver:
     preconditioner type: block triangular
     Pivot Block Settings:
@@ -24,10 +30,9 @@ ANONYMOUS:
       pivot block: 1
       approximation type: diag
       diag use lumped pivot diagonal: true
-      preconditioner type: Maxwell1
+      preconditioner type: RefMaxwell
       hgrad basis name: phi_aux
       hcurl basis name: E
-      Maxwell1 Settings:
-        use Kn from M1: true
-        xml param file: ../xml/maxwell1_sa.xml
+      RefMaxwell Settings:
+        xml param file: ../xml/refmaxwell_p2v3.xml
 ...

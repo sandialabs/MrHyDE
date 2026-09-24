@@ -1,6 +1,6 @@
 %YAML 1.1
 ---
-# SA-AMG on the HDIV pivot, Maxwell1 on the Schur block.
+# Block-triangular: SA-AMG pivot on B, level-0 Hiptmair on the diag Schur complement.
 ANONYMOUS:
   debug level: 0
   verbosity: 10
@@ -24,10 +24,9 @@ ANONYMOUS:
       pivot block: 1
       approximation type: diag
       diag use lumped pivot diagonal: true
-      preconditioner type: Maxwell1
+      preconditioner type: AMG
       hgrad basis name: phi_aux
       hcurl basis name: E
-      Maxwell1 Settings:
-        use Kn from M1: true
-        xml param file: ../xml/maxwell1_sa.xml
+      AMG Settings:
+        xml param file: ../xml/amg_hiptmair.xml
 ...
