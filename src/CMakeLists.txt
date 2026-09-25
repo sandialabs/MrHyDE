@@ -96,6 +96,8 @@ IF(MrHyDE_ENABLE_PIEZO_EXTENSIONS)
   )
   list(APPEND mrhyde-all "${MrHyDE_PIEZO_EXTENSIONS_DIR}/piezo_maxwell.cpp")
   list(APPEND mrhyde-all "${MrHyDE_PIEZO_EXTENSIONS_DIR}/piezo_mechanics.cpp")
+  list(APPEND mrhyde-all "${MrHyDE_PIEZO_EXTENSIONS_DIR}/piezo_potential.cpp")
+  list(APPEND mrhyde-all "${MrHyDE_PIEZO_EXTENSIONS_DIR}/piezo_elastodynamics.cpp")
   list(APPEND mrhyde-all "${MrHyDE_PIEZO_EXTENSIONS_DIR}/full_tensor.cpp")
 ENDIF()
 

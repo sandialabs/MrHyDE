@@ -56,6 +56,8 @@
 #if defined(MrHyDE_ENABLE_PIEZO)
 #include "piezo_maxwell.hpp"
 #include "piezo_mechanics.hpp"
+#include "piezo_potential.hpp"
+#include "piezo_elastodynamics.hpp"
 #include "full_tensor.hpp"
 #endif
 
@@ -284,6 +286,14 @@ vector<Teuchos::RCP<PhysicsBase<EvalT> > > PhysicsImporter<EvalT>::import(vector
     // Physics for Piezo
     if (modname == "piezo mechanics"){
         modules.push_back(Teuchos::rcp(new piezo_mechanics<EvalT>(settings, dimension) ) );
+    }
+    // Physics for Piezo
+    if (modname == "piezo potential" ){
+        modules.push_back(Teuchos::rcp(new piezo_potential<EvalT>(settings, dimension) ) );
+    }
+    // Physics for Piezo
+    if (modname == "piezo elastodynamics" ){
+        modules.push_back(Teuchos::rcp(new piezo_elastodynamics<EvalT>(settings, dimension) ) );
     }
     #endif
     

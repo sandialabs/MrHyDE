@@ -1626,7 +1626,7 @@ void Workset<EvalT>::evaluateSolutionField(const int & fieldnum) {
         
         // Note: removed the teams for simplicity.  Will add again later when optimizing.
         int phase_component = soln_fields[fieldnum].phase_component_;
-        int ptotdof = phase_totalDOF[0]; // total for this set
+        //int ptotdof = phase_totalDOF[0]; // total for this set
         //cout << pbasis.extent(0) << " " << pbasis.extent(1) << " " << pbasis.extent(2) << endl;
         //cout << sbasis.extent(0) << " " << sbasis.extent(1) << " " << sbasis.extent(2) << endl;
         parallel_for("wkset steady soln",
