@@ -558,6 +558,41 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
         name = "mesh_data";
         mesh->setCellFieldData(name, blockID, myElements, cdata);
       }
+      
+      // Check if quadrature data is used
+      if (assembler->mesh->have_quadrature_data) {
+
+        // Allocate storage for elements data and seed (on host)
+        Kokkos::View<ScalarT*, HostDevice> cdata("data", myElements.size());
+       
+        // Fill on host
+        for (size_t grp = 0; grp < assembler->groups[block].size(); ++grp) {
+          Kokkos::View<ScalarT **, AssemblyDevice> data = assembler->groups[block][grp]->data;
+          auto wts = assembler->groups[block][grp]->getWts();
+          Kokkos::View<LO *, AssemblyDevice> eID = assembler->groups[block][grp]->localElemID;
+
+          // Copy element IDs to host
+          auto host_eID = Kokkos::create_mirror_view(eID);
+          Kokkos::deep_copy(host_eID, eID);
+          
+          // Copy element IDs to host
+          for (size_type elem=0; elem<wts.extent(0); elem++) {
+            ScalarT elemvol = 0.0;
+            ScalarT val = 0.0;
+            for (size_type pt=0; pt<wts.extent(1); pt++) {
+              val += data(elem,pt)*wts(elem,pt);
+              elemvol += wts(elem,pt);
+            }
+            cdata(host_eID(elem)) = val/elemvol;
+          }
+        }
+
+        // Write to file
+        string name = "quadrature data";
+        mesh->setCellFieldData(name, blockID, myElements, cdata);
+        
+      }
+
 
       ////////////////////////////////////////////////////////////////
       // Group number

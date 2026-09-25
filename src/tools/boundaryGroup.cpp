@@ -8,7 +8,6 @@
 
 #include "boundaryGroup.hpp"
 #include "physicsInterface.hpp"
-
 #include <iostream>
 #include <iterator>
 
@@ -77,6 +76,7 @@ sidename(sidename_), disc(disc_)   {
   storeAll = storeAll_;
   
   haveBasis = false;
+  havePhaseBasis = false;
   have_nodes = true;
 
   // Orientations are always stored
@@ -149,6 +149,47 @@ void BoundaryGroup::computeBasis(const bool & keepnodes) {
     }
     else {
       disc->getPhysicalBoundaryBasis(group_data, localElemID, localSideID, 
+                                     tbasis, tbasis_grad, tbasis_curl, tbasis_div);
+    }
+    for (size_t i=0; i<tbasis.size(); ++i) {
+      basis.push_back(CompressedView<View_Sc4>(tbasis[i]));
+      basis_grad.push_back(CompressedView<View_Sc4>(tbasis_grad[i]));
+      basis_div.push_back(CompressedView<View_Sc3>(tbasis_div[i]));
+      basis_curl.push_back(CompressedView<View_Sc4>(tbasis_curl[i]));
+    }
+    haveBasis = true;
+    if (!keepnodes) {
+      //nodes = DRV("dummy nodes",1);
+    }
+  }
+  else if (group_data->use_basis_database) {
+    for (size_t i=0; i<group_data->database_side_basis.size(); ++i) {
+      basis.push_back(CompressedView<View_Sc4>(group_data->database_side_basis[i],basis_index));
+      basis_grad.push_back(CompressedView<View_Sc4>(group_data->database_side_basis_grad[i],basis_index));
+    }
+    
+    if (!keepnodes) {
+      //nodes = DRV("empty nodes",1);
+    }
+  }
+  
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////
+
+void BoundaryGroup::computePhaseBasis(const bool & keepnodes) {
+  
+  if (storeAll && !havePhaseBasis) {
+    vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl;
+    vector<View_Sc3> tbasis_div;
+    
+    if (have_nodes) {
+      disc->getPhysicalBoundaryBasis(group_data, nodes, localSideID, orientation,
+                                     tbasis, tbasis_grad, tbasis_curl, tbasis_div);
+    }
+    else {
+      disc->getPhysicalBoundaryBasis(group_data, localElemID, localSideID,
                                      tbasis, tbasis_grad, tbasis_curl, tbasis_div);
     }
     for (size_t i=0; i<tbasis.size(); ++i) {

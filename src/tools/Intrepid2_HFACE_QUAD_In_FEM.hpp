@@ -135,7 +135,8 @@ namespace Intrepid2 {
           
           switch (opType) {
             case OPERATOR_VALUE : {
-              auto output = Kokkos::subview( _outputValues, Kokkos::ALL(), ptRange, Kokkos::ALL() );
+              // HFACE is scalar-valued, so use rank-2 output.
+              auto output = Kokkos::subview( _outputValues, Kokkos::ALL(), ptRange );
               Serial<opType>::getValues( output, input, work, _vinvLine);
               break;
             }

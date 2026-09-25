@@ -1,0 +1,35 @@
+reset
+
+brick x 1 y 1 z 1
+move volume 1 x .5
+move volume 1 y .5
+move volume 1 z .5
+
+volume 1 scheme tetmesh
+volume 1 size 0.1
+mesh volume 1
+
+sideset 1 add surface 5
+sideset 1 name "top"
+
+sideset 2 add surface 6
+sideset 2 name "right"
+
+sideset 3 add surface 1
+sideset 3 name "front"
+
+sideset 4 add surface 4
+sideset 4 name "left"
+
+sideset 5 add surface 3
+sideset 5 name "bottom"
+
+sideset 6 add surface 2
+sideset 6 name "back"
+
+set duplicate block elements off
+block 1 volume all
+block 1 name "eblock-0_0_0"
+set exodus netcdf4 off
+set large exodus file on
+export Genesis  "mesh.exo" dimension 3 block 1 overwrite 

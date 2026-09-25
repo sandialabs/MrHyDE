@@ -80,6 +80,23 @@ int PhysicsInterface::getUniqueIndex(const int & set, const int & block, const s
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
+
+int PhysicsInterface::getUniquePhaseIndex(const int & set, const int & block, const std::string & var) {
+  int index = 0;
+  size_t prog = 0;
+  for (size_t set=0; set<phase_num_vars.size(); ++set) {
+    for (size_t j=0; j<phase_num_vars[set][block]; j++) {
+      if (phase_var_list[set][0][j] == var) {
+        index = unique_phase_index[0][j+prog];
+      }
+    }
+    prog += phase_num_vars[set][0];
+  }
+  return index;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
     
 void PhysicsInterface::updateFlags(vector<bool> & newflags) {
   for (size_t set=0; set<modules.size(); set++) {

@@ -168,6 +168,9 @@ public:
   /** @brief Generate initial solution vector(s) */
   vector<vector_RCP> setInitial();
   
+  /** @brief Generate initial solution vector(s) */
+  void setInitial(vector<vector_RCP> & initial_solns, const size_t & set);
+  
   /** @brief Assign a batch ID for multi-sample solves */
   void setBatchID(const LO & bID);
   
@@ -291,6 +294,7 @@ public:
   bool allowBacktracking;        // Allow Newton backtracking
   bool store_vectors;            // Store iteration histories
   bool use_param_mass;           // Use parameter mass matrix
+  bool print_mass;           // print mass matrix and lumped mass
   
   vector<vector<vector<ScalarT>>> scalarDirichletValues; // Dirichlet data per set/block/var
   vector<vector<vector<ScalarT>>> scalarInitialValues;   // Initial state per set/block/var
@@ -304,13 +308,15 @@ public:
   matrix_RCP paramMass;                      // Parameter mass matrix
   
   vector<string> blocknames;      // Element block names
+  vector<string> phase_blocknames;      // Element block names
   vector<string> setnames;        // Physics set names
   vector<vector<vector<string>>> varlist; // Variable names per set/block
+  vector<vector<vector<string>>> phase_varlist; // Variable names per set/block
   
-  vector<vector<vector<LO>>> numBasis;   // Number of basis functions per var
-  vector<vector<size_t>> maxBasis;       // Maximum basis per block
-  vector<vector<size_t>> numVars;        // Number of variables per set/block
-  vector<vector<vector<LO>>> useBasis;   // Whether basis is actually used
+  vector<vector<vector<LO>>> numBasis, phase_numBasis;   // Number of basis functions per var
+  vector<vector<size_t>> maxBasis, phase_maxBasis;       // Maximum basis per block
+  vector<vector<size_t>> numVars, phase_numVars;        // Number of variables per set/block
+  vector<vector<vector<LO>>> useBasis, phase_useBasis;   // Whether basis is actually used
   
   vector<vector_RCP> res;                // Residual vectors
   vector<vector_RCP> res_over;           // Overlapped residuals
@@ -322,9 +328,10 @@ public:
   vector<vector_RCP> q_pcg, z_pcg, p_pcg, r_pcg; // PCG storage
   vector<vector_RCP> p_pcg_over, q_pcg_over;     // Overlapped PCG storage
   
-  Kokkos::View<ScalarT**,HostDevice> butcher_A; // RK A-matrix
-  Kokkos::View<ScalarT*,HostDevice> butcher_b;  // RK b-vector
-  Kokkos::View<ScalarT*,HostDevice> butcher_c;  // RK c-vector
+  vector<Kokkos::View<ScalarT**,HostDevice> > butcher_A; // RK A-matrix
+  vector<Kokkos::View<ScalarT*,HostDevice> > butcher_b;  // RK b-vector
+  vector<Kokkos::View<ScalarT*,HostDevice> > butcher_c;  // RK c-vector
+  vector<Kokkos::View<ScalarT*,HostDevice> > BDF_wts;  // BDF wts
   
   vector<vector<vector_RCP>> previous_adjoints;     // Adjoint history
   vector<vector<vector_RCP>> previous_incadjoints;  // Incremental adjoint history

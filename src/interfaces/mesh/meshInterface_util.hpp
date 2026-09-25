@@ -206,6 +206,7 @@ View_Sc2 MeshInterface::generateNewMicrostructure(int & randSeed) {
     
   }
   else {
+    
     num_seeds = settings->sublist("Mesh").get<int>("number of seeds",10);
     seeds = View_Sc2("seeds",num_seeds,3);
     auto seeds_host = create_mirror_view(seeds);
@@ -218,12 +219,12 @@ View_Sc2 MeshInterface::generateNewMicrostructure(int & randSeed) {
     ywt *= 3.0/nwt;
     zwt *= 3.0/nwt;
     
-    ScalarT xmin = settings->sublist("Mesh").get<ScalarT>("x min",0.0);
-    ScalarT ymin = settings->sublist("Mesh").get<ScalarT>("y min",0.0);
-    ScalarT zmin = settings->sublist("Mesh").get<ScalarT>("z min",0.0);
-    ScalarT xmax = settings->sublist("Mesh").get<ScalarT>("x max",1.0);
-    ScalarT ymax = settings->sublist("Mesh").get<ScalarT>("y max",1.0);
-    ScalarT zmax = settings->sublist("Mesh").get<ScalarT>("z max",1.0);
+    ScalarT xmin = settings->sublist("Mesh").get<ScalarT>("xmin",0.0);
+    ScalarT ymin = settings->sublist("Mesh").get<ScalarT>("ymin",0.0);
+    ScalarT zmin = settings->sublist("Mesh").get<ScalarT>("zmin",0.0);
+    ScalarT xmax = settings->sublist("Mesh").get<ScalarT>("xmax",1.0);
+    ScalarT ymax = settings->sublist("Mesh").get<ScalarT>("ymax",1.0);
+    ScalarT zmax = settings->sublist("Mesh").get<ScalarT>("zmax",1.0);
     
     std::uniform_real_distribution<ScalarT> xdistribution(xmin,xmax);
     std::uniform_real_distribution<ScalarT> ydistribution(ymin,ymax);
@@ -329,6 +330,12 @@ DRV MeshInterface::getMyNodes(const size_t & block, vector<size_t> & elemIDs) {
   return currnodes;
 }
 
+DRV MeshInterface::getMyPhaseNodes(vector<size_t> & elemIDs) {
+  DRV currnodes = phase_mesh->getCellNodes(elemIDs);
+  return currnodes;
+}
+
+
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -374,8 +381,22 @@ void MeshInterface::purgeMemory() {
 // ============================================================
 // ============================================================
 
+int MeshInterface::getPhaseDimension() {
+  return phase_dimension;
+}
+
+// ============================================================
+// ============================================================
+
 vector<string> MeshInterface::getBlockNames() {
   return block_names;
+}
+
+// ============================================================
+// ============================================================
+
+vector<string> MeshInterface::getPhaseBlockNames() {
+  return phase_block_names;
 }
 
 // ============================================================
@@ -411,7 +432,25 @@ topo_RCP MeshInterface::getCellTopology(string & blockID) {
   }
   return currtopo;
 }
-  
+
+// ============================================================
+// ============================================================
+
+topo_RCP MeshInterface::getPhaseCellTopology() {
+  return phase_cell_topo;
+}
+
+// ============================================================
+// ============================================================
+
+int MeshInterface::getNumPhaseElements() {
+  int npe = 1;
+  if (phase_dimension > 0) {
+    npe = phase_mesh->getNumCells();
+  }
+  return npe;
+}
+
 // ============================================================
 // ============================================================
 
@@ -421,6 +460,28 @@ void MeshInterface::allocateMeshDataStructures() {
   }
 }
 
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+void MeshInterface::writeToFile(View_Sc2 data, const string & filename) {
+  std::stringstream ss;
+  ss << filename << ".dat";
+  
+  std::ofstream fout(ss.str());
+  if (!fout.is_open()) {
+    TEUCHOS_TEST_FOR_EXCEPTION(!fout.is_open(),std::runtime_error,"Error: could not open the data file: " + ss.str());
+  }
+  fout.precision(12);
+  auto data_host = Kokkos::create_mirror_view(data);
+  Kokkos::deep_copy(data_host,data);
+  for (size_type i=0; i<data_host.extent(0); ++i) {
+    for (size_type j=0; j<data_host.extent(1); ++j) {
+      fout << data_host(i,j) << " ";
+    }
+    fout << endl;
+  }
+  fout.close();
+}
 // ============================================================
 // ============================================================
 

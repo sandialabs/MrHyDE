@@ -52,7 +52,7 @@ public:
    *  \param num_ip_side Number of side integration points.
    */
   FunctionManager(const std::string & blockname, const int & num_elem,
-                  const int & num_ip, const int & num_ip_side);
+                  const int & num_ip, const int & num_ip_side, const int & num_phase_ip);
 
   // ========================================================================================
   // Function addition
@@ -173,7 +173,8 @@ public:
   int num_elem_;        ///< Number of elements.
   int num_ip_;          ///< Number of volume integration points.
   int num_ip_side_;     ///< Number of side integration points.
-
+  int num_phase_ip_;     ///< Number of side integration points.
+  ///<
   Teuchos::RCP<Workset<EvalT> > wkset; ///< Workset containing simulation state.
 
 private:

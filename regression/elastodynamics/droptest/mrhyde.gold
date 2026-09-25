@@ -1,0 +1,28 @@
+
+*********************************************************
+***** Computing errors ******
+
+***** L2 norm of the error for dx = 0.0125331  (time = 0)
+***** L2 norm of the error for dx = 0.0122879  (time = 0.01)
+***** L2 norm of the error for dx = 0.0116109  (time = 0.02)
+***** L2 norm of the error for dx = 0.0106602  (time = 0.03)
+***** L2 norm of the error for dx = 0.00964259  (time = 0.04)
+***** L2 norm of the error for dx = 0.00874714  (time = 0.05)
+***** L2 norm of the error for dy = 0  (time = 0)
+***** L2 norm of the error for dy = 0.000118088  (time = 0.01)
+***** L2 norm of the error for dy = 0.000445983  (time = 0.02)
+***** L2 norm of the error for dy = 0.000913229  (time = 0.03)
+***** L2 norm of the error for dy = 0.00142781  (time = 0.04)
+***** L2 norm of the error for dy = 0.00190393  (time = 0.05)
+***** L2 norm of the error for vx = 0  (time = 0)
+***** L2 norm of the error for vx = 0.0740351  (time = 0.01)
+***** L2 norm of the error for vx = 0.136894  (time = 0.02)
+***** L2 norm of the error for vx = 0.180824  (time = 0.03)
+***** L2 norm of the error for vx = 0.203534  (time = 0.04)
+***** L2 norm of the error for vx = 0.208137  (time = 0.05)
+***** L2 norm of the error for vy = 0  (time = 0)
+***** L2 norm of the error for vy = 0.0236176  (time = 0.01)
+***** L2 norm of the error for vy = 0.0420185  (time = 0.02)
+***** L2 norm of the error for vy = 0.0519275  (time = 0.03)
+***** L2 norm of the error for vy = 0.0533903  (time = 0.04)
+***** L2 norm of the error for vy = 0.0503048  (time = 0.05)

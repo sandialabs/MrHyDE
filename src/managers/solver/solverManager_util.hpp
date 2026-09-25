@@ -158,7 +158,6 @@ template<class Node>
 vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > SolverManager<Node>::setInitial() {
   
   Teuchos::TimeMonitor localtimer(*initsettimer);
-  typedef typename Node::execution_space LA_exec;
   
   debugger->print("**** Starting SolverManager::setInitial ...");
   
@@ -170,148 +169,166 @@ vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > SolverManager<No
     }
   }
   else {
-
+    
     for (size_t set=0; set<setnames.size(); ++set) {
-      assembler->updatePhysicsSet(set);
-      
-      vector_RCP initial = linalg->getNewOverlappedVector(set);
-      initial->putScalar(0.0);
-      
-      bool samedevice = true;
-      bool usehost = false;
-      if (!Kokkos::SpaceAccessibility<LA_exec, AssemblyMem>::accessible) {
-        samedevice = false;
-        if (!Kokkos::SpaceAccessibility<LA_exec, HostMem>::accessible) {
-          usehost = true;
-        }
-        else {
-          // output an error
-        }
-      }
-      
-      if (have_initial_conditions[set]) {
-        if (scalarInitialData[set]) {
-          
-          auto initial_kv = initial->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
-          
-          for (size_t block=0; block<assembler->groupData.size(); block++) {
-            
-            assembler->updatePhysicsSet(set);
-            
-            if (assembler->groupData[block]->num_elem > 0) {
-              
-              Kokkos::View<ScalarT*,LA_device> idata("scalar initial data",scalarInitialValues[set][block].size());
-              auto idata_host = Kokkos::create_mirror_view(idata);
-              for (size_t i=0; i<scalarInitialValues[set][block].size(); i++) {
-                idata_host(i) = scalarInitialValues[set][block][i];
-              }
-              Kokkos::deep_copy(idata,idata_host);
-              
-              if (samedevice) {
-                auto offsets = assembler->wkset[block]->offsets;
-                auto numDOF = assembler->groupData[block]->num_dof;
-                for (size_t cell=0; cell<assembler->groups[block].size(); cell++) {
-                  auto LIDs = assembler->groups[block][cell]->LIDs[set];
-                  parallel_for("solver initial scalar",
-                               RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                               MRHYDE_LAMBDA (const int e ) {
-                    for (size_type n=0; n<numDOF.extent(0); n++) {
-                      for (int i=0; i<numDOF(n); i++ ) {
-                        initial_kv(LIDs(e,offsets(n,i)),0) = idata(n);
-                      }
-                    }
-                  });
-                }
-              }
-              else if (usehost) {
-                auto offsets = assembler->wkset[block]->offsets;
-                auto host_offsets = Kokkos::create_mirror_view(offsets);
-                Kokkos::deep_copy(host_offsets,offsets);
-                auto numDOF = assembler->groupData[block]->num_dof_host;
-                for (size_t cell=0; cell<assembler->groups[block].size(); cell++) {
-                  auto LIDs = assembler->groups[block][cell]->LIDs_host[set];
-                  parallel_for("solver initial scalar",
-                               RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                               MRHYDE_LAMBDA (const int e ) {
-                    for (size_type n=0; n<numDOF.extent(0); n++) {
-                      for (int i=0; i<numDOF(n); i++ ) {
-                        initial_kv(LIDs(e,host_offsets(n,i)),0) = idata(n);
-                      }
-                    }
-                  });
-                }
-              }
-              
-            }
-          }
-        }
-        else {
-          
-          vector_RCP glinitial = linalg->getNewVector(set);
-          
-          if (initial_type == "L2-projection") {
-            // Compute the L2 projection of the initial data into the discrete space
-            vector_RCP rhs = linalg->getNewOverlappedVector(set);
-            matrix_RCP mass = linalg->getNewOverlappedMatrix(set);
-            vector_RCP glrhs = linalg->getNewVector(set);
-            matrix_RCP glmass = linalg->getNewL2Matrix(set);
-            
-            assembler->setInitial(set, rhs, mass, is_adjoint);
-            
-            linalg->exportMatrixFromOverlapped(set, glmass, mass);
-            linalg->exportVectorFromOverlapped(set, glrhs, rhs);
-            
-            linalg->fillComplete(glmass);
-            linalg->linearSolverL2(set, glmass, glrhs, glinitial);
-            linalg->importVectorToOverlapped(set, initial, glinitial);
-            
-          }
-          else if (initial_type == "L2-projection-HFACE") {
-            // Similar to above, but the basis support only exists on the mesh skeleton
-            // The use case is setting the IC at the coarse-scale
-            vector_RCP rhs = linalg->getNewOverlappedVector(set);
-            matrix_RCP mass = linalg->getNewOverlappedMatrix(set);
-            vector_RCP glrhs = linalg->getNewVector(set);
-            matrix_RCP glmass = linalg->getNewL2Matrix(set);
-            
-            assembler->setInitialFace(set, rhs, mass, is_adjoint);
-            
-            linalg->exportMatrixFromOverlapped(set, glmass, mass);
-            linalg->exportVectorFromOverlapped(set, glrhs, rhs);
-            linalg->fillComplete(glmass);
-            
-            // With HFACE we ensure the preconditioner is not
-            // used for this projection (mass matrix is nearly the identity
-            // and can cause issues)
-            auto origPreconFlag = linalg->context_L2[set]->use_preconditioner;
-            linalg->context_L2[set]->use_preconditioner = false;
-            // do the solve
-            linalg->linearSolverL2(set, glmass, glrhs, glinitial);
-            // set back to original
-            linalg->context_L2[set]->use_preconditioner = origPreconFlag;
-            
-            linalg->importVectorToOverlapped(set, initial, glinitial);
-            
-          }
-          else if (initial_type == "interpolation") {
-            
-            assembler->setInitial(set, initial, is_adjoint);
-            
-          }
-        }
-      }
-      
-      initial_solns.push_back(initial);
+      this->setInitial(initial_solns, set);
     }
   }
   
-  linalg->resetL2Jacobian();
-  
   debugger->print("**** Finished SolverManager::setInitial ...");
-  
-  
+
   return initial_solns;
+
 }
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+void SolverManager<Node>::setInitial(vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > & initial_solns, const size_t & set) {
+
+  typedef typename Node::execution_space LA_exec;
+  
+  assembler->updatePhysicsSet(set);
+  
+  vector_RCP initial = linalg->getNewOverlappedVector(set);
+  initial->putScalar(0.0);
+  
+  bool samedevice = true;
+  bool usehost = false;
+  if (!Kokkos::SpaceAccessibility<LA_exec, AssemblyMem>::accessible) {
+    samedevice = false;
+    if (!Kokkos::SpaceAccessibility<LA_exec, HostMem>::accessible) {
+      usehost = true;
+    }
+    else {
+      // output an error
+    }
+  }
+  
+  if (have_initial_conditions[set]) {
+    if (scalarInitialData[set]) {
+      
+      auto initial_kv = initial->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+      
+      for (size_t block=0; block<assembler->groupData.size(); block++) {
+        
+        assembler->updatePhysicsSet(set);
+        
+        if (assembler->groupData[block]->num_elem > 0) {
+          
+          Kokkos::View<ScalarT*,LA_device> idata("scalar initial data",scalarInitialValues[set][block].size());
+          auto idata_host = Kokkos::create_mirror_view(idata);
+          for (size_t i=0; i<scalarInitialValues[set][block].size(); i++) {
+            idata_host(i) = scalarInitialValues[set][block][i];
+          }
+          Kokkos::deep_copy(idata,idata_host);
+          
+          if (samedevice) {
+            auto offsets = assembler->wkset[block]->offsets;
+            auto numDOF = assembler->groupData[block]->num_dof;
+            for (size_t cell=0; cell<assembler->groups[block].size(); cell++) {
+              auto LIDs = assembler->groups[block][cell]->LIDs[set];
+              parallel_for("solver initial scalar",
+                           RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                           MRHYDE_LAMBDA (const int e ) {
+                for (size_type n=0; n<numDOF.extent(0); n++) {
+                  for (int i=0; i<numDOF(n); i++ ) {
+                    initial_kv(LIDs(e,offsets(n,i)),0) = idata(n);
+                  }
+                }
+              });
+            }
+          }
+          else if (usehost) {
+            auto offsets = assembler->wkset[block]->offsets;
+            auto host_offsets = Kokkos::create_mirror_view(offsets);
+            Kokkos::deep_copy(host_offsets,offsets);
+            auto numDOF = assembler->groupData[block]->num_dof_host;
+            for (size_t cell=0; cell<assembler->groups[block].size(); cell++) {
+              auto LIDs = assembler->groups[block][cell]->LIDs_host[set];
+              parallel_for("solver initial scalar",
+                           RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                           MRHYDE_LAMBDA (const int e ) {
+                for (size_type n=0; n<numDOF.extent(0); n++) {
+                  for (int i=0; i<numDOF(n); i++ ) {
+                    initial_kv(LIDs(e,host_offsets(n,i)),0) = idata(n);
+                  }
+                }
+              });
+            }
+          }
+          
+        }
+      }
+    }
+    else {
+      
+      vector_RCP glinitial = linalg->getNewVector(set);
+      
+      if (initial_type == "previous set" && set>0) {
+        initial->update(1.0, *(initial_solns[set-1]), 0.0);
+      }
+      else if (initial_type == "L2-projection") {
+        // Compute the L2 projection of the initial data into the discrete space
+        vector_RCP rhs = linalg->getNewOverlappedVector(set);
+        matrix_RCP mass = linalg->getNewOverlappedMatrix(set);
+        vector_RCP glrhs = linalg->getNewVector(set);
+        matrix_RCP glmass = linalg->getNewL2Matrix(set);
+        
+        assembler->setInitial(set, rhs, mass, is_adjoint);
+        
+        linalg->exportMatrixFromOverlapped(set, glmass, mass);
+        linalg->exportVectorFromOverlapped(set, glrhs, rhs);
+        
+        linalg->fillComplete(glmass);
+        linalg->linearSolverL2(set, glmass, glrhs, glinitial);
+        linalg->importVectorToOverlapped(set, initial, glinitial);
+        
+      }
+      else if (initial_type == "L2-projection-HFACE") {
+        // Similar to above, but the basis support only exists on the mesh skeleton
+        // The use case is setting the IC at the coarse-scale
+        vector_RCP rhs = linalg->getNewOverlappedVector(set);
+        matrix_RCP mass = linalg->getNewOverlappedMatrix(set);
+        vector_RCP glrhs = linalg->getNewVector(set);
+        matrix_RCP glmass = linalg->getNewL2Matrix(set);
+        
+        assembler->setInitialFace(set, rhs, mass, is_adjoint);
+        
+        linalg->exportMatrixFromOverlapped(set, glmass, mass);
+        linalg->exportVectorFromOverlapped(set, glrhs, rhs);
+        linalg->fillComplete(glmass);
+        
+        // With HFACE we ensure the preconditioner is not
+        // used for this projection (mass matrix is nearly the identity
+        // and can cause issues)
+        auto origPreconFlag = linalg->context_L2[set]->use_preconditioner;
+        linalg->context_L2[set]->use_preconditioner = false;
+        // do the solve
+        linalg->linearSolverL2(set, glmass, glrhs, glinitial);
+        // set back to original
+        linalg->context_L2[set]->use_preconditioner = origPreconFlag;
+        
+        linalg->importVectorToOverlapped(set, initial, glinitial);
+        
+      }
+      else if (initial_type == "interpolation") {
+        
+        assembler->setInitial(set, initial, is_adjoint);
+        
+      }
+    }
+  }
+  if (initial_solns.size() > set) {
+    initial_solns[set]->update(1.0, *initial, 0.0);
+  }
+  else {
+    initial_solns.push_back(initial);
+  }
+  linalg->resetL2Jacobian();
+}
+
 
 // ========================================================================================
 // ========================================================================================

@@ -26,11 +26,17 @@ CrystalElastic<EvalT>::CrystalElastic(Teuchos::ParameterList & settings,
   
   allow_rotations = cesettings.get<bool>("allow rotations",true);
   
-  ScalarT E = cesettings.get<ScalarT>("E",1.0);
-  ScalarT nu = cesettings.get<ScalarT>("nu",0.4);
-  
-  tlambda = (E*nu)/((1.0+nu)*(1.0-2.0*nu));
-  tmu = E/(2.0*(1.0+nu));
+  if (cesettings.isParameter("lambda")) {
+    tlambda = cesettings.get<ScalarT>("lambda",1.0);
+    tmu = cesettings.get<ScalarT>("mu",0.4);
+  }
+  else {
+    ScalarT E = cesettings.get<ScalarT>("E",1.0);
+    ScalarT nu = cesettings.get<ScalarT>("nu",0.4);
+    
+    tlambda = (E*nu)/((1.0+nu)*(1.0-2.0*nu));
+    tmu = E/(2.0*(1.0+nu));
+  }
   
   // Gas constant: TMW: Need to make this a parameter
   // ScalarT R_ = esettings.get<ScalarT>("R",0.0);

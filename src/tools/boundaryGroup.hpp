@@ -75,6 +75,8 @@ namespace MrHyDE {
     
     void computeBasis(const bool & keepnodes);
     
+    void computePhaseBasis(const bool & keepnodes);
+    
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
@@ -182,13 +184,13 @@ namespace MrHyDE {
     Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation;
     
     // Geometry Information
-    size_t numElem = 0; // default value ... used to check if proc. has elements on boundary
+    size_t numElem = 0, phase_numElem=0; // default value ... used to check if proc. has elements on boundary
     int sidenum, groupID, wksetBID;
     DRV nodes;
     vector<View_Sc2> ip, normals, tangents;
     View_Sc2 wts;
     View_Sc1 hsize;
-    bool storeAll, haveBasis, have_sols = false, have_nodes;
+    bool storeAll, haveBasis, havePhaseBasis, have_sols = false, have_nodes;
     Kokkos::View<LO*,AssemblyDevice> basis_index;
     
     vector<Kokkos::View<int****,HostDevice> > sideinfo; // may need to move this to Assembly
@@ -196,13 +198,13 @@ namespace MrHyDE {
         
     // DOF information
     LIDView paramLIDs, auxLIDs;
-    vector<LIDView> LIDs;
+    vector<LIDView> LIDs, phase_LIDs;
     
     Teuchos::RCP<DiscretizationInterface> disc;
     
     // Creating LIDs on host device for host assembly
     LIDView_host paramLIDs_host, auxLIDs_host;
-    vector<LIDView_host> LIDs_host;
+    vector<LIDView_host> LIDs_host, phase_LIDs_host;
     
     vector<View_Sc3> sol, phi;
     View_Sc3 param, aux;

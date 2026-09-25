@@ -336,7 +336,9 @@ View_Sc2 AssemblyManager<Node>::getDirichletBoundary(const int & block, const si
       }
       else if (btype == "HCURL"){
         // Get vector-valued Dirichlet data E = (Ex, Ey, Ez)
-        auto dip_vec = groupData[block]->physics->getDirichletVector(n, set, groupData[block]->my_block, boundary_groups[block][grp]->sidename);
+        auto dip_vec = groupData[block]->physics->getDirichletVector(n, set, groupData[block]->my_block,
+                                                                     boundary_groups[block][grp]->sidename,
+                                                                     boundary_groups[block][grp]->numElem);
         View_Sc2 dip_x = dip_vec[0];
         View_Sc2 dip_y = dip_vec[1];
         View_Sc2 dip_z = dip_vec[2];

@@ -13,7 +13,7 @@
 template<class Node>
 template<class MatType, class LocalViewType, class LIDViewType>
 void AssemblyManager<Node>::scatterJac(const size_t & set, MatType J_kcrs, LocalViewType local_J,
-                                       LIDViewType LIDs, LIDViewType paramLIDs,
+                                       LIDViewType LIDs, LIDViewType paramLIDs, LIDViewType phaseLIDs,
                                        const bool & compute_disc_sens) {
   
   //Teuchos::TimeMonitor localtimer(*scatter_timer);
@@ -46,23 +46,51 @@ void AssemblyManager<Node>::scatterJac(const size_t & set, MatType J_kcrs, Local
     });
   }
   else {
-    parallel_for("assembly insert Jac",
-                 RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                 MRHYDE_LAMBDA (const int elem ) {
-      const size_type numVals = LIDs.extent(1);
-      LO cols[MAXDERIVS];
-      ScalarT vals[MAXDERIVS];
-      for (size_type row=0; row<LIDs.extent(1); row++ ) {
-        LO rowIndex = LIDs(elem,row);
-        if (!fixedDOF(rowIndex)) {
-          for (size_type col=0; col<LIDs.extent(1); col++ ) {
-            vals[col] = local_J(elem,row,col);
-            cols[col] = LIDs(elem,col);
+    if (mesh->getPhaseDimension() > 0) {
+      parallel_for("assembly insert Jac",
+                   RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                   MRHYDE_LAMBDA (const int elem ) {
+        const size_type numVals = LIDs.extent(1)*phaseLIDs.extent(1);
+        const size_type numPhase = phaseLIDs.extent(1);
+        for (size_type row=0; row<LIDs.extent(1); row++ ) {
+          if (!fixedDOF(LIDs(elem,row))) {
+            for (size_type pelem=0; pelem<phaseLIDs.extent(0); pelem++ ) {
+              for (size_type prow=0; prow<phaseLIDs.extent(1); prow++ ) {
+                LO cols[MAXDERIVS];
+                ScalarT vals[MAXDERIVS];
+                LO rowIndex = LIDs(elem,row)*numPhase*phaseLIDs.extent(0) + numPhase*pelem + phaseLIDs(pelem,prow);
+                for (size_type col=0; col<LIDs.extent(1); col++ ) {
+                  for (size_type pcol=0; pcol<phaseLIDs.extent(1); pcol++ ) {
+                    vals[col*numPhase + pcol] = local_J(elem,row*numPhase + prow, col*numPhase + pcol);
+                    cols[col*numPhase + pcol] = LIDs(elem,col)*numPhase*phaseLIDs.extent(0) + numPhase*pelem + phaseLIDs(pelem,pcol);
+                  }
+                }
+                J_kcrs.sumIntoValues(rowIndex, cols, numVals, vals, false, use_atomics_); // isSorted, useAtomics
+              }
+            }
           }
-          J_kcrs.sumIntoValues(rowIndex, cols, numVals, vals, false, use_atomics_); // isSorted, useAtomics
         }
-      }
-    });
+      });
+    }
+    else {
+      parallel_for("assembly insert Jac",
+                   RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                   MRHYDE_LAMBDA (const int elem ) {
+        const size_type numVals = LIDs.extent(1);
+        LO cols[MAXDERIVS];
+        ScalarT vals[MAXDERIVS];
+        for (size_type row=0; row<LIDs.extent(1); row++ ) {
+          LO rowIndex = LIDs(elem,row);
+          if (!fixedDOF(rowIndex)) {
+            for (size_type col=0; col<LIDs.extent(1); col++ ) {
+              vals[col] = local_J(elem,row,col);
+              cols[col] = LIDs(elem,col);
+            }
+            J_kcrs.sumIntoValues(rowIndex, cols, numVals, vals, false, use_atomics_); // isSorted, useAtomics
+          }
+        }
+      });
+    }
   }
   
 }
@@ -73,7 +101,7 @@ void AssemblyManager<Node>::scatterJac(const size_t & set, MatType J_kcrs, Local
 
 template<class Node>
 template<class VecViewType, class LocalViewType, class LIDViewType>
-void AssemblyManager<Node>::scatterRes(VecViewType res_view, LocalViewType local_res, LIDViewType LIDs) {
+void AssemblyManager<Node>::scatterRes(VecViewType res_view, LocalViewType local_res, LIDViewType LIDs, LIDViewType phaseLIDs) {
   
   //Teuchos::TimeMonitor localtimer(*scatter_timer);
   
@@ -90,24 +118,65 @@ void AssemblyManager<Node>::scatterRes(VecViewType res_view, LocalViewType local
     use_atomics_ = true;
   }
   
-  parallel_for("assembly scatter res",
-               RangePolicy<LA_exec>(0,LIDs.extent(0)),
-               MRHYDE_LAMBDA (const int elem ) {
-    for( size_type row=0; row<LIDs.extent(1); row++ ) {
-      LO rowIndex = LIDs(elem,row);
-      if (!fixedDOF(rowIndex)) {
-        for (size_type g=0; g<local_res.extent(2); g++) {
-          ScalarT val = local_res(elem,row,g);
-          if (use_atomics_) {
-            Kokkos::atomic_add(&(res_view(rowIndex,g)), val);
+  if (mesh->getPhaseDimension() > 0) {
+    int set = 0;  // hard coding for now
+    LO num_phase_global = disc->getNumPhaseDOFs(set);
+    LO num_dof_local = local_res.extent(1)/phaseLIDs.extent(0);
+    
+    parallel_for("assembly insert Jac",
+                 RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                 MRHYDE_LAMBDA (const int elem ) {
+      for (size_type pelem=0; pelem<phaseLIDs.extent(0); pelem++ ) {
+        int resstart = num_dof_local*pelem;
+        int resprog = 0;
+        for (size_type row=0; row<LIDs.extent(1); row++ ) {
+          if (!fixedDOF(LIDs(elem,row))) {
+            for (size_type prow=0; prow<phaseLIDs.extent(1); prow++ ) {
+            
+              LO resrow = resstart + resprog;
+              LO rowIndex = LIDs(elem,row)*num_phase_global + phaseLIDs(pelem,prow);
+              
+              for (size_type g=0; g<local_res.extent(2); g++) {
+                ScalarT val = local_res(elem, resrow, g);
+                if (use_atomics_) {
+                  Kokkos::atomic_add(&(res_view(rowIndex,g)), val);
+                }
+                else {
+                  res_view(rowIndex,g) += val;
+                }
+              }
+              resprog++;
+            }
           }
-          else {
-            res_view(rowIndex,g) += val;
+          else { // still increment for fixed dofs
+            for (size_type prow=0; prow<phaseLIDs.extent(1); prow++ ) {
+              resprog++;
+            }
           }
         }
       }
-    }
-  });
+    });
+  }
+  else {
+    parallel_for("assembly scatter res",
+                 RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                 MRHYDE_LAMBDA (const int elem ) {
+      for (size_type row=0; row<LIDs.extent(1); row++ ) {
+        LO rowIndex = LIDs(elem,row);
+        if (!fixedDOF(rowIndex)) {
+          for (size_type g=0; g<local_res.extent(2); g++) {
+            ScalarT val = local_res(elem,row,g);
+            if (use_atomics_) {
+              Kokkos::atomic_add(&(res_view(rowIndex,g)), val);
+            }
+            else {
+              res_view(rowIndex,g) += val;
+            }
+          }
+        }
+      }
+    });
+  }
 }
 
 //==============================================================
@@ -117,7 +186,7 @@ void AssemblyManager<Node>::scatterRes(VecViewType res_view, LocalViewType local
 template<class Node>
 template<class MatType, class VecViewType, class LIDViewType, class EvalT>
 void AssemblyManager<Node>::scatter(const size_t & set, MatType J_kcrs, VecViewType res_view,
-                                    LIDViewType LIDs, LIDViewType paramLIDs,
+                                    LIDViewType LIDs, LIDViewType paramLIDs, LIDViewType phaseLIDs,
                                     const int & block,
                                     const bool & compute_jacobian,
                                     const bool & compute_sens,
@@ -125,35 +194,35 @@ void AssemblyManager<Node>::scatter(const size_t & set, MatType J_kcrs, VecViewT
                                     const bool & isAdjoint, EvalT & dummyval) {
 #ifndef MrHyDE_NO_AD
   if (std::is_same<EvalT, AD>::value) {
-    this->scatter(wkset_AD[block], set, J_kcrs, res_view, LIDs, paramLIDs, block,
+    this->scatter(wkset_AD[block], set, J_kcrs, res_view, LIDs, paramLIDs, phaseLIDs, block,
                   compute_jacobian, compute_sens, compute_disc_sens, isAdjoint);
   }
   else if (std::is_same<EvalT, AD2>::value) {
-    this->scatter(wkset_AD2[block], set, J_kcrs, res_view, LIDs, paramLIDs, block,
+    this->scatter(wkset_AD2[block], set, J_kcrs, res_view, LIDs, paramLIDs, phaseLIDs, block,
                   compute_jacobian, compute_sens, compute_disc_sens, isAdjoint);
   }
   else if (std::is_same<EvalT, AD4>::value) {
-    this->scatter(wkset_AD4[block], set, J_kcrs, res_view, LIDs, paramLIDs, block,
+    this->scatter(wkset_AD4[block], set, J_kcrs, res_view, LIDs, paramLIDs, phaseLIDs, block,
                   compute_jacobian, compute_sens, compute_disc_sens, isAdjoint);
   }
   else if (std::is_same<EvalT, AD8>::value) {
-    this->scatter(wkset_AD8[block], set, J_kcrs, res_view, LIDs, paramLIDs, block,
+    this->scatter(wkset_AD8[block], set, J_kcrs, res_view, LIDs, paramLIDs, phaseLIDs, block,
                   compute_jacobian, compute_sens, compute_disc_sens, isAdjoint);
   }
   else if (std::is_same<EvalT, AD16>::value) {
-    this->scatter(wkset_AD16[block], set, J_kcrs, res_view, LIDs, paramLIDs, block,
+    this->scatter(wkset_AD16[block], set, J_kcrs, res_view, LIDs, paramLIDs, phaseLIDs, block,
                   compute_jacobian, compute_sens, compute_disc_sens, isAdjoint);
   }
   else if (std::is_same<EvalT, AD18>::value) {
-    this->scatter(wkset_AD18[block], set, J_kcrs, res_view, LIDs, paramLIDs, block,
+    this->scatter(wkset_AD18[block], set, J_kcrs, res_view, LIDs, paramLIDs, phaseLIDs, block,
                   compute_jacobian, compute_sens, compute_disc_sens, isAdjoint);
   }
   else if (std::is_same<EvalT, AD24>::value) {
-    this->scatter(wkset_AD24[block], set, J_kcrs, res_view, LIDs, paramLIDs, block,
+    this->scatter(wkset_AD24[block], set, J_kcrs, res_view, LIDs, paramLIDs, phaseLIDs, block,
                   compute_jacobian, compute_sens, compute_disc_sens, isAdjoint);
   }
   else if (std::is_same<EvalT, AD32>::value) {
-    this->scatter(wkset_AD32[block], set, J_kcrs, res_view, LIDs, paramLIDs, block,
+    this->scatter(wkset_AD32[block], set, J_kcrs, res_view, LIDs, paramLIDs, phaseLIDs, block,
                   compute_jacobian, compute_sens, compute_disc_sens, isAdjoint);
   }
 #endif
@@ -162,7 +231,7 @@ void AssemblyManager<Node>::scatter(const size_t & set, MatType J_kcrs, VecViewT
 template<class Node>
 template<class MatType, class VecViewType, class LIDViewType, class EvalT>
 void AssemblyManager<Node>::scatter(Teuchos::RCP<Workset<EvalT> > & wset, const size_t & set, MatType J_kcrs, VecViewType res_view,
-                                    LIDViewType LIDs, LIDViewType paramLIDs,
+                                    LIDViewType LIDs, LIDViewType paramLIDs, LIDViewType phaseLIDs,
                                     const int & block,
                                     const bool & compute_jacobian,
                                     const bool & compute_sens,
@@ -193,88 +262,227 @@ void AssemblyManager<Node>::scatter(Teuchos::RCP<Workset<EvalT> > & wset, const 
     use_atomics_ = true;
   }
   
-  parallel_for("assembly insert Jac",
-               RangePolicy<LA_exec>(0,LIDs.extent(0)),
-               MRHYDE_LAMBDA (const int elem ) {
+  if (mesh->getPhaseDimension() > 0) {
     
-    int row = 0;
-    LO rowIndex = 0;
+    auto phase_offsets = wset->phase_offsets;
+    auto phase_numDOF = groupData[block]->phase_num_dof;
     
-    // Residual scatter
-    for (size_type n=0; n<numDOF.extent(0); ++n) {
-      for (int j=0; j<numDOF(n); j++) {
-        row = offsets(n,j);
-        rowIndex = LIDs(elem,row);
-        if (!fixedDOF(rowIndex)) {
-          if (compute_sens_) {
+    // Need the total number of phase DOFs
+    size_type num_phase_local = phaseLIDs.extent(1);
+    size_type num_space_local = LIDs.extent(1);
+    size_type num_dof_local = num_phase_local*num_space_local;
+    LO num_phase_global = disc->getNumPhaseDOFs(set);
+    
+    parallel_for("assembly insert Jac",
+                 RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                 MRHYDE_LAMBDA (const int elem ) {
+      
+      for (size_type pelem=0; pelem<phaseLIDs.extent(0); pelem++ ) {
+        int resstart = num_dof_local*pelem;
+        int resprog = 0;
+      
+        int row = 0;
+        LO rowIndex = 0;
+        
+        // Residual scatter
+        for (size_type var=0; var<numDOF.extent(0); ++var) {
+          for (int dof=0; dof<numDOF(var); dof++) {
+            if (!fixedDOF(LIDs(elem,offsets(var,dof)))) {
+              for (int pdof=0; pdof<phase_numDOF(var); pdof++) {
+                
+                row = resstart + resprog;
+                rowIndex = LIDs(elem,offsets(var,dof))*num_phase_global + phaseLIDs(pelem,phase_offsets(var,pdof));
+                
+                if (compute_sens_) {
 #ifndef MrHyDE_NO_AD
-            if (use_atomics_) {
-              for (size_type r=0; r<res_view.extent(1); ++r) {
-                ScalarT val = -res(elem,row).fastAccessDx(r);
-                Kokkos::atomic_add(&(res_view(rowIndex,r)), val);
-              }
-            }
-            else {
-              for (size_type r=0; r<res_view.extent(1); ++r) {
-                ScalarT val = -res(elem,row).fastAccessDx(r);
-                res_view(rowIndex,r) += val;
-              }
-            }
+                  if (use_atomics_) {
+                    for (size_type r=0; r<res_view.extent(1); ++r) {
+                      ScalarT val = -res(elem,row).fastAccessDx(r);
+                      Kokkos::atomic_add(&(res_view(rowIndex,r)), val);
+                    }
+                  }
+                  else {
+                    for (size_type r=0; r<res_view.extent(1); ++r) {
+                      ScalarT val = -res(elem,row).fastAccessDx(r);
+                      res_view(rowIndex,r) += val;
+                    }
+                  }
 #endif
-          }
-          else {
+                }
+                else {
 #ifndef MrHyDE_NO_AD
-            ScalarT val = -res(elem,row).val();
+                  ScalarT val = -res(elem,row).val();
 #else
-            ScalarT val = -res(elem,row);
+                  ScalarT val = -res(elem,row);
 #endif
-            if (use_atomics_) {
-              Kokkos::atomic_add(&(res_view(rowIndex,0)), val);
+                  if (use_atomics_) {
+                    Kokkos::atomic_add(&(res_view(rowIndex,0)), val);
+                  }
+                  else {
+                    res_view(rowIndex,0) += val;
+                  }
+                }
+                resprog++;
+              }
             }
             else {
-              res_view(rowIndex,0) += val;
+              for (int pdof=0; pdof<phase_numDOF(var); pdof++) {
+                resprog++;
+              }
             }
+            
           }
         }
       }
-    }
-    
+
 #ifndef MrHyDE_NO_AD
-    // Jacobian scatter
-    if (compute_jacobian_) {
-      const size_type numVals = LIDs.extent(1);
-      int col = 0;
-      LO cols[MAXDERIVS];
-      ScalarT vals[MAXDERIVS];
+      // Jacobian scatter
+      if (compute_jacobian_) {
+        const size_type numVals = LIDs.extent(1)*phaseLIDs.extent(1);
+        
+        for (size_type pelem=0; pelem<phaseLIDs.extent(0); ++pelem) {
+          int resstart = num_dof_local*pelem;
+          int resprog = 0;
+          LO cols[MAXDERIVS];
+          ScalarT vals[MAXDERIVS];
+          int row = 0;
+          LO rowIndex = 0;
+          
+          for (size_type var=0; var<numDOF.extent(0); ++var) {
+            for (int dof=0; dof<numDOF(var); dof++) {
+              if (!fixedDOF(LIDs(elem,offsets(var,dof)))) {
+                for (int pdof=0; pdof<phase_numDOF(var); pdof++) {
+                  row = resstart + resprog;
+                  rowIndex = LIDs(elem,offsets(var,dof))*num_phase_global + phaseLIDs(pelem,phase_offsets(var,pdof));
+                  int col = 0;
+                  int colIndex = 0;
+                  
+                  for (size_type ivar=0; ivar<numDOF.extent(0); ivar++) {
+                    for (int idof=0; idof<numDOF(ivar); idof++) {
+                      for (int ipdof=0; ipdof<phase_numDOF(ivar); ipdof++) {
+                        colIndex = LIDs(elem,offsets(ivar,idof))*num_phase_global + phaseLIDs(pelem,phase_offsets(ivar,ipdof));
+                        if (isAdjoint_) {
+                          vals[col] = res(elem,row).fastAccessDx(resprog);
+                        }
+                        else {
+                          vals[col] = res(elem,row).fastAccessDx(resprog);
+                        }
+                        if (lump_mass_) {
+                          cols[col] = rowIndex;
+                        }
+                        else {
+                          cols[col] = colIndex;
+                        }
+                        col++;
+                        //cout << rowIndex << "  " << colIndex << endl;
+                        
+                      }
+                    }
+                    
+                  }
+                  resprog++;
+                  J_kcrs.sumIntoValues(rowIndex, cols, numVals, vals, false, use_atomics_); // isSorted, useAtomics
+                
+                }
+              }
+              else {
+                for (int pdof=0; pdof<phase_numDOF(var); pdof++) {
+                  resprog++;
+                }
+              }
+            }
+            
+          }
+        }
+      }
+#endif
+    });
+  }
+  else {
+    parallel_for("assembly insert Jac",
+                 RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                 MRHYDE_LAMBDA (const int elem ) {
+      
+      int row = 0;
+      LO rowIndex = 0;
+      
+      // Residual scatter
       for (size_type n=0; n<numDOF.extent(0); ++n) {
         for (int j=0; j<numDOF(n); j++) {
           row = offsets(n,j);
           rowIndex = LIDs(elem,row);
           if (!fixedDOF(rowIndex)) {
-            for (size_type m=0; m<numDOF.extent(0); m++) {
-              for (int k=0; k<numDOF(m); k++) {
-                col = offsets(m,k);
-                if (isAdjoint_) {
-                  vals[col] = res(elem,row).fastAccessDx(row);
-                }
-                else {
-                  vals[col] = res(elem,row).fastAccessDx(col);
-                }
-                if (lump_mass_) {
-                  cols[col] = rowIndex;
-                }
-                else {
-                  cols[col] = LIDs(elem,col);
+            if (compute_sens_) {
+#ifndef MrHyDE_NO_AD
+              if (use_atomics_) {
+                for (size_type r=0; r<res_view.extent(1); ++r) {
+                  ScalarT val = -res(elem,row).fastAccessDx(r);
+                  Kokkos::atomic_add(&(res_view(rowIndex,r)), val);
                 }
               }
+              else {
+                for (size_type r=0; r<res_view.extent(1); ++r) {
+                  ScalarT val = -res(elem,row).fastAccessDx(r);
+                  res_view(rowIndex,r) += val;
+                }
+              }
+#endif
             }
-            J_kcrs.sumIntoValues(rowIndex, cols, numVals, vals, false, use_atomics_); // isSorted, useAtomics
+            else {
+#ifndef MrHyDE_NO_AD
+              ScalarT val = -res(elem,row).val();
+#else
+              ScalarT val = -res(elem,row);
+#endif
+              if (use_atomics_) {
+                Kokkos::atomic_add(&(res_view(rowIndex,0)), val);
+              }
+              else {
+                res_view(rowIndex,0) += val;
+              }
+            }
           }
         }
       }
-    }
+      
+#ifndef MrHyDE_NO_AD
+      // Jacobian scatter
+      if (compute_jacobian_) {
+        const size_type numVals = LIDs.extent(1);
+        int col = 0;
+        LO cols[MAXDERIVS];
+        ScalarT vals[MAXDERIVS];
+        for (size_type n=0; n<numDOF.extent(0); ++n) {
+          for (int j=0; j<numDOF(n); j++) {
+            row = offsets(n,j);
+            rowIndex = LIDs(elem,row);
+            if (!fixedDOF(rowIndex)) {
+              for (size_type m=0; m<numDOF.extent(0); m++) {
+                for (int k=0; k<numDOF(m); k++) {
+                  col = offsets(m,k);
+                  if (isAdjoint_) {
+                    vals[col] = res(elem,row).fastAccessDx(row);
+                  }
+                  else {
+                    vals[col] = res(elem,row).fastAccessDx(col);
+                  }
+                  if (lump_mass_) {
+                    cols[col] = rowIndex;
+                  }
+                  else {
+                    cols[col] = LIDs(elem,col);
+                  }
+                }
+              }
+              J_kcrs.sumIntoValues(rowIndex, cols, numVals, vals, false, use_atomics_); // isSorted, useAtomics
+            }
+          }
+        }
+      }
 #endif
-  });
+    });
+  }
+  
 }
 
 
@@ -285,7 +493,7 @@ void AssemblyManager<Node>::scatter(Teuchos::RCP<Workset<EvalT> > & wset, const 
 template<class Node>
 template<class VecViewType, class LIDViewType>
 void AssemblyManager<Node>::scatterRes(const size_t & set, VecViewType res_view,
-                                       LIDViewType LIDs, const int & block) {
+                                       LIDViewType LIDs, LIDViewType phase_LIDs, const int & block) {
   
   Teuchos::TimeMonitor localtimer(*scatter_timer);
   
@@ -307,30 +515,83 @@ void AssemblyManager<Node>::scatterRes(const size_t & set, VecViewType res_view,
     use_atomics_ = true;
   }
   
-  parallel_for("assembly insert Jac",
-               RangePolicy<LA_exec>(0,LIDs.extent(0)),
-               MRHYDE_LAMBDA (const int elem ) {
+  if (mesh->getPhaseDimension() > 0) {
     
-    int row = 0;
-    LO rowIndex = 0;
+    auto phase_offsets = wkset[block]->phase_offsets;
+    auto phase_numDOF = groupData[block]->phase_num_dof;
     
-    // Residual scatter
-    for (size_type n=0; n<numDOF.extent(0); ++n) {
-      for (int j=0; j<numDOF(n); j++) {
-        row = offsets(n,j);
-        rowIndex = LIDs(elem,row);
-        if (!fixedDOF(rowIndex)) {
-          ScalarT val = -res(elem,row);
-          
-          if (use_atomics_) {
-            Kokkos::atomic_add(&(res_view(rowIndex,0)), val);
-          }
-          else {
-            res_view(rowIndex,0) += val;
+    // Need the total number of phase DOFs
+    size_type num_phase_local = phase_LIDs.extent(1);
+    size_type num_space_local = LIDs.extent(1);
+    size_type num_dof_local = num_phase_local*num_space_local;
+    LO num_phase_global = disc->getNumPhaseDOFs(set);
+    
+    parallel_for("assembly insert Jac",
+                 RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                 MRHYDE_LAMBDA (const int elem ) {
+      for (size_type pelem=0; pelem<phase_LIDs.extent(0); ++pelem) {
+        int resstart = num_dof_local*pelem;
+        int resprog = 0;
+        int row = 0;
+        LO rowIndex = 0;
+        // Residual scatter
+        for (size_type var=0; var<numDOF.extent(0); ++var) {
+          for (int dof=0; dof<numDOF(var); dof++) {
+            if (!fixedDOF(LIDs(elem,offsets(var,dof)))) {
+              for (int pdof=0; pdof<phase_numDOF(var); pdof++) {
+                
+                //row = offsets(n,j)*num_phase*phase_LIDs.extent(0) + num_phase*pelem + phase_offsets(pn,pj);
+                //rowIndex = LIDs(elem,offsets(n,j))*num_total_phase_dof + phase_LIDs(pelem,phase_offsets(pn,pj));
+                row = resstart + resprog;
+                rowIndex = LIDs(elem,offsets(var,dof))*num_phase_global + phase_LIDs(pelem,phase_offsets(var,pdof));
+                
+                ScalarT val = -res(elem,row);
+                if (use_atomics_) {
+                  Kokkos::atomic_add(&(res_view(rowIndex,0)), val);
+                }
+                else {
+                  res_view(rowIndex,0) += val;
+                }
+                resprog++;
+              }
+            }
+            else {
+              for (int pdof=0; pdof<phase_numDOF(var); pdof++) {
+                resprog++;
+              }
+            }
           }
         }
       }
-    }
-  });
+    });
+    
+  }
+  else {
+    parallel_for("assembly insert Jac",
+                 RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                 MRHYDE_LAMBDA (const int elem ) {
+      
+      int row = 0;
+      LO rowIndex = 0;
+      
+      // Residual scatter
+      for (size_type n=0; n<numDOF.extent(0); ++n) {
+        for (int j=0; j<numDOF(n); j++) {
+          row = offsets(n,j);
+          rowIndex = LIDs(elem,row);
+          if (!fixedDOF(rowIndex)) {
+            ScalarT val = -res(elem,row);
+            
+            if (use_atomics_) {
+              Kokkos::atomic_add(&(res_view(rowIndex,0)), val);
+            }
+            else {
+              res_view(rowIndex,0) += val;
+            }
+          }
+        }
+      }
+    });
+  }
 }
 

@@ -189,6 +189,7 @@ namespace MrHyDE {
     Teuchos::RCP<FunctionManager<EvalT> > functionManager;
 
     vector<string> myvars, mybasistypes;
+    vector<string> myphasevars, myphasebasistypes;
     bool include_face = false, isaux = false;
     string prefix = "";
 

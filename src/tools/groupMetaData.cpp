@@ -38,6 +38,7 @@ cell_topo(cellTopo_) {
   use_basis_database = settings->sublist("Solver").get<bool>("use basis database",false);
   use_mass_database = settings->sublist("Solver").get<bool>("use mass database",false);
   use_ip_database = settings->sublist("Solver").get<bool>("use ip database",false);
+  use_phase_database = settings->sublist("Solver").get<bool>("use phase database",true);
   store_mass = settings->sublist("Solver").get<bool>("store mass",true);
   use_sparse_mass = false;
 
@@ -83,6 +84,7 @@ cell_topo(cellTopo_) {
     have_multidata = true;
   }
   num_sets = physics->set_names.size();
+  phase_dimension = physics->phase_dimension;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -153,6 +155,16 @@ void GroupMetaData::setSolutionFields(vector<int> & maxnumsteps, vector<int> & m
       if (set_num_dof_host[set](i) > maxnbasis) {
         maxnbasis = set_num_dof_host[set](i);
       }
+    }
+    
+    if (phase_dimension > 0) {
+      int max_phase_basis = 0;
+      for (size_type i=0; i<phase_set_num_dof_host[set].extent(0); i++) {
+        if (phase_set_num_dof_host[set](i) > max_phase_basis) {
+          max_phase_basis = phase_set_num_dof_host[set](i);
+        }
+      }
+      maxnbasis *= max_phase_basis*phase_num_elem;
     }
     
     // Storage for gathered forward (state) solutions

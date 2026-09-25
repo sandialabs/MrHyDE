@@ -14,6 +14,7 @@ void AssemblyManager<Node>::buildDatabase(const size_t & block) {
   
   vector<std::pair<size_t,size_t> > first_users, first_users_x, first_users_y, first_users_z; // stores <grpID,elemID>
   vector<std::pair<size_t,size_t> > first_boundary_users; // stores <grpID,elemID>
+  vector<std::pair<size_t,size_t> > first_phase_users; // stores <grpID,elemID>
   
   /////////////////////////////////////////////////////////////////////////////
   // Step 1: identify the duplicate information
@@ -27,6 +28,10 @@ void AssemblyManager<Node>::buildDatabase(const size_t & block) {
     this->identifyVolumetricIPDatabase(block, first_users_x, first_users_y, first_users_z);
   }
 
+  if (groupData[block]->use_phase_database && groupData[block]->phase_dimension > 0) {
+    this->identifyPhaseVolumetricDatabase(block, first_phase_users);
+  }
+  
   /////////////////////////////////////////////////////////////////////////////
   // Step 2: inform the user about the savings
   /////////////////////////////////////////////////////////////////////////////
@@ -56,6 +61,14 @@ void AssemblyManager<Node>::buildDatabase(const size_t & block) {
       cout << " - Processor " << comm->getRank() << ": Database quadrature memory savings on " << blocknames[block] << ": "
       << (100.0 - 100.0*((double)total_ip_stored/(double)totalip)) << "%" << endl;
     }
+    if (groupData[block]->use_phase_database && groupData[block]->phase_dimension > 0) {
+      size_t totalphaseelem = mesh->getNumPhaseElements();
+      cout << " - Processor " << comm->getRank() << ": Number of phase elements on block " << blocknames[block] << ": " << totalphaseelem << endl;
+      cout << " - Processor " << comm->getRank() << ": Number of unique phase elements on block " << blocknames[block] << ": " << first_phase_users.size() << endl;
+      cout << " - Processor " << comm->getRank() << ": Database memory savings for phase on " << blocknames[block] << ": "
+      << (100.0 - 100.0*((double)first_phase_users.size()/(double)totalphaseelem)) << "%" << endl;
+      
+    }
   }
   
   /////////////////////////////////////////////////////////////////////////////
@@ -68,7 +81,9 @@ void AssemblyManager<Node>::buildDatabase(const size_t & block) {
   if (groupData[block]->use_ip_database) {
     this->buildVolumetricIPDatabase(block, first_users_x, first_users_y, first_users_z);
   }
-  
+  if (groupData[block]->use_phase_database && groupData[block]->phase_dimension > 0) {
+    this->buildPhaseVolumetricDatabase(block, first_phase_users);
+  }
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -387,6 +402,170 @@ void AssemblyManager<Node>::identifyBoundaryDatabase(const size_t & block, vecto
     boundary_groups[block][grp]->basis_index = index;
   }
 }
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+template<class Node>
+void AssemblyManager<Node>::identifyPhaseVolumetricDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_users) {
+  Teuchos::TimeMonitor localtimer(*group_database_create_timer);
+  
+  double database_TOL = settings->sublist("Solver").get<double>("database TOL",1.0e-10);
+  
+  int dimension = groupData[block]->phase_dimension;
+  int num_phase_elem = mesh->getNumPhaseElements();
+  
+  size_type numip = groupData[block]->phase_ref_ip.extent(0);
+  bool ignore_orientations = false;//true;
+  for (size_t i=0; i<groupData[block]->phase_basis_pointers.size(); ++i) {
+    if (groupData[block]->phase_basis_pointers[i]->requireOrientation()) {
+      ignore_orientations = false;
+    }
+  }
+  
+  vector<Kokkos::View<ScalarT***,HostDevice>> db_jacobians;
+  vector<ScalarT> db_measures;
+  
+  // There are only so many unique orientation
+  // Creating a short list of the unique ones and the index for each element
+  
+  vector<string> unique_orients;
+  vector<size_t> all_orients;
+    
+  Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation("tmp orients", num_phase_elem);
+  disc->getPhaseOrientations(orientation);
+  auto orient_host = create_mirror_view(orientation);
+  deep_copy(orient_host, orientation);
+  for (size_t e=0; e<num_phase_elem; ++e) {
+    string orient = orient_host(e).to_string();
+    bool found = false;
+    size_t oprog = 0;
+    while (!found && oprog<unique_orients.size()) {
+      if (orient == unique_orients[oprog]) {
+        found = true;
+      }
+      else {
+        ++oprog;
+      }
+    }
+    if (found) {
+      all_orients[e] = oprog;
+    }
+    else {
+      unique_orients.push_back(orient);
+      all_orients[e] = unique_orients.size()-1;
+    }
+  }
+  
+  //for (size_t grp=0; grp<groups[block].size(); ++grp) {
+  //groups[block][grp]->storeAll = false;
+  Kokkos::View<LO*,AssemblyDevice> index("basis database index",num_phase_elem);
+  auto index_host = create_mirror_view(index);
+  
+  // Get the Jacobian for this group
+  DRV jacobian("jacobian", num_phase_elem, numip, dimension, dimension);
+  Kokkos::View<LO*,AssemblyDevice> elemIDs("element ids",num_phase_elem);
+  auto elemIDs_host = create_mirror_view(elemIDs);
+  for (size_type e=0; e<num_phase_elem; ++e) {
+    elemIDs_host(e) = e;
+  }
+  deep_copy(elemIDs, elemIDs_host);
+  
+  disc->getPhaseJacobian(groupData[block], elemIDs, jacobian);
+  auto jacobian_host = create_mirror_view(jacobian);
+  deep_copy(jacobian_host,jacobian);
+  
+  // Get the measures for this group
+  DRV measure("measure", num_phase_elem);
+  disc->getPhaseMeasure(groupData[block], jacobian, measure);
+  auto measure_host = create_mirror_view(measure);
+  deep_copy(measure_host,measure);
+  bool store_anyway = false;
+  if (num_phase_elem < 10) {
+    store_anyway = true;
+  }
+  for (size_t e=0; e<num_phase_elem; ++e) {
+    bool found = false;
+    size_t prog = 0;
+    
+    //ScalarT refmeas = std::pow(measure_host(e),1.0/dimension);
+    
+    while (!found && prog<first_users.size()) {
+      //size_t refgrp = first_users[prog].first;
+      size_t refelem = first_users[prog].second;
+      
+      // Check #1: element orientations
+      size_t orient = all_orients[e];
+      size_t reforient = all_orients[refelem];
+      if (ignore_orientations || orient == reforient) {
+        
+        // Check #2: element measures
+        ScalarT diff = std::abs(measure_host(e)-db_measures[prog]);
+        
+        if (std::abs(diff/db_measures[prog])<database_TOL) { // abs(measure) is probably unnecessary here
+          
+          // Check #3: element Jacobians
+          size_type pt = 0;
+          bool ruled_out = false;
+          while (pt<numip && !ruled_out) {
+            ScalarT fronorm = 0.0;
+            ScalarT frodiff = 0.0;
+            ScalarT diff = 0.0;
+            for (size_type d0=0; d0<jacobian_host.extent(2); ++d0) {
+              for (size_type d1=0; d1<jacobian_host.extent(3); ++d1) {
+                diff = jacobian_host(e,pt,d0,d1)-db_jacobians[prog](pt,d0,d1);
+                frodiff += diff*diff;
+                fronorm += jacobian_host(e,pt,d0,d1)*jacobian_host(e,pt,d0,d1);
+              }
+            }
+            if (std::sqrt(frodiff)/std::sqrt(fronorm) > database_TOL) {
+              ruled_out = true;
+            }
+            pt++;
+          }
+          
+          if (!ruled_out) {
+            found = true;
+            index_host(e) = prog;
+          }
+          else {
+            ++prog;
+          }
+          
+        }
+        else {
+          ++prog;
+        }
+      }
+      else {
+        ++prog;
+      }
+    }
+    if (!found || store_anyway) {
+      index_host(e) = first_users.size();
+      std::pair<size_t,size_t> newuj{0,e};
+      first_users.push_back(newuj);
+      
+      Kokkos::View<ScalarT***,HostDevice> new_jac("new db jac",numip, dimension, dimension);
+      for (size_type pt=0; pt<new_jac.extent(0); ++pt) {
+        for (size_type d0=0; d0<new_jac.extent(1); ++d0) {
+          for (size_type d1=0; d1<new_jac.extent(2); ++d1) {
+            new_jac(pt,d0,d1) = jacobian(e,pt,d0,d1);
+          }
+        }
+      }
+      db_jacobians.push_back(new_jac);
+      db_measures.push_back(measure_host(e));
+      
+    }
+  }
+  deep_copy(index,index_host);
+  
+  for (size_t grp=0; grp<groups[block].size(); ++grp) {
+    groups[block][grp]->phase_basis_index = index;
+  }
+}
+
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -1116,6 +1295,293 @@ void AssemblyManager<Node>::buildBoundaryDatabase(const size_t & block, vector<s
   
   
 }
+
+/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+
+template<class Node>
+void AssemblyManager<Node>::buildPhaseVolumetricDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_users) {
+  
+  Teuchos::TimeMonitor localtimer(*group_database_basis_timer);
+  
+  using namespace std;
+
+  //int dimension = groupData[block]->phase_dimension;
+  int phase_numElem = mesh->getNumPhaseElements();
+  size_t database_numElem = first_users.size();
+  
+  //DRV database_nodes("nodes for the database",database_numElem, mesh->num_phase_nodes_per_elem, dimension);
+  //Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> database_orientation("database orientations",database_numElem);
+  View_Sc2 database_wts("physical wts",database_numElem, groupData[block]->phase_ref_ip.extent(0));
+  Kokkos::View<LO*,AssemblyDevice> database_ids("database local elem ids", database_numElem);
+  //auto database_nodes_host = create_mirror_view(database_nodes);
+  auto database_ids_host = create_mirror_view(database_ids);
+  //auto database_orientation_host = create_mirror_view(database_orientation);
+  auto database_wts_host = create_mirror_view(database_wts);
+  
+  for (size_t e=0; e<first_users.size(); ++e) {
+    //size_t refgrp = first_users[e].first;
+    size_t refelem = first_users[e].second;
+    
+    database_ids_host(e) = refelem; //groups[block][refgrp]->localElemID(refelem);
+    
+    // Get the wts on the host
+    View_Sc2 twts("temp physical wts", phase_numElem, database_wts.extent(1));
+    vector<View_Sc2> tmpip;
+    Kokkos::View<LO*,AssemblyDevice> elemIDs("element ids",phase_numElem);
+    auto elemIDs_host = create_mirror_view(elemIDs);
+    for (size_type e=0; e<phase_numElem; ++e) {
+      elemIDs_host(e) = e;
+    }
+    deep_copy(elemIDs, elemIDs_host);
+    
+    disc->getPhaseIntegrationData(groupData[block], elemIDs, tmpip, twts);
+    
+    //auto wts_host = groups[block][refgrp]->wts;
+    auto wts_host = create_mirror_view(twts);
+    deep_copy(wts_host, twts);
+    
+    for (size_type pt=0; pt<database_wts_host.extent(1); ++pt) {
+      database_wts_host(e,pt) = wts_host(refelem,pt);
+    }
+    
+  }
+  
+  //deep_copy(database_nodes, database_nodes_host);
+  deep_copy(database_ids, database_ids_host);
+  //deep_copy(database_orientation, database_orientation_host);
+  deep_copy(database_wts, database_wts_host);
+  groupData[block]->database_wts = database_wts;
+  
+  vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl;
+  vector<View_Sc3> tbasis_div;
+  
+  disc->getPhaseVolumetricBasis(groupData[block], database_ids,
+                                tbasis, tbasis_grad, tbasis_curl,
+                                tbasis_div, true);
+  groupData[block]->phase_database_basis = tbasis;
+  groupData[block]->phase_database_basis_grad = tbasis_grad;
+  groupData[block]->phase_database_basis_div = tbasis_div;
+  groupData[block]->phase_database_basis_curl = tbasis_curl;
+  
+  /////////////////////////////////////////////////////////////////////////////
+  // Step 3b: database of mass matrices while we have basis and wts
+  /////////////////////////////////////////////////////////////////////////////
+  
+  /*
+  // Create a database of mass matrices
+  if (groupData[block]->use_mass_database) {
+
+    size_t database_numElem = first_users.size();
+    for (size_t set=0; set<physics->set_names.size(); ++set) {
+      View_Sc3 mass("local mass",database_numElem, groups[block][0]->LIDs[set].extent(1),
+                    groups[block][0]->LIDs[set].extent(1));
+      
+      auto offsets = wkset[block]->set_offsets[set];
+      auto numDOF = groupData[block]->set_num_dof[set];
+      
+      bool use_sparse_quad = settings->sublist("Solver").get<bool>("use sparsifying mass quadrature",false);
+      bool include_high_order = false;
+
+      for (size_type n=0; n<numDOF.extent(0); n++) {
+        string btype = wkset[block]->basis_types[wkset[block]->set_usebasis[set][n]];
+        
+        vector<vector<string> > qrules;
+
+        if (btype.substr(0,5) == "HGRAD" || btype.substr(0,4) == "HVOL") {
+          // throw an error
+        }
+        else if (btype.substr(0,4) == "HDIV") {
+          //vector<string> qrule1 = {"GAUSS","GAUSS","GAUSS"};
+          //qrules.push_back(qrule1);
+          //vector<string> qrule2 = {"GAUSS-LOBATTO","GAUSS","GAUSS"};
+          //qrules.push_back(qrule2);
+          //vector<string> qrule3 = {"GAUSS","GAUSS-LOBATTO","GAUSS"};
+          //qrules.push_back(qrule3);
+          //vector<string> qrule4 = {"GAUSS","GAUSS","GAUSS-LOBATTO"};
+          //qrules.push_back(qrule4);
+        }
+        else if (btype.substr(0,5) == "HCURL") {
+          vector<string> qrule1 = {"GAUSS-LOBATTO","GAUSS-LOBATTO","GAUSS-LOBATTO"};
+          qrules.push_back(qrule1);
+          //vector<string> qrule2 = {"GAUSS","GAUSS-LOBATTO","GAUSS-LOBATTO"};
+          //qrules.push_back(qrule2);
+          //vector<string> qrule3 = {"GAUSS-LOBATTO","GAUSS","GAUSS-LOBATTO"};
+          //qrules.push_back(qrule3);
+          //vector<string> qrule4 = {"GAUSS-LOBATTO","GAUSS-LOBATTO","GAUSS"};
+          //qrules.push_back(qrule4);
+        }
+        else {
+         // throw an error
+        }
+
+        if (use_sparse_quad && qrules.size() > 0) {
+          ScalarT mwt = physics->mass_wts[set][block][n];
+          View_Sc4 cbasis = tbasis[wkset[block]->set_usebasis[set][n]];
+          
+          View_Sc3 mass_sparse("local mass", mass.extent(0), cbasis.extent(1), cbasis.extent(1));
+          
+          if (include_high_order) {
+            auto cwts = database_wts;
+          //for (size_type n=0; n<numDOF.extent(0); n++) {
+            ScalarT mwt = physics->mass_wts[set][block][n];
+            View_Sc4 cbasis = tbasis[wkset[block]->set_usebasis[set][n]];
+            string btype = wkset[block]->basis_types[wkset[block]->set_usebasis[set][n]];
+            auto off = subview(offsets,n,ALL());
+            if (btype.substr(0,5) == "HGRAD" || btype.substr(0,4) == "HVOL") {
+              parallel_for("Group get mass",
+                           RangePolicy<AssemblyExec>(0,mass.extent(0)),
+                           MRHYDE_LAMBDA (const size_type e ) {
+                for (size_type i=0; i<cbasis.extent(1); i++ ) {
+                  for (size_type j=0; j<cbasis.extent(1); j++ ) {
+                    for (size_type k=0; k<cbasis.extent(2); k++ ) {
+                      mass_sparse(e,off(i),off(j)) += cbasis(e,i,k,0)*cbasis(e,j,k,0)*cwts(e,k)*mwt;
+                    }
+                  }
+                }
+              });
+            }
+            else if (btype.substr(0,4) == "HDIV" || btype.substr(0,5) == "HCURL") {
+              parallel_for("Group get mass",
+                           RangePolicy<AssemblyExec>(0,mass.extent(0)),
+                           MRHYDE_LAMBDA (const size_type e ) {
+                for (size_type i=0; i<cbasis.extent(1); i++ ) {
+                  for (size_type j=0; j<cbasis.extent(1); j++ ) {
+                    for (size_type k=0; k<cbasis.extent(2); k++ ) {
+                      for (size_type dim=0; dim<cbasis.extent(3); dim++ ) {
+                        mass_sparse(e,off(i),off(j)) += cbasis(e,i,k,dim)*cbasis(e,j,k,dim)*cwts(e,k)*mwt;
+                      }
+                    }
+                  }
+                }
+              });
+            }
+          //}
+          }
+          for (size_t q=0; q<qrules.size(); ++q) {
+            vector<string> qrule = qrules[q];
+            DRV cwts;
+            DRV cbasis = disc->evaluateBasisNewQuadrature(groupData[block], block, wkset[block]->set_usebasis[set][n], qrule,
+                                                          database_ids, cwts);
+
+            View_Sc3 newmass("local mass", mass.extent(0), cbasis.extent(1), cbasis.extent(1));
+              
+            parallel_for("Group get mass",
+                         RangePolicy<AssemblyExec>(0,mass.extent(0)),
+                         MRHYDE_LAMBDA (const size_type e ) {
+              for (size_type i=0; i<cbasis.extent(1); i++ ) {
+                for (size_type j=0; j<cbasis.extent(1); j++ ) {
+                  for (size_type k=0; k<cbasis.extent(2); k++ ) {
+                    for (size_type dim=0; dim<cbasis.extent(3); dim++ ) {
+                      newmass(e,i,j) += cbasis(e,i,k,dim)*cbasis(e,j,k,dim)*cwts(e,k)*mwt;
+                    }
+                  }
+                }
+              }
+            });
+            if (q==0 && !include_high_order) { // first qrule is the base rule
+              deep_copy(mass_sparse,newmass);
+            }
+            else { // see if any alternative rules are better for each entry
+              parallel_for("Group get mass",
+                           RangePolicy<AssemblyExec>(0,mass.extent(0)),
+                           MRHYDE_LAMBDA (const size_type e ) {
+            
+                for (size_type i=0; i<newmass.extent(1); i++ ) {
+                  for (size_type j=0; j<newmass.extent(2); j++ ) {
+                    if (i==j) {
+                      if (newmass(e,i,j) > mass_sparse(e,i,j)) { // not using abs since always positive
+                        mass_sparse(e,i,j) = newmass(e,i,j);
+                      }
+                    }
+                    else {
+                      if (abs(newmass(e,i,j)) < abs(mass_sparse(e,i,j))) {
+                        mass_sparse(e,i,j) = newmass(e,i,j);
+                      }
+                    }
+                  }
+                }
+              });
+            }
+          }
+          
+          // Permute the entries in mass matrix using the offsets
+          auto off = subview(offsets,n,ALL());
+          parallel_for("Group get mass",
+                       RangePolicy<AssemblyExec>(0,mass.extent(0)),
+                       MRHYDE_LAMBDA (const size_type e ) {
+            for (size_type i=0; i<mass_sparse.extent(1); i++ ) {
+              for (size_type j=0; j<mass_sparse.extent(2); j++ ) {
+                mass(e,off(i),off(j)) = mass_sparse(e,i,j);
+              }
+            }
+          });
+        }
+      
+        else {
+          auto cwts = database_wts;
+          //for (size_type n=0; n<numDOF.extent(0); n++) {
+            ScalarT mwt = physics->mass_wts[set][block][n];
+            View_Sc4 cbasis = tbasis[wkset[block]->set_usebasis[set][n]];
+            string btype = wkset[block]->basis_types[wkset[block]->set_usebasis[set][n]];
+            auto off = subview(offsets,n,ALL());
+            if (btype.substr(0,5) == "HGRAD" || btype.substr(0,4) == "HVOL") {
+              parallel_for("Group get mass",
+                           RangePolicy<AssemblyExec>(0,mass.extent(0)),
+                           MRHYDE_LAMBDA (const size_type e ) {
+                for (size_type i=0; i<cbasis.extent(1); i++ ) {
+                  for (size_type j=0; j<cbasis.extent(1); j++ ) {
+                    for (size_type k=0; k<cbasis.extent(2); k++ ) {
+                      mass(e,off(i),off(j)) += cbasis(e,i,k,0)*cbasis(e,j,k,0)*cwts(e,k)*mwt;
+                    }
+                  }
+                }
+              });
+            }
+            else if (btype.substr(0,4) == "HDIV" || btype.substr(0,5) == "HCURL") {
+              parallel_for("Group get mass",
+                           RangePolicy<AssemblyExec>(0,mass.extent(0)),
+                           MRHYDE_LAMBDA (const size_type e ) {
+                for (size_type i=0; i<cbasis.extent(1); i++ ) {
+                  for (size_type j=0; j<cbasis.extent(1); j++ ) {
+                    for (size_type k=0; k<cbasis.extent(2); k++ ) {
+                      for (size_type dim=0; dim<cbasis.extent(3); dim++ ) {
+                        mass(e,off(i),off(j)) += cbasis(e,i,k,dim)*cbasis(e,j,k,dim)*cwts(e,k)*mwt;
+                      }
+                    }
+                  }
+                }
+              });
+            }
+          //}
+        }
+      }
+      
+      bool use_sparse = settings->sublist("Solver").get<bool>("sparse mass format",false);
+      if (use_sparse) {
+        ScalarT tol = settings->sublist("Solver").get<double>("sparse mass TOL",1.0e-10);
+        Teuchos::RCP<Sparse3DView> sparse_mass = Teuchos::rcp( new Sparse3DView(mass,tol) );
+        groupData[block]->sparse_database_mass.push_back(sparse_mass);
+        groupData[block]->use_sparse_mass = true;
+        cout << " - Processor " << comm->getRank() << ": Sparse mass format savings on " << blocknames[block] << ": "
+             << (100.0 - 100.0*((double)sparse_mass->size()/(double)mass.size())) << "%" << endl;
+      }
+      //else {
+        groupData[block]->database_mass.push_back(mass);
+      //}
+
+      bool write_matrices_to_file = false;
+      if (write_matrices_to_file) {
+        std::stringstream ss;
+        ss << set;
+        string filename = "mass_matrices." + ss.str() + ".out";
+        KokkosTools::printToFile(mass,filename);
+      }
+    }
+  }*/
+}
+
+
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////

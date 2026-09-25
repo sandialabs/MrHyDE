@@ -45,8 +45,12 @@ namespace MrHyDE {
             const vector<size_t> & numVars_, 
             const bool & isTransient_,
             const vector<string> & basis_types_,
-            const vector<basis_RCP> & basis_pointers_, const vector<basis_RCP> & param_basis_,
-            const topo_RCP & topo);
+            const vector<basis_RCP> & basis_pointers_,
+            const vector<basis_RCP> & param_basis_,
+            const vector<string> & phase_basis_types_,
+            const vector<basis_RCP> & phase_basis_pointers_,
+            const topo_RCP & topo,
+            const topo_RCP & phase_topo);
 
     // ========================================================================================
     // ========================================================================================
@@ -492,21 +496,22 @@ namespace MrHyDE {
     
     bool isAdjoint, onlyTransient, isTransient, only_scalar=false;
     bool isInitialized, usebcs, isOnSide, isOnPoint;
-    topo_RCP celltopo;
-    size_t numsides, numip, numsideip, numScalarParams, numDiscParams, maxRes, maxTeamSize, current_set, numSets;
-    int dimension, numElem, current_stage;
+    topo_RCP celltopo, phase_celltopo;
+    size_t numsides, numip, phase_numip, numsideip, numScalarParams, numDiscParams, maxRes, maxTeamSize, current_set, numSets;
+    int dimension, phase_dimension, numElem, phase_numElem, current_stage;
     size_type maxElem;
+    vector<vector<int> > numDOF, phase_numDOF;
+    vector<int> totalDOF, phase_totalDOF;
     
-    vector<string> basis_types;
-    vector<int> numbasis;
-    vector<basis_RCP> basis_pointers;
+    vector<string> basis_types, phase_basis_types;
+    vector<basis_RCP> basis_pointers, phase_basis_pointers;
     
     Kokkos::View<EvalT**,AssemblyDevice> params_AD, params_dot_AD;
     vector<string> paramnames;
     
     ScalarT time, alpha, deltat;
     
-    size_t block, localEID, globalEID;
+    size_t block, phase_block=0, localEID, globalEID;
     
     vector<SolutionField<EvalT> > soln_fields, side_soln_fields, point_soln_fields;
     vector<ScalarField> scalar_fields, side_scalar_fields, point_scalar_fields;
@@ -520,13 +525,17 @@ namespace MrHyDE {
     
     //View_Sc1 h;
     View_Sc2 wts_side;
-    CompressedView<View_Sc2> wts;
+    CompressedView<View_Sc2> wts, phase_wts;
     vector<CompressedView<View_Sc4>> basis, basis_grad, basis_curl, basis_side, basis_grad_side, basis_curl_side;
     vector<CompressedView<View_Sc3>> basis_div;
     
+    vector<CompressedView<View_Sc4>> phase_basis, phase_basis_grad, phase_basis_curl;
+    vector<CompressedView<View_Sc4>> phase_basis_side, phase_basis_grad_side, phase_basis_curl_side;
+    vector<CompressedView<View_Sc3>> phase_basis_div;
+    
     View_EvalT2 res, adjrhs;
     View_EvalT3 flux;
-    Kokkos::View<int**,AssemblyDevice> offsets, paramoffsets, aux_offsets;
+    Kokkos::View<int**,AssemblyDevice> offsets, phase_offsets, paramoffsets, aux_offsets;
     vector<View_EvalT2> pvals;
     vector<string> param_varlist;
     vector<int> paramusebasis;
@@ -536,7 +545,7 @@ namespace MrHyDE {
     size_t numAux;
     
     // Editing for multi-set
-    vector<size_t> numVars;
+    vector<size_t> numVars, phase_numVars;
     //vector<vector<View_EvalT2> > uvals, u_dotvals;
     vector<View_EvalT2> sol_vals, sol_dot_vals;
     vector<vector<size_t>> sol_vals_index; // [set][var]
@@ -544,9 +553,9 @@ namespace MrHyDE {
     Kokkos::View<string**,HostDevice> var_bcs;
     vector<Kokkos::View<string**,HostDevice> > set_var_bcs;
     
-    vector<Kokkos::View<int**,AssemblyDevice> > set_offsets;
-    vector<vector<string> > set_varlist;
-    vector<string> varlist, aux_varlist;
+    vector<Kokkos::View<int**,AssemblyDevice> > set_offsets, phase_set_offsets;
+    vector<vector<string> > set_varlist, phase_set_varlist;
+    vector<string> varlist, aux_varlist, phase_varlist;
     
     Kokkos::View<ScalarT**,AssemblyDevice> butcher_A;
     Kokkos::View<ScalarT*,AssemblyDevice> butcher_b, butcher_c, BDF_wts;
@@ -554,8 +563,8 @@ namespace MrHyDE {
     vector<Kokkos::View<ScalarT**,AssemblyDevice> > set_butcher_A; // [set]
     vector<Kokkos::View<ScalarT*,AssemblyDevice> > set_butcher_b, set_butcher_c, set_BDF_wts; // [set]
     
-    vector<vector<int> > set_usebasis;
-    vector<int> usebasis;
+    vector<vector<int> > set_usebasis, phase_set_usebasis;
+    vector<int> usebasis, phase_usebasis;
     vector<vector<int> > vars_HGRAD, vars_HVOL, vars_HDIV, vars_HCURL, vars_HFACE;
     vector<vector<string> > varlist_HGRAD, varlist_HVOL, varlist_HDIV, varlist_HCURL, varlist_HFACE;
     

@@ -195,9 +195,12 @@ void SubGridDtN2::setUpSubgridModels() {
   // Define the sub-grid physics
   /////////////////////////////////////////////////////////////////////////////////////
   
-  sub_physics = Teuchos::rcp( new PhysicsInterface(settings, LocalComm, sub_mesh->getBlockNames(),
+  sub_physics = Teuchos::rcp( new PhysicsInterface(settings, LocalComm,
+                                                   sub_mesh->getBlockNames(),
+                                                   sub_mesh->getPhaseBlockNames(),
                                                    sub_mesh->getSideNames(),
-                                                   sub_mesh->getDimension()) );
+                                                   sub_mesh->getDimension(),
+                                                   sub_mesh->getPhaseDimension()) );
   
   /////////////////////////////////////////////////////////////////////////////////////
   // Set up the subgrid discretizations
@@ -833,18 +836,21 @@ void SubGridDtN2::subgridSolver(View_Sc3 coarse_fwdsoln,
                         coarse_prevsoln.extent(1),
                         coarse_prevsoln.extent(2),
                         coarse_prevsoln.extent(3));
-                        
-  parallel_for("subgrid set coarse sol",
-               RangePolicy<AssemblyExec>(0,coarse_uprev.extent(0)),
-               MRHYDE_LAMBDA (const size_type e ) {
-    for (size_type i=0; i<coarse_uprev.extent(1); i++) {
-      for (size_type j=0; j<coarse_uprev.extent(2); j++) {
-        for (size_type k=0; k<coarse_uprev.extent(3); k++) {
-          coarse_uprev(e,i,j,k) = coarse_prevsoln(macroIDs(e),i,j,k);
+
+  // Steady-state uses a dummy coarse_prevsoln; copy only for transient solves.
+  if (isTransient) {
+    parallel_for("subgrid set coarse sol",
+                 RangePolicy<AssemblyExec>(0,coarse_uprev.extent(0)),
+                 MRHYDE_LAMBDA (const size_type e ) {
+      for (size_type i=0; i<coarse_uprev.extent(1); i++) {
+        for (size_type j=0; j<coarse_uprev.extent(2); j++) {
+          for (size_type k=0; k<coarse_uprev.extent(3); k++) {
+            coarse_uprev(e,i,j,k) = coarse_prevsoln(macroIDs(e),i,j,k);
+          }
         }
       }
-    }
-  });
+    });
+  }
   
   if (isAdjoint) {
     coarse_phi = Kokkos::View<ScalarT***,AssemblyDevice>("local phi",groups[macrogrp][0]->numElem,
@@ -864,11 +870,14 @@ void SubGridDtN2::subgridSolver(View_Sc3 coarse_fwdsoln,
   // Extract the previous solution as the initial guess/condition for subgrid problems
   Teuchos::RCP<SG_MultiVector> curr_adjsoln, prev_fwdsoln, prev_adjsoln;
   
-  // Solve the local subgrid problem and fill in the coarse macrowkset->res;
+  // Psol may be empty when no discretized params; pass null RCP then.
+  Teuchos::RCP<SG_MultiVector> psol_arg = Psol.empty()
+      ? Teuchos::RCP<SG_MultiVector>()
+      : Psol[0];
   sub_solver->solve(coarse_u, coarse_uprev, coarse_phi,
                     prev_soln[macrogrp], curr_soln[macrogrp], stage_soln[macrogrp],
                     prev_adjsoln, curr_adjsoln,
-                    Psol[0],
+                    psol_arg,
                     time, isTransient, isAdjoint, compute_jacobian,
                     compute_sens, num_active_params, compute_disc_sens, compute_aux_sens,
                     macrowkset, macrogrp, macroelemindex, subgradient, store_adjPrev);

@@ -1,0 +1,37 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  debug level: 0
+  verbosity: 10
+  Mesh:
+    dimension: 3
+    mesh file: MESH_FILE_PLACEHOLDER
+    shape: MESH_SHAPE_PLACEHOLDER
+    source: Exodus
+  Physics: 
+    eblock-0_0_0:
+      modules: thermal
+      Dirichlet conditions:
+        T:
+          all boundaries: '0.0'
+      Initial conditions:
+        T: '0.0'
+  Discretization:
+    eblock-0_0_0:
+      order:
+        T: T_ORDER_PLACEHOLDER
+      quadrature: QUAD_ORDER_PLACEHOLDER
+  Functions:
+    thermal source: 12*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
+  Solver:
+    solver: steady-state
+    workset size: 10
+    max linear iters: 500
+  Analysis: 
+    analysis type: forward
+  Postprocess: 
+    compute errors: true
+    write solution: false
+    True solutions:
+      T: sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
+...

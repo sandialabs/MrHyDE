@@ -125,7 +125,7 @@ namespace MrHyDE {
     
     View_EvalT4 stress_vol, stress_side;
     
-    bool useLame, addBiot, useCE, incplanestress;
+    bool useLame, addBiot, useCE, incplanestress, use_quadrature_data;
     //ScalarT formparam, biot_alpha, e_ref, alpha_T, epen;
     Kokkos::View<ScalarT*,AssemblyDevice> modelparams;
     

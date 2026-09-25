@@ -409,7 +409,8 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const size_t & st
     if (reduce_memory) { // skip local_res and local_J
       EvalT dummyval = 0.0;
       this->scatter(set, J_kcrs, res_view,
-                    groups[block][grp]->LIDs[set], groups[block][grp]->paramLIDs, block,
+                    groups[block][grp]->LIDs[set], groups[block][grp]->paramLIDs,
+                    groups[block][grp]->phase_LIDs[set], block,
                     compute_jacobian, compute_sens, compute_disc_sens, useadjoint, dummyval);
     }
     else { // fill local_res and local_J and then scatter
@@ -440,9 +441,11 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const size_t & st
       // Now scatter from local_res and local_J
       
       if (data_avail) {
-        this->scatterRes(res_view, local_res, groups[block][grp]->LIDs[set]);
+        this->scatterRes(res_view, local_res, groups[block][grp]->LIDs[set], groups[block][grp]->phase_LIDs[set]);
         if (compute_jacobian) {
-          this->scatterJac(set, J_kcrs, local_J, groups[block][grp]->LIDs[set], groups[block][grp]->paramLIDs, compute_disc_sens);
+          this->scatterJac(set, J_kcrs, local_J, groups[block][grp]->LIDs[set],
+                           groups[block][grp]->paramLIDs, groups[block][grp]->phase_LIDs[set],
+                           compute_disc_sens);
         }
       }
       else {
@@ -453,9 +456,11 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const size_t & st
         Kokkos::deep_copy(local_res_ladev,local_res);
         
         if (use_host_LIDs) { // LA_device = Host, AssemblyDevice = CUDA (no UVM)
-          this->scatterRes(res_view, local_res_ladev, groups[block][grp]->LIDs_host[set]);
+          this->scatterRes(res_view, local_res_ladev, groups[block][grp]->LIDs_host[set],
+                           groups[block][grp]->phase_LIDs_host[set]);
           if (compute_jacobian) {
-            this->scatterJac(set, J_kcrs, local_J_ladev, groups[block][grp]->LIDs_host[set], groups[block][grp]->paramLIDs_host, compute_disc_sens);
+            this->scatterJac(set, J_kcrs, local_J_ladev, groups[block][grp]->LIDs_host[set],
+                             groups[block][grp]->paramLIDs_host, groups[block][grp]->phase_LIDs_host[set], compute_disc_sens);
           }
           
         }
@@ -463,12 +468,15 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const size_t & st
           // TMW: this should be a very rare instance, so we are just being lazy and copying the data here
           auto LIDs_dev = Kokkos::create_mirror(LA_exec(), groups[block][grp]->LIDs[set]);
           auto paramLIDs_dev = Kokkos::create_mirror(LA_exec(), groups[block][grp]->paramLIDs);
+          auto phase_LIDs_dev = Kokkos::create_mirror(LA_exec(), groups[block][grp]->phase_LIDs[set]);
           Kokkos::deep_copy(LIDs_dev,groups[block][grp]->LIDs[set]);
           Kokkos::deep_copy(paramLIDs_dev,groups[block][grp]->paramLIDs);
+          Kokkos::deep_copy(phase_LIDs_dev,groups[block][grp]->phase_LIDs[set]);
           
-          this->scatterRes(res_view, local_res_ladev, LIDs_dev);
+          this->scatterRes(res_view, local_res_ladev, LIDs_dev, phase_LIDs_dev);
           if (compute_jacobian) {
-            this->scatterJac(set, J_kcrs, local_J_ladev, LIDs_dev, paramLIDs_dev, compute_disc_sens);
+            this->scatterJac(set, J_kcrs, local_J_ladev, LIDs_dev, paramLIDs_dev,
+                             phase_LIDs_dev, compute_disc_sens);
           }
         }
         
@@ -537,7 +545,8 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const size_t & st
         if (reduce_memory) { // skip local_res and local_J
           EvalT dummyval = 0.0;
           this->scatter(set, J_kcrs, res_view,
-                        boundary_groups[block][grp]->LIDs[set], boundary_groups[block][grp]->paramLIDs, block,
+                        boundary_groups[block][grp]->LIDs[set], boundary_groups[block][grp]->paramLIDs,
+                        boundary_groups[block][grp]->phase_LIDs[set], block,
                         compute_jacobian, compute_sens, compute_disc_sens, useadjoint, dummyval);
         }
         else { // fill local_res and local_J and then scatter
@@ -561,9 +570,10 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const size_t & st
           this->updateResBoundary(block, grp, compute_sens, local_res);
           
           if (data_avail) {
-            this->scatterRes(res_view, local_res, boundary_groups[block][grp]->LIDs[set]);
+            this->scatterRes(res_view, local_res, boundary_groups[block][grp]->LIDs[set],
+                             boundary_groups[block][grp]->phase_LIDs[set]);
             if (compute_jacobian) {
-              this->scatterJac(set, J_kcrs, local_J, boundary_groups[block][grp]->LIDs[set], boundary_groups[block][grp]->paramLIDs, compute_disc_sens);
+              this->scatterJac(set, J_kcrs, local_J, boundary_groups[block][grp]->LIDs[set], boundary_groups[block][grp]->paramLIDs, boundary_groups[block][grp]->phase_LIDs[set], compute_disc_sens);
             }
           }
           else {
@@ -574,23 +584,27 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const size_t & st
             Kokkos::deep_copy(local_res_ladev,local_res);
             
             if (use_host_LIDs) { // LA_device = Host, AssemblyDevice = CUDA (no UVM)
-              this->scatterRes(res_view, local_res_ladev, boundary_groups[block][grp]->LIDs_host[set]);
+              this->scatterRes(res_view, local_res_ladev, boundary_groups[block][grp]->LIDs_host[set],
+                               boundary_groups[block][grp]->phase_LIDs_host[set]);
               if (compute_jacobian) {
                 this->scatterJac(set, J_kcrs, local_J_ladev,
                                  boundary_groups[block][grp]->LIDs_host[set], boundary_groups[block][grp]->paramLIDs_host,
-                                 compute_disc_sens);
+                                 boundary_groups[block][grp]->phase_LIDs_host[set], compute_disc_sens);
               }
             }
             else { // LA_device = CUDA, AssemblyDevice = Host
               // TMW: this should be a very rare instance, so we are just being lazy and copying the data here
               auto LIDs_dev = Kokkos::create_mirror(LA_exec(), boundary_groups[block][grp]->LIDs[set]);
               auto paramLIDs_dev = Kokkos::create_mirror(LA_exec(), boundary_groups[block][grp]->paramLIDs);
+              auto phase_LIDs_dev = Kokkos::create_mirror(LA_exec(), boundary_groups[block][grp]->phase_LIDs[set]);
               Kokkos::deep_copy(LIDs_dev,boundary_groups[block][grp]->LIDs[set]);
               Kokkos::deep_copy(paramLIDs_dev,boundary_groups[block][grp]->paramLIDs);
+              Kokkos::deep_copy(phase_LIDs_dev,boundary_groups[block][grp]->phase_LIDs[set]);
               
-              this->scatterRes(res_view, local_res_ladev, LIDs_dev);
+              this->scatterRes(res_view, local_res_ladev, LIDs_dev, phase_LIDs_dev);
               if (compute_jacobian) {
-                this->scatterJac(set, J_kcrs, local_J_ladev, LIDs_dev, paramLIDs_dev, compute_disc_sens);
+                this->scatterJac(set, J_kcrs, local_J_ladev, LIDs_dev, paramLIDs_dev,
+                                 phase_LIDs_dev, compute_disc_sens);
               }
             }
             
@@ -831,7 +845,7 @@ void AssemblyManager<Node>::assembleRes(const size_t & set, const size_t & stage
     // Scatter into global matrix/vector
     ///////////////////////////////////////////////////////////////////////////
     
-    this->scatterRes(set, res_view, groups[block][grp]->LIDs[set], block);
+    this->scatterRes(set, res_view, groups[block][grp]->LIDs[set], groups[block][grp]->phase_LIDs[set], block);
     
   } // group loop
   
@@ -865,7 +879,8 @@ void AssemblyManager<Node>::assembleRes(const size_t & set, const size_t & stage
         // Scatter into global matrix/vector
         ///////////////////////////////////////////////////////////////////////////
         
-        this->scatterRes(set, res_view, boundary_groups[block][grp]->LIDs[set], block);
+        this->scatterRes(set, res_view, boundary_groups[block][grp]->LIDs[set],
+                         boundary_groups[block][grp]->phase_LIDs[set], block);
         
       }
     } // element loop

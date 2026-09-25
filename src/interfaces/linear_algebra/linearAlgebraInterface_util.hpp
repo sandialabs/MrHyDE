@@ -345,14 +345,35 @@ void LinearAlgebraInterface<Node>::writeStateToFile(vector<vector_RCP> & soln,
     Tpetra::MatrixMarket::Writer<LA_MultiVector>::writeDenseFile(ss.str(),*(soln[set]));
   }
 }
+
 // ========================================================================================
 // ========================================================================================
 
 template<class Node>
-void LinearAlgebraInterface<Node>::writeVectorToFile(ROL::Ptr<ROL::TpetraMultiVector<ScalarT> > & vec, string & filename) {
+void LinearAlgebraInterface<Node>::writeROLVectorToFile(ROL::Ptr<ROL::TpetraMultiVector<ScalarT> > & vec, string & filename) {
   Teuchos::TimeMonitor localtimer(*writefiletimer);
   
   Tpetra::MatrixMarket::Writer<LA_MultiVector>::writeDenseFile(filename,vec->getVector());
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+void LinearAlgebraInterface<Node>::writeVectorToFile(vector_RCP & vec, string & filename) {
+  Teuchos::TimeMonitor localtimer(*writefiletimer);
+  
+  Tpetra::MatrixMarket::Writer<LA_MultiVector>::writeDenseFile(filename,*vec);
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+void LinearAlgebraInterface<Node>::writeMatrixToFile(matrix_RCP & mat, string & filename) {
+  Teuchos::TimeMonitor localtimer(*writefiletimer);
+  
+  Tpetra::MatrixMarket::Writer<LA_CrsMatrix>::writeSparseFile(filename,*mat);
 }
 
 // ========================================================================================

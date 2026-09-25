@@ -14,9 +14,12 @@
 PhysicsInterface::PhysicsInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_,
                                    Teuchos::RCP<MpiComm> & comm_,
                                    std::vector<string> block_names_,
+                                   std::vector<string> phase_block_names_,
                                    std::vector<string> side_names_,
-                                   int dimension_) :
-settings(settings_), comm(comm_), dimension(dimension_), block_names(block_names_), side_names(side_names_) {
+                                   int dimension_,
+                                   int phase_dimension_) :
+settings(settings_), comm(comm_), dimension(dimension_), phase_dimension(phase_dimension_),
+block_names(block_names_), phase_block_names(phase_block_names_), side_names(side_names_) {
   
   RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface - constructor");
   Teuchos::TimeMonitor constructortimer(*constructortime);
@@ -50,32 +53,84 @@ settings(settings_), comm(comm_), dimension(dimension_), block_names(block_names
     
     vector<Teuchos::ParameterList> currpsettings, currdsettings, currssettings;
     for (size_t block=0; block<block_names.size(); ++block) {
-      if (psetlist.isSublist(block_names[block])) { // adding block overwrites the default
-        currpsettings.push_back(psetlist.sublist(block_names[block]));
-      }
-      else { // default
-        currpsettings.push_back(psetlist);
+      {
+        Teuchos::ParameterList ptmp = psetlist;
+                
+        Teuchos::ParameterList::ConstIterator sl_itr = psetlist.begin();
+        while (sl_itr != psetlist.end()) {
+          string newvar = sl_itr->first;
+          if (psetlist.isSublist(newvar)) {
+            if (newvar.find(block_names[block]) != std::string::npos) {
+              Teuchos::ParameterList slist = psetlist.sublist(newvar);
+              Teuchos::ParameterList::ConstIterator pl_itr = slist.begin();
+              while (pl_itr != slist.end()) {
+                string newentry = pl_itr->first;
+                ptmp.setEntry(pl_itr->first, pl_itr->second);
+                pl_itr++;
+              }
+            }
+          }
+          sl_itr++;
+        }
+        
+        currpsettings.push_back(ptmp);
       }
       
-      if (dsetlist.isSublist(block_names[block])) { // adding block overwrites default
-        currdsettings.push_back(dsetlist.sublist(block_names[block]));
+      ///////////////////////////////
+      
+      {
+        Teuchos::ParameterList dtmp = dsetlist;
+        
+        Teuchos::ParameterList::ConstIterator sl_itr = dsetlist.begin();
+        while (sl_itr != dsetlist.end()) {
+          string newvar = sl_itr->first;
+          if (dsetlist.isSublist(newvar)) {
+            if (newvar.find(block_names[block]) != std::string::npos) {
+              Teuchos::ParameterList slist = dsetlist.sublist(newvar);
+              Teuchos::ParameterList::ConstIterator pl_itr = slist.begin();
+              while (pl_itr != slist.end()) {
+                string newentry = pl_itr->first;
+                dtmp.setEntry(pl_itr->first, pl_itr->second);
+                pl_itr++;
+              }
+            }
+          }
+          sl_itr++;
+        }
+        
+        currdsettings.push_back(dtmp);
       }
-      else { // default
-        currdsettings.push_back(dsetlist);
-      }
-
-      if (ssetlist.isSublist(block_names[block])) { // adding block overwrites default
-        currssettings.push_back(ssetlist.sublist(block_names[block]));
-      }
-      else { // default
-        currssettings.push_back(ssetlist);
+      
+      //////////////////////////////
+      
+      {
+        Teuchos::ParameterList stmp = ssetlist;
+        
+        Teuchos::ParameterList::ConstIterator sl_itr = ssetlist.begin();
+        while (sl_itr != ssetlist.end()) {
+          string newvar = sl_itr->first;
+          if (ssetlist.isSublist(newvar)) {
+            if (newvar.find(block_names[block]) != std::string::npos) {
+              Teuchos::ParameterList slist = ssetlist.sublist(newvar);
+              Teuchos::ParameterList::ConstIterator pl_itr = slist.begin();
+              while (pl_itr != slist.end()) {
+                string newentry = pl_itr->first;
+                stmp.setEntry(pl_itr->first, pl_itr->second);
+                pl_itr++;
+              }
+            }
+          }
+          sl_itr++;
+        }
+        
+        currssettings.push_back(stmp);
       }
     }
     physics_settings.push_back(currpsettings);
     disc_settings.push_back(currdsettings);
     solver_settings.push_back(currssettings);
   }
-    
+  
   this->importPhysics();
   
   debugger->print("**** Finished physics constructor");
@@ -147,12 +202,20 @@ void PhysicsInterface::importPhysics() {
     vector<vector<bool> > set_use_DG;
     vector<size_t> set_num_vars;
     
+    vector<vector<int> > set_phase_orders;
+    vector<vector<string> > set_phase_types;
+    vector<vector<string> > set_phase_var_list;
+    vector<size_t> set_phase_num_vars;
+    
     for (size_t block=0; block<block_names.size(); ++block) { // element blocks
       vector<int> block_orders;
       vector<string> block_types;
       vector<string> block_var_list;
       vector<int> block_var_owned;
       vector<bool> block_use_DG;
+      vector<int> block_phase_orders;
+      vector<string> block_phase_types;
+      vector<string> block_phase_var_list;
       
       for (size_t m=0; m<modules[set][block].size(); m++) {
         vector<string> cvars = modules[set][block][m]->myvars;
@@ -174,6 +237,26 @@ void PhysicsInterface::importPhysics() {
           
           block_var_owned.push_back(m);
           block_orders.push_back(disc_settings[set][block].sublist("order").get<int>(cvars[v],1));
+        }
+        
+        if (phase_dimension > 0) {
+          vector<string> pvars = modules[set][block][m]->myphasevars;
+          vector<string> ptypes = modules[set][block][m]->myphasebasistypes;
+          for (size_t v=0; v<pvars.size(); v++) {
+            block_phase_var_list.push_back(pvars[v]);
+            string DGflag("-DG");
+            size_t found = ptypes[v].find(DGflag);
+            if (found!=string::npos) {
+              string name = ptypes[v];
+              name.erase(name.end()-3, name.end());
+              block_phase_types.push_back(name);
+            }
+            else {
+              block_phase_types.push_back(ptypes[v]);
+            }
+            
+            block_phase_orders.push_back(disc_settings[set][block].sublist("phase order").get<int>(pvars[v],1));
+          }
         }
       }
       
@@ -214,6 +297,10 @@ void PhysicsInterface::importPhysics() {
       set_num_vars.push_back(block_var_list.size());
       set_use_DG.push_back(block_use_DG);
       
+      set_phase_orders.push_back(block_phase_orders);
+      set_phase_types.push_back(block_phase_types);
+      set_phase_var_list.push_back(block_phase_var_list);
+      set_phase_num_vars.push_back(block_phase_var_list.size());
     }
     orders.push_back(set_orders);
     types.push_back(set_types);
@@ -221,6 +308,10 @@ void PhysicsInterface::importPhysics() {
     var_owned.push_back(set_var_owned);
     num_vars.push_back(set_num_vars);
     use_DG.push_back(set_use_DG);
+    phase_orders.push_back(set_phase_orders);
+    phase_types.push_back(set_phase_types);
+    phase_var_list.push_back(set_phase_var_list);
+    phase_num_vars.push_back(set_phase_num_vars);
   }
     
   //-----------------------------------------------------------------
@@ -291,6 +382,39 @@ void PhysicsInterface::importPhysics() {
     unique_index.push_back(block_unique_index);
     
   }
+  
+  std::vector<int> block_phase_unique_orders;
+  std::vector<string> block_phase_unique_types;
+  std::vector<int> block_phase_unique_index;
+  
+  if (phase_dimension > 0) {
+    int currnum_vars = 0;
+    for (size_t set=0; set<set_names.size(); set++) { // physics sets
+      currnum_vars += phase_var_list[set][0].size();
+    }
+    TEUCHOS_TEST_FOR_EXCEPTION(currnum_vars==0,std::runtime_error,"Error: no variable were added on phase block: " + phase_block_names[0]);
+    
+    for (size_t set=0; set<set_names.size(); set++) { // physics sets
+      for (size_t j=0; j<phase_orders[set][0].size(); j++) {
+        bool is_unique = true;
+        for (size_t k=0; k<block_phase_unique_orders.size(); k++) {
+          if (block_phase_unique_orders[k] == phase_orders[set][0][j] && block_phase_unique_types[k] == phase_types[set][0][j]) {
+            is_unique = false;
+            block_phase_unique_index.push_back(k);
+          }
+        }
+        if (is_unique) {
+          block_phase_unique_orders.push_back(phase_orders[set][0][j]);
+          block_phase_unique_types.push_back(phase_types[set][0][j]);
+          block_phase_unique_index.push_back(block_phase_unique_orders.size()-1);
+        }
+      }
+    }
+  }
+  
+  unique_phase_orders.push_back(block_phase_unique_orders);
+  unique_phase_types.push_back(block_phase_unique_types);
+  unique_phase_index.push_back(block_phase_unique_index);
   
   debugger->print("**** Finished PhysicsInterface::importPhysics ...");
   

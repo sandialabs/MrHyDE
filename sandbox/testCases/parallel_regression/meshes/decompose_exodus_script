@@ -1,0 +1,52 @@
+#!/bin/bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
+: "${MRHYDE_ROOT:?error: set MRHYDE_ROOT first}"
+DECOMP="${MRHYDE_ROOT}/trilinos_install/install/bin/decomp"
+EXODUS="mesh.exo"
+NPS=(8 16 32)
+METHODS=(hsfc rcb rib multikl multikl_f)
+
+method_flags() {
+  [[ "$1" == "multikl_f" ]] && echo "-l multikl -n -f" || echo "-l $1"
+}
+
+run_one_dir() {
+  local mesh_dir="$1"
+  [[ -f "${mesh_dir}/${EXODUS}" ]] || { echo "skip ${mesh_dir##*/} (no ${EXODUS})"; return; }
+
+  for m in "${METHODS[@]}"; do
+    for n in "${NPS[@]}"; do
+      local tag="np${n}_${m}"
+      local out="${mesh_dir}/${tag}"
+
+      if [[ -f "${out}/${EXODUS}.nem" ]]; then
+        echo "skip ${mesh_dir##*/}/${tag}"
+        continue
+      fi
+
+      rm -rf "${out}"
+      mkdir -p "${out}"
+      cp "${mesh_dir}/${EXODUS}" "${out}/${EXODUS}"
+
+      local flags
+      flags="$(method_flags "${m}")"
+      echo "build ${mesh_dir##*/}/${tag}"
+      ( cd "${out}" && "${DECOMP}" -p "${n}" ${flags} "${EXODUS}" )
+    done
+  done
+}
+
+[[ -x "${DECOMP}" ]] || { echo "error: decomp not executable at ${DECOMP}" >&2; exit 1; }
+
+if [[ $# -gt 0 ]]; then
+  target_dir="${ROOT_DIR}/$1"
+  [[ -d "${target_dir}" ]] || { echo "error: directory not found: ${target_dir}" >&2; exit 1; }
+  run_one_dir "${target_dir}"
+else
+  for d in "${ROOT_DIR}"/*; do
+    [[ -d "${d}" ]] || continue
+    run_one_dir "${d}"
+  done
+fi

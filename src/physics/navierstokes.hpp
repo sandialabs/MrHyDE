@@ -107,7 +107,7 @@ namespace MrHyDE {
     
     int ux_num, uy_num, uz_num, pr_num, e_num;
     
-    bool useSUPG, usePSPG;
+    bool useSUPG, usePSPG, have_induction;
 
     vector<ScalarT> pik;
     bool have_energy;

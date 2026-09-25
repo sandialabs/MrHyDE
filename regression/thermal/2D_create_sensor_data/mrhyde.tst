@@ -50,7 +50,7 @@ status += its.call('mpiexec -n 1 ../../mrhyde >& mrhyde.log')
 err = 0.0
 
 # read the list of files to compare
-filenames = ['sensor.objval', 'sensor.objgrad']
+filenames = ['sensor.objval.eblock-0_0', 'sensor.objgrad.eblock-0_0']
 for filename in filenames:
   # this creates a list filled with strings from each line of the file
   outfile = open(filename+'.out','r')

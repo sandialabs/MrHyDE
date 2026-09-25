@@ -23,6 +23,7 @@
 #include "stokes.hpp"
 #include "navierstokes.hpp"
 #include "linearelasticity.hpp"
+#include "elastodynamics.hpp"
 #include "neohookean.hpp"
 #include "helmholtz.hpp"
 #include "maxwells_fp.hpp"
@@ -41,9 +42,13 @@
 #include "hartmann.hpp"
 #include "vlasov_fokker_planck_0d2v.hpp"
 #include "vlasov_fokker_planck_1d2v.hpp"
+#include "vlasov_fokker_planck.hpp"
+#include "phase_elliptic.hpp"
 #include "levelSet.hpp"
 #include "maxwell_bianisotropic.hpp"
 #include "maxwell_general.hpp"
+#include "mhd.hpp"
+#include "induction.hpp"
 
 #if defined(MrHyDE_ENABLE_MIRAGE)
 #include "mirage.hpp"
@@ -52,6 +57,8 @@
 #if defined(MrHyDE_ENABLE_PIEZO)
 #include "piezo_maxwell.hpp"
 #include "piezo_mechanics.hpp"
+#include "piezo_potential.hpp"
+#include "piezo_elastodynamics.hpp"
 #include "full_tensor.hpp"
 #endif
 
@@ -164,6 +171,17 @@ vector<Teuchos::RCP<PhysicsBase<EvalT> > > PhysicsImporter<EvalT>::import(vector
     if (modname == "navier stokes" || modname == "Navier Stokes") {
       modules.push_back(Teuchos::rcp(new navierstokes<EvalT>(settings, dimension) ) );
     }
+    
+    // MHD
+    if (modname == "MHD" || modname == "mhd") {
+      modules.push_back(Teuchos::rcp(new MHD<EvalT>(settings, dimension) ) );
+    }
+    
+    // induction
+    if (modname == "induction") {
+      modules.push_back(Teuchos::rcp(new induction<EvalT>(settings, dimension) ) );
+    }
+    
     // Hartmann
     if (modname == "hartmann") {
       modules.push_back(Teuchos::rcp(new hartmann<EvalT>(settings, dimension) ) );
@@ -172,6 +190,11 @@ vector<Teuchos::RCP<PhysicsBase<EvalT> > > PhysicsImporter<EvalT>::import(vector
     // Linear Elasticity
     if (modname == "linearelasticity" || modname == "linear elasticity") {
       modules.push_back(Teuchos::rcp(new linearelasticity<EvalT>(settings, dimension) ) );
+    }
+
+    // Linear Elastodynamics
+    if (modname == "elastodynamics") {
+      modules.push_back(Teuchos::rcp(new elastodynamics<EvalT>(settings, dimension) ) );
     }
 
     // Neo-Hookean hyperelasticity
@@ -229,6 +252,16 @@ vector<Teuchos::RCP<PhysicsBase<EvalT> > > PhysicsImporter<EvalT>::import(vector
       modules.push_back(Teuchos::rcp(new VFP1d2v<EvalT>(settings, dimension) ) );
     }
     
+    // VFP equations (arbitrary dimensions)
+    if (modname == "VFP" ){
+      modules.push_back(Teuchos::rcp(new VFP<EvalT>(settings, dimension) ) );
+    }
+    
+    // Phase equation for testing
+    if (modname == "phase elliptic" ){
+      modules.push_back(Teuchos::rcp(new PhaseElliptic<EvalT>(settings, dimension) ) );
+    }
+    
     // Incompressible saturation equation
     if (modname == "incompressible saturation" || modname == "inc sat" ){
       modules.push_back(Teuchos::rcp(new incompressibleSaturation<EvalT>(settings, dimension) ) );
@@ -259,6 +292,14 @@ vector<Teuchos::RCP<PhysicsBase<EvalT> > > PhysicsImporter<EvalT>::import(vector
     // Physics for Piezo
     if (modname == "piezo mechanics"){
         modules.push_back(Teuchos::rcp(new piezo_mechanics<EvalT>(settings, dimension) ) );
+    }
+    // Physics for Piezo
+    if (modname == "piezo potential" ){
+        modules.push_back(Teuchos::rcp(new piezo_potential<EvalT>(settings, dimension) ) );
+    }
+    // Physics for Piezo
+    if (modname == "piezo elastodynamics" ){
+        modules.push_back(Teuchos::rcp(new piezo_elastodynamics<EvalT>(settings, dimension) ) );
     }
     #endif
     

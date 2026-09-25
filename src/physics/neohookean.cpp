@@ -41,20 +41,25 @@ neohookean<EvalT>::neohookean(Teuchos::ParameterList & settings, const int & dim
   
   spaceDim = dimension_;
   
-  if (spaceDim == 1) {
-    myvars = {"dx"};
-    mybasistypes = {"HGRAD"};
-  }
-  else if (spaceDim == 2) {
-    myvars = {"dx","dy"};
-    mybasistypes = {"HGRAD","HGRAD"};
-  }
-  else if (spaceDim == 3) {
-    myvars = {"dx","dy","dz"};
-    mybasistypes = {"HGRAD","HGRAD","HGRAD"};
-  }
-  
-  modelparams = Kokkos::View<ScalarT*,AssemblyDevice>("parameters for NH",2); 
+    bool addnew = true;
+    
+    if (addnew) {
+      if (spaceDim == 1) {
+        myvars = {"neodx"};
+        mybasistypes = {"HGRAD"};
+      }
+      else if (spaceDim == 2) {
+        myvars = {"neodx","neody"};
+        mybasistypes = {"HGRAD","HGRAD"};
+      }
+      else if (spaceDim == 3) {
+        myvars = {"neodx","neody","neodz"};
+        mybasistypes = {"HGRAD","HGRAD","HGRAD"};
+      }
+    }
+  use_quadrature_data = settings.get<bool>("use quadrature data",false);
+    
+  modelparams = Kokkos::View<ScalarT*,AssemblyDevice>("parameters for NH",2);
   auto modelparams_host = Kokkos::create_mirror_view(modelparams); 
  
   modelparams_host(0) = settings.get<ScalarT>("form_param",1.0);
@@ -109,7 +114,12 @@ void neohookean<EvalT>::volumeResidual() {
     if (spaceDim > 2) {
       source_dz = functionManager->evaluate("source dz","ip");
     }
-    lambda = functionManager->evaluate("lambda","ip");
+    if (use_quadrature_data) {
+      lambda = Vista<EvalT>(wkset->extra_data);
+    }
+    else {
+      lambda = functionManager->evaluate("lambda","ip");
+    }
     mu = functionManager->evaluate("mu","ip");
   }
   
@@ -240,6 +250,7 @@ void neohookean<EvalT>::volumeResidual() {
       });
     }
   }
+  
 }
 
 // ========================================================================================
@@ -273,22 +284,22 @@ void neohookean<EvalT>::boundaryResidual() {
     {
       Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
       if (dx_sidetype == "Neumann") {
-        source_dx = functionManager->evaluate("Neumann dx " + wkset->sidename,"side ip");
+        source_dx = functionManager->evaluate("Neumann neodx " + wkset->sidename,"side ip");
       }
       else if (dx_sidetype == "weak Dirichlet") {
-        source_dx = functionManager->evaluate("Dirichlet dx " + wkset->sidename,"side ip");
+        source_dx = functionManager->evaluate("Dirichlet neodx " + wkset->sidename,"side ip");
       }
       if (dy_sidetype == "Neumann") {
-        source_dy = functionManager->evaluate("Neumann dy " + wkset->sidename,"side ip");
+        source_dy = functionManager->evaluate("Neumann neody " + wkset->sidename,"side ip");
       }
       else if (dy_sidetype == "weak Dirichlet") {
-        source_dy = functionManager->evaluate("Dirichlet dy " + wkset->sidename,"side ip");
+        source_dy = functionManager->evaluate("Dirichlet neody " + wkset->sidename,"side ip");
       }
       if (dz_sidetype == "Neumann") {
-        source_dz = functionManager->evaluate("Neumann dz " + wkset->sidename,"side ip");
+        source_dz = functionManager->evaluate("Neumann neodz " + wkset->sidename,"side ip");
       }
       else if (dz_sidetype == "weak Dirichlet") {
-        source_dz = functionManager->evaluate("Dirichlet dz " + wkset->sidename,"side ip");
+        source_dz = functionManager->evaluate("Dirichlet neodz " + wkset->sidename,"side ip");
       }
       
       lambda_side = functionManager->evaluate("lambda","side ip");
@@ -322,7 +333,7 @@ void neohookean<EvalT>::boundaryResidual() {
         });
       }
       else if (dx_sidetype == "weak Dirichlet") {
-        auto dx = wkset->getSolutionField("dx");
+        auto dx = wkset->getSolutionField("neodx");
         parallel_for("NH ux bndry resid 1D wD",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      MRHYDE_LAMBDA (const int e ) {
@@ -336,8 +347,8 @@ void neohookean<EvalT>::boundaryResidual() {
         });
       }
       else if (dx_sidetype == "interface") {
-        auto dx = wkset->getSolutionField("dx");
-        auto lambdax = wkset->getSolutionField("aux dx");
+        auto dx = wkset->getSolutionField("neodx");
+        auto lambdax = wkset->getSolutionField("aux neodx");
         parallel_for("NH ux bndry resid 1D wD-ms",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      MRHYDE_LAMBDA (const int e ) {
@@ -374,7 +385,7 @@ void neohookean<EvalT>::boundaryResidual() {
           });
         }
         else if (dx_sidetype == "weak Dirichlet") {
-          auto dx = wkset->getSolutionField("dx");
+          auto dx = wkset->getSolutionField("neodx");
           parallel_for("NH ux bndry resid 2D wD",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        MRHYDE_LAMBDA (const int e ) {
@@ -388,8 +399,8 @@ void neohookean<EvalT>::boundaryResidual() {
           });
         }
         else if (dx_sidetype == "interface") {
-          auto dx = wkset->getSolutionField("dx");
-          auto lambdax = wkset->getSolutionField("aux dx");
+          auto dx = wkset->getSolutionField("neodx");
+          auto lambdax = wkset->getSolutionField("aux neodx");
           parallel_for("NH ux bndry resid 2D wD-ms",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        MRHYDE_LAMBDA (const int e ) {
@@ -422,7 +433,7 @@ void neohookean<EvalT>::boundaryResidual() {
           });
         }
         else if (dy_sidetype == "weak Dirichlet") {
-          auto dy = wkset->getSolutionField("dy");
+          auto dy = wkset->getSolutionField("neody");
           parallel_for("NH uy bndry resid 2D wD",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        MRHYDE_LAMBDA (const int e ) {
@@ -436,8 +447,8 @@ void neohookean<EvalT>::boundaryResidual() {
           });
         }
         else if (dy_sidetype == "interface") {
-          auto dy = wkset->getSolutionField("dy");
-          auto lambday = wkset->getSolutionField("aux dy");
+          auto dy = wkset->getSolutionField("neody");
+          auto lambday = wkset->getSolutionField("aux neody");
           parallel_for("NH uy bndry resid 2D wD-ms",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        MRHYDE_LAMBDA (const int e ) {
@@ -476,7 +487,7 @@ void neohookean<EvalT>::boundaryResidual() {
           });
         }
         else if (dx_sidetype == "weak Dirichlet") {
-          auto dx = wkset->getSolutionField("dx");
+          auto dx = wkset->getSolutionField("neodx");
           parallel_for("NH ux bndry resid 3D wD",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        MRHYDE_LAMBDA (const int e ) {
@@ -490,8 +501,8 @@ void neohookean<EvalT>::boundaryResidual() {
           });
         }
         else if (dx_sidetype == "interface") {
-          auto dx = wkset->getSolutionField("dx");
-          auto lambdax = wkset->getSolutionField("aux dx");
+          auto dx = wkset->getSolutionField("neodx");
+          auto lambdax = wkset->getSolutionField("aux neodx");
           parallel_for("NH ux bndry resid 3D wD-ms",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        MRHYDE_LAMBDA (const int e ) {
@@ -524,7 +535,7 @@ void neohookean<EvalT>::boundaryResidual() {
           });
         }
         else if (dy_sidetype == "weak Dirichlet") {
-          auto dy = wkset->getSolutionField("dy");
+          auto dy = wkset->getSolutionField("neody");
           parallel_for("NH uy bndry resid 3D wD",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        MRHYDE_LAMBDA (const int e ) {
@@ -538,8 +549,8 @@ void neohookean<EvalT>::boundaryResidual() {
           });
         }
         else if (dy_sidetype == "interface") {
-          auto dy = wkset->getSolutionField("dy");
-          auto lambday = wkset->getSolutionField("aux dy");
+          auto dy = wkset->getSolutionField("neody");
+          auto lambday = wkset->getSolutionField("aux neody");
           parallel_for("NH uy bndry resid 3D wD-ms",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        MRHYDE_LAMBDA (const int e ) {
@@ -572,7 +583,7 @@ void neohookean<EvalT>::boundaryResidual() {
           });
         }
         else if (dz_sidetype == "weak Dirichlet") {
-          auto dz = wkset->getSolutionField("dz");
+          auto dz = wkset->getSolutionField("neodz");
           parallel_for("NH uz bndry resid 3D wD",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        MRHYDE_LAMBDA (const int e ) {
@@ -586,8 +597,8 @@ void neohookean<EvalT>::boundaryResidual() {
           });
         }
         else if (dz_sidetype == "interface") {
-          auto dz = wkset->getSolutionField("dz");
-          auto lambdaz = wkset->getSolutionField("aux dz");
+          auto dz = wkset->getSolutionField("neodz");
+          auto lambdaz = wkset->getSolutionField("aux neodz");
           parallel_for("NH uz bndry resid 3D wD-ms",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        MRHYDE_LAMBDA (const int e ) {
@@ -642,14 +653,14 @@ void neohookean<EvalT>::computeFlux() {
     
     if (spaceDim == 1) {
       auto nx = wkset->getScalarField("n[x]");
-      auto dx = wkset->getSolutionField("dx");
+      auto dx = wkset->getSolutionField("neodx");
       Vista<EvalT> source_dx;
       if (dx_sidetype == "interface") {
-        auto vsource_dx = wkset->getSolutionField("aux dx");
+        auto vsource_dx = wkset->getSolutionField("aux neodx");
         source_dx = Vista<EvalT>(vsource_dx);
       }
       else if (dx_sidetype == "weak Dirichlet" || dx_sidetype == "Dirichlet") {
-        source_dx = functionManager->evaluate("Dirichlet dx " + wkset->sidename,"side ip");
+        source_dx = functionManager->evaluate("Dirichlet neodx " + wkset->sidename,"side ip");
       }
       auto flux_x = subview(wkset->flux, ALL(), dx_num, ALL());
       parallel_for("NH flux 1D",
@@ -664,22 +675,22 @@ void neohookean<EvalT>::computeFlux() {
     else if (spaceDim == 2) {
       auto nx = wkset->getScalarField("n[x]");
       auto ny = wkset->getScalarField("n[y]");
-      auto dx = wkset->getSolutionField("dx");
-      auto dy = wkset->getSolutionField("dy");
+      auto dx = wkset->getSolutionField("neodx");
+      auto dy = wkset->getSolutionField("neody");
       Vista<EvalT> source_dx, source_dy;
       if (dx_sidetype == "interface") {
-        auto vsource_dx = wkset->getSolutionField("aux dx");
+        auto vsource_dx = wkset->getSolutionField("aux neodx");
         source_dx = Vista<EvalT>(vsource_dx);
       }
       else if (dx_sidetype == "weak Dirichlet" || dx_sidetype == "Dirichlet") {
-        source_dx = functionManager->evaluate("Dirichlet dx " + wkset->sidename,"side ip");
+        source_dx = functionManager->evaluate("Dirichlet neodx " + wkset->sidename,"side ip");
       }
       if (dy_sidetype == "interface") {
-        auto vsource_dy = wkset->getSolutionField("aux dy");
+        auto vsource_dy = wkset->getSolutionField("aux neody");
         source_dy = Vista<EvalT>(vsource_dy);
       }
       else if (dy_sidetype == "weak Dirichlet" || dy_sidetype == "Dirichlet") {
-        source_dy = functionManager->evaluate("Dirichlet dy " + wkset->sidename,"side ip");
+        source_dy = functionManager->evaluate("Dirichlet neody " + wkset->sidename,"side ip");
       }
       auto flux_x = subview( wkset->flux, ALL(), dx_num, ALL());
       auto flux_y = subview( wkset->flux, ALL(), dy_num, ALL());
@@ -697,37 +708,37 @@ void neohookean<EvalT>::computeFlux() {
       auto nx = wkset->getScalarField("n[x]");
       auto ny = wkset->getScalarField("n[y]");
       auto nz = wkset->getScalarField("n[z]");
-      auto dx = wkset->getSolutionField("dx");
-      auto dy = wkset->getSolutionField("dy");
-      auto dz = wkset->getSolutionField("dz");
+      auto dx = wkset->getSolutionField("neodx");
+      auto dy = wkset->getSolutionField("neody");
+      auto dz = wkset->getSolutionField("neodz");
       
       Vista<EvalT> source_dx, source_dy, source_dz;
       bool compute_dx = true, compute_dy = true, compute_dz = true;
       
       if (dx_sidetype == "interface") {
-        auto vsource_dx = wkset->getSolutionField("aux dx");
+        auto vsource_dx = wkset->getSolutionField("aux neodx");
         source_dx = Vista<EvalT>(vsource_dx);
       }
       else if (dx_sidetype == "weak Dirichlet" || dx_sidetype == "Dirichlet") {
-        source_dx = functionManager->evaluate("Dirichlet dx " + wkset->sidename,"side ip");
+        source_dx = functionManager->evaluate("Dirichlet neodx " + wkset->sidename,"side ip");
       }
       else { compute_dx = false; }
       
       if (dy_sidetype == "interface") {
-        auto vsource_dy = wkset->getSolutionField("aux dy");
+        auto vsource_dy = wkset->getSolutionField("aux neody");
         source_dy = Vista<EvalT>(vsource_dy);
       }
       else if (dy_sidetype == "weak Dirichlet" || dy_sidetype == "Dirichlet") {
-        source_dy = functionManager->evaluate("Dirichlet dy " + wkset->sidename,"side ip");
+        source_dy = functionManager->evaluate("Dirichlet neody " + wkset->sidename,"side ip");
       }
       else { compute_dy = false; }
       
       if (dz_sidetype == "interface") {
-        auto vsource_dz = wkset->getSolutionField("aux dz");
+        auto vsource_dz = wkset->getSolutionField("aux neodz");
         source_dz = Vista<EvalT>(vsource_dz);
       }
       else if (dz_sidetype == "weak Dirichlet" || dz_sidetype == "Dirichlet") {
-        source_dz = functionManager->evaluate("Dirichlet dz " + wkset->sidename,"side ip");
+        source_dz = functionManager->evaluate("Dirichlet neodz " + wkset->sidename,"side ip");
       }
       else { compute_dz = false; }
       
@@ -781,11 +792,11 @@ void neohookean<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
   dy_num = -1;
   dz_num = -1;
   for (size_t i=0; i<varlist.size(); i++) {
-    if (varlist[i] == "dx")
+    if (varlist[i] == "neodx")
       dx_num = i;
-    else if (varlist[i] == "dy")
+    else if (varlist[i] == "neody")
       dy_num = i;
-    else if (varlist[i] == "dz")
+    else if (varlist[i] == "neodz")
       dz_num = i;
   }
 }
@@ -815,7 +826,7 @@ void neohookean<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu, cons
     // J = F
     // F^{-T} = 1/F
     // P = mu*F + (lambda*ln(F) - mu)/F
-    auto ddx_dx = wkset->getSolutionField("grad(dx)[x]");
+    auto ddx_dx = wkset->getSolutionField("grad(neodx)[x]");
     
     parallel_for("NH stress 1D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -835,10 +846,10 @@ void neohookean<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu, cons
     // J = F00*F11 - F01*F10
     // cof(F) = [[F11, -F10], [-F01, F00]]
     // F^{-T} = cof(F)/J
-    auto ddx_dx = wkset->getSolutionField("grad(dx)[x]");
-    auto ddx_dy = wkset->getSolutionField("grad(dx)[y]");
-    auto ddy_dx = wkset->getSolutionField("grad(dy)[x]");
-    auto ddy_dy = wkset->getSolutionField("grad(dy)[y]");
+    auto ddx_dx = wkset->getSolutionField("grad(neodx)[x]");
+    auto ddx_dy = wkset->getSolutionField("grad(neodx)[y]");
+    auto ddy_dx = wkset->getSolutionField("grad(neody)[x]");
+    auto ddy_dy = wkset->getSolutionField("grad(neody)[y]");
     
     parallel_for("NH stress 2D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -875,15 +886,15 @@ void neohookean<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu, cons
     //      [dw/dx, dw/dy, 1+dw/dz]]
     // cof(F)_ij = cofactor of F_ji (i.e., cofactor matrix, not transposed)
     // F^{-T} = cof(F)/J
-    auto ddx_dx = wkset->getSolutionField("grad(dx)[x]");
-    auto ddx_dy = wkset->getSolutionField("grad(dx)[y]");
-    auto ddx_dz = wkset->getSolutionField("grad(dx)[z]");
-    auto ddy_dx = wkset->getSolutionField("grad(dy)[x]");
-    auto ddy_dy = wkset->getSolutionField("grad(dy)[y]");
-    auto ddy_dz = wkset->getSolutionField("grad(dy)[z]");
-    auto ddz_dx = wkset->getSolutionField("grad(dz)[x]");
-    auto ddz_dy = wkset->getSolutionField("grad(dz)[y]");
-    auto ddz_dz = wkset->getSolutionField("grad(dz)[z]");
+    auto ddx_dx = wkset->getSolutionField("grad(neodx)[x]");
+    auto ddx_dy = wkset->getSolutionField("grad(neodx)[y]");
+    auto ddx_dz = wkset->getSolutionField("grad(neodx)[z]");
+    auto ddy_dx = wkset->getSolutionField("grad(neody)[x]");
+    auto ddy_dy = wkset->getSolutionField("grad(neody)[y]");
+    auto ddy_dz = wkset->getSolutionField("grad(neody)[z]");
+    auto ddz_dx = wkset->getSolutionField("grad(neodz)[x]");
+    auto ddz_dy = wkset->getSolutionField("grad(neodz)[y]");
+    auto ddz_dz = wkset->getSolutionField("grad(neodz)[z]");
     
     parallel_for("NH stress 3D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -943,8 +954,8 @@ void neohookean<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu, cons
 template<class EvalT>
 std::vector<string> neohookean<EvalT>::getDerivedNames() {
   std::vector<string> derived;
-  derived.push_back("VM stress");
-  derived.push_back("MAG stress");
+  derived.push_back("neo VM stress");
+  derived.push_back("neo MAG stress");
   return derived;
 }
 
@@ -969,7 +980,7 @@ std::vector<Kokkos::View<EvalT**,ContLayout,AssemblyDevice> > neohookean<EvalT>:
   int dimension = wkset->dimension;
   
   if (dimension == 1) {
-    auto ddx_dx = wkset->getSolutionField("grad(dx)[x]");
+    auto ddx_dx = wkset->getSolutionField("grad(neodx)[x]");
     parallel_for("NH derived fill 1D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  MRHYDE_LAMBDA (const int elem ) {
@@ -984,10 +995,10 @@ std::vector<Kokkos::View<EvalT**,ContLayout,AssemblyDevice> > neohookean<EvalT>:
     });
   }
   else if (dimension == 2) {
-    auto ddx_dx = wkset->getSolutionField("grad(dx)[x]");
-    auto ddx_dy = wkset->getSolutionField("grad(dx)[y]");
-    auto ddy_dx = wkset->getSolutionField("grad(dy)[x]");
-    auto ddy_dy = wkset->getSolutionField("grad(dy)[y]");
+    auto ddx_dx = wkset->getSolutionField("grad(neodx)[x]");
+    auto ddx_dy = wkset->getSolutionField("grad(neodx)[y]");
+    auto ddy_dx = wkset->getSolutionField("grad(neody)[x]");
+    auto ddy_dy = wkset->getSolutionField("grad(neody)[y]");
     parallel_for("NH derived fill 2D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  MRHYDE_LAMBDA (const int elem ) {
@@ -1015,15 +1026,15 @@ std::vector<Kokkos::View<EvalT**,ContLayout,AssemblyDevice> > neohookean<EvalT>:
     });
   }
   else if (dimension == 3) {
-    auto ddx_dx = wkset->getSolutionField("grad(dx)[x]");
-    auto ddx_dy = wkset->getSolutionField("grad(dx)[y]");
-    auto ddx_dz = wkset->getSolutionField("grad(dx)[z]");
-    auto ddy_dx = wkset->getSolutionField("grad(dy)[x]");
-    auto ddy_dy = wkset->getSolutionField("grad(dy)[y]");
-    auto ddy_dz = wkset->getSolutionField("grad(dy)[z]");
-    auto ddz_dx = wkset->getSolutionField("grad(dz)[x]");
-    auto ddz_dy = wkset->getSolutionField("grad(dz)[y]");
-    auto ddz_dz = wkset->getSolutionField("grad(dz)[z]");
+    auto ddx_dx = wkset->getSolutionField("grad(neodx)[x]");
+    auto ddx_dy = wkset->getSolutionField("grad(neodx)[y]");
+    auto ddx_dz = wkset->getSolutionField("grad(neodx)[z]");
+    auto ddy_dx = wkset->getSolutionField("grad(neody)[x]");
+    auto ddy_dy = wkset->getSolutionField("grad(neody)[y]");
+    auto ddy_dz = wkset->getSolutionField("grad(neody)[z]");
+    auto ddz_dx = wkset->getSolutionField("grad(neodz)[x]");
+    auto ddz_dy = wkset->getSolutionField("grad(neodz)[y]");
+    auto ddz_dz = wkset->getSolutionField("grad(neodz)[z]");
     parallel_for("NH derived fill 3D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  MRHYDE_LAMBDA (const int elem ) {
