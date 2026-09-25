@@ -871,6 +871,12 @@ public:
   vector<LumpedPortParameterVolumeGroup> lumped_port_parameter_volume_groups;
 
 private:
+
+  /**
+   * @brief Returns true when the current sample belongs in the active DFT window.
+   */
+  bool useCurrentTimeForDFT(const vector<NF2FFPort> & ports,
+                            const ScalarT & current_time) const;
   
   Teuchos::RCP<Teuchos::Time> computeErrorTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Postprocess::computeError"); ///< Timer for error computation.
   Teuchos::RCP<Teuchos::Time> writeSolutionTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Postprocess::writeSolution"); ///< Timer for solution writing.

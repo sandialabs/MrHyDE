@@ -7,6 +7,85 @@
  ************************************************************************/
 
 // ========================================================================================
+// Select the DFT accumulation window for lumped-port source waveforms.
+// ========================================================================================
+
+template <class Node>
+bool PostprocessManager<Node>::useCurrentTimeForDFT(
+  const vector<NF2FFPort> &ports, const ScalarT &current_time) const
+{
+  const ScalarT sinusoidal_dft_cycles = 4.0;
+  bool has_sinusoidal_source = false;
+  bool has_broadband_source = false;
+  ScalarT carrier_frequency = 0.0;
+  ScalarT latest_offset = -std::numeric_limits<ScalarT>::max();
+
+  for (const auto & port : ports) {
+    if (std::abs(port.amplitude) <= 1.0e-30) {
+      continue;
+    }
+
+    if (port.source_type == "sinusoidal") {
+      TEUCHOS_TEST_FOR_EXCEPTION(
+        port.carrier_frequency <= 0.0, std::runtime_error,
+        "Sinusoidal lumped-port DFT requires a positive carrier frequency.");
+
+      if (!has_sinusoidal_source) {
+        carrier_frequency = port.carrier_frequency;
+      }
+      else {
+        const ScalarT frequency_tolerance = 1.0e-12*std::max(
+          ScalarT(1.0),
+          std::max(std::abs(carrier_frequency),
+                   std::abs(port.carrier_frequency)));
+        TEUCHOS_TEST_FOR_EXCEPTION(
+          std::abs(port.carrier_frequency - carrier_frequency) >
+          frequency_tolerance,
+          std::runtime_error,
+          "Steady-state sinusoidal DFT requires active sinusoidal lumped "
+          "ports to use the same carrier frequency.");
+      }
+
+      latest_offset = std::max(latest_offset, port.offset);
+      has_sinusoidal_source = true;
+    }
+    else {
+      has_broadband_source = true;
+    }
+  }
+
+  if (!has_sinusoidal_source) {
+    return true;
+  }
+
+  TEUCHOS_TEST_FOR_EXCEPTION(
+    has_broadband_source, std::runtime_error,
+    "Steady-state sinusoidal DFT cannot be combined with an active broadband "
+    "lumped-port source in the same run.");
+
+  const ScalarT final_time =
+    settings->sublist("Solver").get<double>("final time", 1.0);
+  const ScalarT source_period = 1.0/carrier_frequency;
+  const ScalarT dft_start_time =
+    final_time - sinusoidal_dft_cycles*source_period;
+  const ScalarT time_tolerance = 1.0e-10*std::max(
+    source_period,
+    std::max(std::abs(final_time), std::abs(latest_offset)));
+
+  TEUCHOS_TEST_FOR_EXCEPTION(
+    dft_start_time + time_tolerance < latest_offset,
+    std::runtime_error,
+    "Sinusoidal lumped-port DFT requires at least four complete source cycles "
+    "after the sinusoidal ramp ends.");
+
+  // The solver records the initial state and then records each completed time step.
+  // Excluding the sample at the left edge gives four complete time-step intervals
+  // when the DFT start time falls exactly on a time step.
+  return current_time > dft_start_time + time_tolerance;
+}
+
+
+// ========================================================================================
 // Called after each time step from the solver manager
 // Checks if output is required at this time, and write to file or saves for output later
 // ========================================================================================
@@ -30,10 +109,12 @@ void PostprocessManager<Node>::record(vector<vector_RCP> &current_soln, const Sc
         write_exodus_this_step = true;
     }
     
-    if (nf2ff.save) {
+    if (nf2ff.save &&
+        this->useCurrentTimeForDFT(nf2ff_ports, current_time)) {
         this->accumulateNF2FF(current_soln, current_time, deltat);
     }
-    if (lumped_port_parameters.save) {
+    if (lumped_port_parameters.save &&
+        this->useCurrentTimeForDFT(lumped_port_parameter_ports, current_time)) {
         this->accumulateLumpedPortParameters(current_soln, current_time, deltat);
     }
 

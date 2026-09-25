@@ -350,12 +350,12 @@ void AssemblyManager<Node>::configurePlanewaves() {
     const ScalarT tm_weight = tm/polarization_norm;
     const ScalarT time_offset = offset_multiplier*tau;
 
-    const string spatial_delay =
-      "((" + scalarString(kx) + "*x+" + scalarString(ky) + "*y+" +
-      scalarString(kz) + "*z)/c0)";
-    const string u = "(t-" + spatial_delay + "-" +
-      scalarString(time_offset) + ")";
-    const string reference_u = "(t-" + scalarString(time_offset) + ")";
+    const string u_raw = "t+" + scalarString(-kx) + "*x/c0+" +
+      scalarString(-ky) + "*y/c0+" + scalarString(-kz) + "*z/c0-" +
+      scalarString(time_offset);
+    const string reference_u_raw = "t-" + scalarString(time_offset);
+    const string u = "(" + u_raw + ")";
+    const string reference_u = "(" + reference_u_raw + ")";
     const string a = "(" + u + "/" + scalarString(tau) + ")";
     const string reference_a = "(" + reference_u + "/" +
       scalarString(tau) + ")";
@@ -393,9 +393,9 @@ void AssemblyManager<Node>::configurePlanewaves() {
         scalarString(tm_phase) + ")";
     }
     else {
-      const string ramp_argument = "(min(" + u + ",0.0)/" +
+      const string ramp_argument = "(min(" + u_raw + ",0.0)/" +
         scalarString(tau) + ")";
-      const string reference_ramp_argument = "(min(" + reference_u +
+      const string reference_ramp_argument = "(min(" + reference_u_raw +
         ",0.0)/" + scalarString(tau) + ")";
       waveform_te = "exp(-" + ramp_argument + "*" + ramp_argument +
         ")*cos(2.0*pi*" + scalarString(carrier_frequency) + "*" + u + ")";
@@ -514,6 +514,28 @@ void AssemblyManager<Node>::configureLumpedPorts() {
     return stream.str();
   };
 
+  auto getScalar = [](const Teuchos::ParameterList & list,
+                      const string & name,
+                      const ScalarT & fallback) {
+    if (list.isType<ScalarT>(name)) {
+      return list.get<ScalarT>(name);
+    }
+    if (list.isType<int>(name)) {
+      return static_cast<ScalarT>(list.get<int>(name));
+    }
+    if (list.isType<string>(name)) {
+      try {
+        return static_cast<ScalarT>(std::stod(list.get<string>(name)));
+      }
+      catch (...) {
+        TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error,
+                                   "Lumped-port setting '" << name
+                                   << "' must be a numeric value.");
+      }
+    }
+    return fallback;
+  };
+
   auto getExpression = [](const Teuchos::ParameterList & list,
                           const string & name,
                           const string & fallback) {
@@ -573,14 +595,14 @@ void AssemblyManager<Node>::configureLumpedPorts() {
     if (port_settings.isSublist("polarization")) {
       Teuchos::ParameterList & polarization =
         port_settings.sublist("polarization");
-      px = polarization.get<ScalarT>("x", 0.0);
-      py = polarization.get<ScalarT>("y", 0.0);
-      pz = polarization.get<ScalarT>("z", 0.0);
+      px = getScalar(polarization, "x", 0.0);
+      py = getScalar(polarization, "y", 0.0);
+      pz = getScalar(polarization, "z", 0.0);
     }
     else {
-      px = port_settings.get<ScalarT>("polarization x", 0.0);
-      py = port_settings.get<ScalarT>("polarization y", 0.0);
-      pz = port_settings.get<ScalarT>("polarization z", 0.0);
+      px = getScalar(port_settings, "polarization x", 0.0);
+      py = getScalar(port_settings, "polarization y", 0.0);
+      pz = getScalar(port_settings, "polarization z", 0.0);
     }
 
     const ScalarT polarization_norm = std::sqrt(px*px + py*py + pz*pz);
@@ -591,15 +613,15 @@ void AssemblyManager<Node>::configureLumpedPorts() {
     py /= polarization_norm;
     pz /= polarization_norm;
 
-    const ScalarT impedance = port_settings.get<ScalarT>("impedance", 50.0);
-    const ScalarT amplitude = port_settings.get<ScalarT>("amplitude", 1.0);
+    const ScalarT impedance = getScalar(port_settings, "impedance", 50.0);
+    const ScalarT amplitude = getScalar(port_settings, "amplitude", 1.0);
     const ScalarT min_frequency =
-      port_settings.get<ScalarT>("min_frequency", 0.0);
+      getScalar(port_settings, "min_frequency", 0.0);
     const ScalarT max_frequency =
-      port_settings.get<ScalarT>("max_frequency", 0.0);
+      getScalar(port_settings, "max_frequency", 0.0);
     const ScalarT bandwidth = max_frequency - min_frequency;
     const ScalarT offset_multiplier =
-      port_settings.get<ScalarT>("offset", 6.0);
+      getScalar(port_settings, "offset", 6.0);
     string source_type =
       port_settings.get<string>("type", "gaussian derivative");
     for (size_t i = 0; i < source_type.size(); ++i) {
@@ -644,7 +666,7 @@ void AssemblyManager<Node>::configureLumpedPorts() {
     }
     else if (source_type == "sinusoidal") {
       const ScalarT frequency =
-        port_settings.get<ScalarT>("frequency", 0.0);
+        getScalar(port_settings, "frequency", 0.0);
       TEUCHOS_TEST_FOR_EXCEPTION(frequency <= 0.0, std::runtime_error,
                                  "Lumped sinusoidal source '" << port_name
                                  << "' requires frequency > 0.");
@@ -762,9 +784,10 @@ void AssemblyManager<Node>::configureLumpedPorts() {
     port_settings.set("type", source_type);
 
     string waveform;
-    const string u = "(t-" + scalarString(offset) + ")";
-    const string a = "(" + u + "/" + scalarString(tau) + ")";
-    const string envelope = "exp(-" + a + "*" + a + ")";
+    const string u_raw = "t-" + scalarString(offset);
+	const string u = "(" + u_raw + ")";
+	const string a = "(" + u + "/" + scalarString(tau) + ")";
+	const string envelope = "exp(-" + a + "*" + a + ")";
 
     if (source_type == "gaussian") {
       waveform = envelope;
@@ -777,7 +800,7 @@ void AssemblyManager<Node>::configureLumpedPorts() {
                  scalarString(carrier_frequency) + "*" + u + ")";
     }
     else {
-      const string ramp_argument = "(min(" + u + ",0.0)/" +
+	  const string ramp_argument = "(min(" + u_raw + ",0.0)/" +
                                    scalarString(tau) + ")";
       waveform = "exp(-" + ramp_argument + "*" + ramp_argument +
                  ")*cos(2.0*pi*" + scalarString(carrier_frequency) +
