@@ -36,62 +36,54 @@
 
 namespace MrHyDE {
 
-/** \brief Schur approximation and block-triangular options (type, damping, pivot block, strictness). */
+// Schur and block-triangular options.
+// Ooverview at the top of linearAlgebraInterface_blockprec.hpp.
 struct SchurConfig {
-  /** Canonical Schur approximation family (currently base or diag). */
-  std::string approximation_type;
-  /**< Pivot block index p. pivot_block=0 -> Schur on block 1: S = J11 - J10*inv(J00)*J01.
-   *   pivot_block=1 -> Schur on block 0: S = J00 - J01*inv(J11)*J10. */
-  int pivot_block;
-  /**< Gamma in diag Schur. E.g. pivot_block=0: S = J11 - gamma*J10*diag(J00)^{-1}*J01. */
-  ScalarT damping;
+  std::string approximation_type;   // base or diag
+  int pivot_block;                  // variable index taking the pivot role
+  ScalarT damping;                  // gamma in the diag Schur correction
   bool diag_use_lumped_pivot_diagonal;
-  /**< Canonical triangle for the block Gauss-Seidel sweep (auto, upper, lower). */
-  std::string triangle;
+  std::string triangle;             // auto, upper, lower
   std::string pivot_block_preconditioner_type;
   bool pivot_block_diag_use_lumped_diagonal;
   std::string schur_block_preconditioner_type;
 };
 
-/** \brief RefMaxwell auxiliary matrices and vectors (D0, M1, coords) and debug/strict flags. */
+// Auxiliary operators for the H(curl) preconditioners, built once per set by
+// SolverManager::setupBlockTriangularAuxiliary and shared by RefMaxwell, Maxwell1 and
+// the Hiptmair smoother. D0/M1/Kn are defined above the
+// buildRefMaxwellPreconditioner (linearAlgebraInterface_solvers.hpp).
 template<class Node>
 struct RefMaxwellData {
   typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node>   LA_CrsMatrix;
   typedef Tpetra::MultiVector<ScalarT,LO,GO,Node> LA_MultiVector;
   typedef typename Teuchos::ScalarTraits<ScalarT>::coordinateType CoordScalar;
   typedef Tpetra::MultiVector<CoordScalar,LO,GO,Node> LA_CoordMultiVector;
-  Teuchos::RCP<LA_CrsMatrix> D0_matrix;   /**< Discrete gradient (HGRAD -> HCURL). */
-  Teuchos::RCP<LA_CrsMatrix> M1_matrix;   /**< Edge mass matrix for HCURL block. */
+  Teuchos::RCP<LA_CrsMatrix> D0_matrix;
+  Teuchos::RCP<LA_CrsMatrix> M1_matrix;
   Teuchos::RCP<LA_CoordMultiVector> nodal_coords;
-  /** Lumped nodal mass, integral(N_n), for the RefMaxwell addon. */
   Teuchos::RCP<LA_MultiVector> nodal_lumped_mass;
-  /** Curl-curl coefficient of S, alpha_u^2 * gamma / (alpha_t * mu), read off
-   *  the Schur correction. The pivot hierarchy has no beta of its own. */
+
   ScalarT schur_addon_beta = 0.0;
-  /** Memo for schur_addon_beta: the probe was taken at this stage_alpha_u. */
   bool schur_addon_beta_valid = false;
   ScalarT schur_addon_beta_alpha_u = 0.0;
-  ScalarT schur_addon_beta_built = 0.0; /**< beta baked into the cached Schur hierarchy. */
-  bool schur_addon_wanted = false;      /**< The Schur XML asked for the addon. */
+  ScalarT schur_addon_beta_built = 0.0;
+
   std::string xml_param_file_pivot = "";
   std::string xml_param_file_schur = "";
 };
 
-/** \brief Per-variable-block auxiliary data. Read by block-diagonal
- *  preconditioning and by the block-triangular Schur mass correction. */
+// Per-variable-block data, indexed the way block_prec::buildBlockMaps orders variables.
 template<class Node>
 struct BlockData {
   typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node> LA_CrsMatrix;
   typedef typename Teuchos::ScalarTraits<ScalarT>::coordinateType CoordScalar;
   typedef Tpetra::MultiVector<CoordScalar,LO,GO,Node> LA_CoordMultiVector;
-  std::vector<Teuchos::RCP<LA_CrsMatrix> > mass_matrices;      /**< Mass matrix per variable block. */
-  std::vector<Teuchos::RCP<LA_CoordMultiVector> > dof_coords;  /**< Coordinates per variable block for MueLu. */
+  std::vector<Teuchos::RCP<LA_CrsMatrix> > mass_matrices;
+  std::vector<Teuchos::RCP<LA_CoordMultiVector> > dof_coords;   // per-DOF, for MueLu
 };
 
-/** \brief Maxwell1 (Reitzinger-Schoberl / energy-min) configuration. Reuses
- *  D0 and nodal_coords from RefMaxwellData; only needs its own XML.
- *  D0_normalized is a sign-preserving normalization of D0 (each nonzero
- *  becomes +-1). Built lazily on first Maxwell1 build. */
+// Maxwell1 (Reitzinger-Schoberl) reuses D0, M1 and the coords from RefMaxwellData.
 template<class Node>
 struct Maxwell1Data {
   typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node> LA_CrsMatrix;
@@ -100,28 +92,13 @@ struct Maxwell1Data {
   Teuchos::RCP<LA_CrsMatrix> D0_normalized;
 };
 
-/**
- * \struct AMGData
- * \brief Configuration data for MueLu AMG (Algebraic MultiGrid) preconditioner.
- *
- * Stores the monolithic AMG path configuration. Block AMG reads its XML from the
- * pivot/Schur AMG Settings sublists instead.
- */
+// Monolithic AMG only.
 struct AMGData {
-  std::string xml_param_file = "";  /**< Path to XML parameter file for AMG configuration. If provided, XML is used. */
+  std::string xml_param_file = "";
 };
 
-/** \class  LinearSolverContext
- *  \brief  Stores the specifications for a given linear solver.
- *
- *  This class holds configuration options for Amesos2, Belos, and MueLu
- *  solvers and preconditioners. It also stores reusable solver components
- *  such as matrices,  symbolic factorizations, and preconditioners.
- *
- *  The linear algebra interface holds multiple contexts - one for each type of matrix that might be used.
- *
- *  \tparam Node  Tpetra execution node type.
- */
+// Settings and reusable state for one linear solver: the parsed deck, plus the
+// matrices, factorizations and preconditioners that survive across solves.
 template<class Node>
 class LinearSolverContext {
   typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node>   LA_CrsMatrix;
@@ -131,15 +108,9 @@ class LinearSolverContext {
   typedef Teuchos::RCP<LA_CrsMatrix>              matrix_RCP;
   
 public:
-  /** \brief Default constructor. */
   LinearSolverContext() {};
-  
-  /** \brief Destructor. */
   ~LinearSolverContext() {};
-  
-  /** \brief Construct options from a parameter list.
-   *  \param settings  Parameter list containing all solver settings.
-   */
+
   LinearSolverContext(Teuchos::ParameterList & settings) {
     // Parse order is intentional: discover/validate sublists first, then root
     // defaults, then block-specific overrides.
@@ -170,38 +141,35 @@ public:
     jacobian_rebuilt_this_step = true;
   }
   
-  // Public data members
-  string amesos_type;   /**< Amesos2 solver type (e.g., KLU2). */
-  string belos_type;    /**< Belos solver type (e.g., GMRES). */
-  bool flexible_gmres = false;  /**< Outer Belos uses Flexible GMRES; gates inner-Krylov wraps. */
-  string prec_type;     /**< Preconditioner type (e.g., AMG). */
-  bool use_direct;            /**< Use direct Amesos2 solver. */
-  bool use_preconditioner;      /**< Whether to apply a preconditioner. */
-  bool right_preconditioner;    /**< Whether to apply right preconditioning. */
-  string preconditioner_reuse_type; /**< Reuse mode (none, update, or full). */
-  bool reuse_matrix;          /**< Whether to reuse an existing Jacobian. */
-  ScalarT stage_alpha_u = 1.0; /**< DIRK spatial-term scaling a_ss/b_s. */
-  bool jacobian_rebuilt_this_step; /**< True when Jacobian values were rebuilt before this linear solve. */
-  bool have_matrix;           /**< Indicates whether a Jacobian has been constructed. */
-  bool have_preconditioner;     /**< Indicates whether a preconditioner exists. */
-  bool have_symb_factor;        /**< Indicates whether symbolic factorization exists. */
-  /**< Grouped Schur and block-tri options (type, damping, pivot block, strictness). */
-  SchurConfig schur;
-  /**< AMG preconditioner configuration data including XML parameter support. */
-  AMGData amg;
-  /**< RefMaxwell matrices/vectors (D0, M1, coords) and debug/strict flags. */
-  RefMaxwellData<Node> refMaxwell;
+  // Parsed deck
+  string amesos_type;                 // KLU2, SuperLU, ...
+  string belos_type;                  // Block GMRES, BiCGStab, GCRODR, ...
+  bool flexible_gmres = false;        // gates the inner-Krylov wraps
+  string prec_type;                   // AMG, Ifpack2, domain decomposition, block diagonal/triangular
+  bool use_direct;
+  bool use_preconditioner;
+  bool right_preconditioner;
+  string preconditioner_reuse_type;   // none, update, full
+  bool reuse_matrix;
+  ScalarT stage_alpha_u = 1.0;        // DIRK spatial-term scaling a_ss/b_s
 
+  // Runtime state
+  bool jacobian_rebuilt_this_step;
+  bool have_matrix;
+  bool have_preconditioner;
+  bool have_symb_factor;
+
+  SchurConfig schur;
+  AMGData amg;
+  RefMaxwellData<Node> refMaxwell;
   BlockData<Node> block;
-  /**< Maxwell1 (Reitzinger-Schoberl / energy-min) configuration; reuses D0 + coords from refMaxwell. */
   Maxwell1Data<Node> maxwell1;
 
   Teuchos::ParameterList prec_sublist, belos_sublist;
   Teuchos::ParameterList pivot_block_sublist, schur_block_sublist;
 
   // Cached across solves so GCRODR's recycled subspace and RCG's conjugate
-  // vectors survive; the LinearProblem is cached so the SolverManager's
-  // back-pointer stays valid when LHS/RHS/operator are swapped in place.
+  // vectors survive.
   Teuchos::RCP<Belos::SolverManager<ScalarT,
                                     Tpetra::MultiVector<ScalarT,LO,GO,Node>,
                                     Tpetra::Operator<ScalarT,LO,GO,Node> > > belos_solver_mgr;
@@ -210,33 +178,54 @@ public:
                                     Tpetra::Operator<ScalarT,LO,GO,Node> > > belos_problem;
   bool reuse_belos_solver_mgr;
 
-  Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > amesos_solver; /**< Reusable Amesos2 direct solver. */
-  Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > prec; /**< MueLu AMG preconditioner operator. */
-  Teuchos::RCP<Ifpack2::Preconditioner<ScalarT, LO, GO, Node> > prec_dd; /**< Ifpack2 domain decomposition preconditioner. */
-  Teuchos::RCP<Tpetra::Operator<ScalarT,LO,GO,Node> > prec_block; /**< Block-diagonal AMG preconditioner operator. */
+  Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > amesos_solver;
+  Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > prec;      // monolithic AMG
+  Teuchos::RCP<Ifpack2::Preconditioner<ScalarT, LO, GO, Node> > prec_dd; // domain decomposition
+  Teuchos::RCP<Tpetra::Operator<ScalarT,LO,GO,Node> > prec_block;        // block diagonal/triangular
 
-  matrix_RCP matrix; /**< Current Jacobian matrix. */
+  matrix_RCP matrix;
 
-  // Cached RefMaxwell preconditioner for reuse.
+  // RefMaxwell and Maxwell1 are cached per block role, one hierarchy each, and reused
+  // through resetMatrix.
   Teuchos::RCP<MueLu::RefMaxwell<ScalarT, LO, GO, Node> > refmaxwell_prec;
-  Teuchos::RCP<MueLu::RefMaxwell<ScalarT, LO, GO, Node> > schur_refmaxwell_prec; /**< Cached RefMaxwell for the Schur block. */
-  // Cached Maxwell1 (Reitzinger-Schoberl / energy-min) preconditioner for reuse.
+  Teuchos::RCP<MueLu::RefMaxwell<ScalarT, LO, GO, Node> > schur_refmaxwell_prec;
   Teuchos::RCP<MueLu::Maxwell1<ScalarT, LO, GO, Node> > maxwell1_prec;
   Teuchos::RCP<MueLu::Maxwell1<ScalarT, LO, GO, Node> > schur_maxwell1_prec;
 
-  size_t equation_set_index; /**< Set index when linearSolver(set,...) is used; for block prec. */
+  size_t equation_set_index;   // set index when linearSolver(set,...) is used
 
-  /** Built on first use; block preconditioner paths only. */
+  // RefMaxwell XML for one block role, parsed once. Callers that modify it must copy!
+  const Teuchos::ParameterList & refMaxwellParams(const bool forSchur,
+                                                  const Teuchos::Comm<int> & comm) {
+    Teuchos::RCP<Teuchos::ParameterList> & cached = forSchur ? refmaxwell_xml_schur
+                                                             : refmaxwell_xml_pivot;
+    if (cached.is_null()) {
+      cached = Teuchos::rcp(new Teuchos::ParameterList());
+      const string & file = forSchur ? refMaxwell.xml_param_file_schur
+                                     : refMaxwell.xml_param_file_pivot;
+      if (!file.empty()) block_prec::loadXmlBroadcast(file, *cached, comm, "RefMaxwell");
+    }
+    return *cached;
+  }
+
+  bool schurAddonWanted(const Teuchos::Comm<int> & comm) {
+    if (block_prec::parseBlockPrecType(schur.schur_block_preconditioner_type) != block_prec::BlockPrecType::RefMaxwell) {
+      return false;
+    }
+    return block_prec::refMaxwellAddonEnabled(refMaxwellParams(true, comm));
+  }
+
   block_prec::InverseLibraryCache<Node> & inverseLibrary(const int verbosity, const int rank) {
     if (inverse_library.is_null()) {
       inverse_library = Teuchos::rcp(new block_prec::InverseLibraryCache<Node>(
-        reuseKeepsHierarchy(preconditioner_reuse_type), verbosity, rank));
+        block_prec::reuseKeepsHierarchy(preconditioner_reuse_type), verbosity, rank));
     }
     return *inverse_library;
   }
 
 private:
   Teuchos::RCP<block_prec::InverseLibraryCache<Node> > inverse_library;
+  Teuchos::RCP<Teuchos::ParameterList> refmaxwell_xml_pivot, refmaxwell_xml_schur;
 
   void parseBelosAndAmesosSettings(Teuchos::ParameterList & settings) {
     amesos_type = settings.get<string>("Amesos solver","KLU2");
@@ -266,19 +255,18 @@ private:
 
   void validateSublists() {
     if (pivot_block_sublist.name() != "empty") {
-      validatePivotBlockSettingsSection(pivot_block_sublist, "Pivot Block Settings");
+      block_prec::validatePivotBlockSettingsSection(pivot_block_sublist, "Pivot Block Settings");
     }
     if (schur_block_sublist.name() != "empty") {
-      validateSchurBlockSettingsSection(schur_block_sublist, "Schur Block Settings");
+      block_prec::validateSchurBlockSettingsSection(schur_block_sublist, "Schur Block Settings");
     }
   }
 
   void parseGeneralSettings(Teuchos::ParameterList & settings) {
     use_direct = settings.get<bool>("use direct solver",false);
-    prec_type = canonicalPreconditionerType(settings.get<string>("preconditioner type","AMG"));
+    prec_type = block_prec::canonicalPreconditionerType(settings.get<string>("preconditioner type","AMG"));
     use_preconditioner = settings.get<bool>("use preconditioner",true);
-    preconditioner_reuse_type = canonicalReuseType(settings.get<string>("preconditioner reuse type","update"));
-    // 'reuse preconditioner' predates the string and only ever meant none-or-not.
+    preconditioner_reuse_type = block_prec::canonicalReuseType(settings.get<string>("preconditioner reuse type","update"));
     if (settings.isType<bool>("reuse preconditioner") &&
         !settings.get<bool>("reuse preconditioner")) {
       preconditioner_reuse_type = "none";
@@ -310,7 +298,7 @@ private:
     if (pivot_block_sublist.name() == "empty") return;
     if (pivot_block_sublist.isParameter("preconditioner type")) {
       schur.pivot_block_preconditioner_type =
-        canonicalBlockPrecType(pivot_block_sublist.get<string>("preconditioner type"));
+        block_prec::canonicalBlockPrecType(pivot_block_sublist.get<string>("preconditioner type"));
     }
     if (pivot_block_sublist.isParameter("diag use lumped diagonal")) {
       schur.pivot_block_diag_use_lumped_diagonal =
@@ -334,11 +322,11 @@ private:
     if (schur_block_sublist.name() == "empty") return;
     if (schur_block_sublist.isParameter("preconditioner type")) {
       schur.schur_block_preconditioner_type =
-        canonicalBlockPrecType(schur_block_sublist.get<string>("preconditioner type"));
+        block_prec::canonicalBlockPrecType(schur_block_sublist.get<string>("preconditioner type"));
     }
     if (schur_block_sublist.isParameter("approximation type")) {
       schur.approximation_type =
-        canonicalSchurApproximationType(schur_block_sublist.get<string>("approximation type"));
+        block_prec::canonicalSchurApproximationType(schur_block_sublist.get<string>("approximation type"));
     }
     if (schur_block_sublist.isParameter("pivot block")) {
       schur.pivot_block = schur_block_sublist.get<int>("pivot block");
@@ -348,7 +336,7 @@ private:
         schur_block_sublist.get<bool>("diag use lumped pivot diagonal");
     }
     if (schur_block_sublist.isParameter("triangle")) {
-      schur.triangle = canonicalSchurTriangle(schur_block_sublist.get<string>("triangle"));
+      schur.triangle = block_prec::canonicalSchurTriangle(schur_block_sublist.get<string>("triangle"));
     }
     if (schur_block_sublist.isParameter("damping")) {
       schur.damping = schur_block_sublist.get<ScalarT>("damping");
@@ -373,7 +361,7 @@ private:
     have_matrix = false;
     jacobian_rebuilt_this_step = true;
     equation_set_index = 0;
-    const std::string bu = toUpperAsciiCopy(belos_type);
+    const std::string bu = block_prec::toUpperAsciiCopy(belos_type);
     reuse_belos_solver_mgr = (bu == "GCRODR" || bu == "RCG");
     belos_solver_mgr = Teuchos::null;
     belos_problem = Teuchos::null;

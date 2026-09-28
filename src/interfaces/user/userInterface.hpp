@@ -154,6 +154,15 @@ public:
         TEUCHOS_TEST_FOR_EXCEPTION(!fnmast.good(),std::runtime_error,"Error: MrHyDE could not find the main input file: " + filename);
       }
       
+      // An imported file is applied whole and clobbers sublists the main deck set;
+      // re-applied below once every import has run.
+      Teuchos::ParameterList local_sublists;
+      for (Teuchos::ParameterList::ConstIterator it = settings->begin(); it != settings->end(); ++it) {
+        if (!settings->entry(it).isList()) continue;
+        const std::string & key = settings->name(it);
+        local_sublists.sublist(key).setParameters(settings->sublist(key));
+      }
+
       if (settings->isSublist("Mesh"))
         have_mesh = true;
       if (settings->isSublist("Physics"))
@@ -245,41 +254,25 @@ public:
           TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: the input.xml needs to contain either a Discretization sublist or a path to a Discretization settings file!");
       }
       
-      {
-        // Allow layered solver settings:
-        // 1) load a shared Solver input file (if provided)
-        // 2) re-apply any local Solver sublist as overrides
-        // This supports reusable solver configs (e.g. Maxwell/block-triangular).
-        Teuchos::RCP<Teuchos::ParameterList> solver_overrides = Teuchos::null;
-        bool had_local_solver = settings->isSublist("Solver");
-        if (had_local_solver) {
-          solver_overrides = Teuchos::rcp(new Teuchos::ParameterList(settings->sublist("Solver")));
-        }
+      if (settings->isParameter("Solver input file")) {
+        std::string filename = settings->get<std::string>("Solver input file");
+        std::ifstream fn(filename.c_str());
+        if (fn.good()) {
+          Teuchos::RCP<Teuchos::ParameterList> solver_parlist = Teuchos::rcp( new Teuchos::ParameterList() );
+          int type = getFileType(filename);
+          if (type == 0)
+            Teuchos::updateParametersFromYamlFile( filename, Teuchos::Ptr<Teuchos::ParameterList>(&*solver_parlist) );
+          else if (type == 1)
+            Teuchos::updateParametersFromXmlFile( filename, Teuchos::Ptr<Teuchos::ParameterList>(&*solver_parlist) );
 
-        if (settings->isParameter("Solver input file")) {
-          std::string filename = settings->get<std::string>("Solver input file");
-          std::ifstream fn(filename.c_str());
-          if (fn.good()) {
-            Teuchos::RCP<Teuchos::ParameterList> solver_parlist = Teuchos::rcp( new Teuchos::ParameterList() );
-            int type = getFileType(filename);
-            if (type == 0)
-              Teuchos::updateParametersFromYamlFile( filename, Teuchos::Ptr<Teuchos::ParameterList>(&*solver_parlist) );
-            else if (type == 1)
-              Teuchos::updateParametersFromXmlFile( filename, Teuchos::Ptr<Teuchos::ParameterList>(&*solver_parlist) );
-
-            settings->setParameters( *solver_parlist );
-          }
-          else
-            TEUCHOS_TEST_FOR_EXCEPTION(!fn.good(),std::runtime_error,"Error: MrHyDE could not find the solver settings file:" + filename);
+          settings->setParameters( *solver_parlist );
         }
+        else
+          TEUCHOS_TEST_FOR_EXCEPTION(!fn.good(),std::runtime_error,"Error: MrHyDE could not find the solver settings file:" + filename);
+      }
 
-        if (had_local_solver) {
-          settings->sublist("Solver").setParameters(*solver_overrides);
-        }
-
-        if (!settings->isSublist("Solver")) {
-          TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: the input.xml needs to contain either a Solver sublist or a path to a solver settings file!");
-        }
+      if (!settings->isSublist("Solver")) {
+        TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: the input.xml needs to contain either a Solver sublist or a path to a solver settings file!");
       }
       
       if (!have_analysis) {
@@ -421,6 +414,8 @@ public:
         }
       }
       
+      settings->setParameters(local_sublists);
+
       if (have_aux_disc && !have_aux_phys) {
         TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: an aux discretization was defined, but not an aux physics");
       }

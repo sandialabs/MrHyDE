@@ -1,8 +1,7 @@
 /***********************************************************************
-MrHyDE - Parameter canonicalization, validation, filtering, and RefMaxwell assembly.
-Owns key normalization and safe list sanitization before dispatching settings
-into MueLu/Ifpack2/RefMaxwell. Does not own block extraction or operator build.
-Read with BlockTypes first, then this file, then BlockAssembly/solvers call sites.
+MrHyDE - Parameter canonicalization, validation, and filtering for the block
+preconditioners. Normalizes keys and strips MrHyDE-owned ones before a list is
+handed to MueLu or Ifpack2. No matrices are modified  here.
  ************************************************************************/
 
 #ifndef MRHYDE_BLOCK_PREC_PARAM_UTILS_HPP
@@ -23,9 +22,10 @@ Read with BlockTypes first, then this file, then BlockAssembly/solvers call site
 #include <fstream>
 
 namespace MrHyDE {
+namespace block_prec {
 
-// Not Teuchos::updateParametersFromXmlFileAndBroadcast: it throws on rank 0
-// before its broadcast, so a bad path hangs the other ranks.
+// not using Teuchos::updateParametersFromXmlFileAndBroadcast here, aas it
+// opens the file on rank 0 before its first broadcast, so a bad path hangs the other ranks.
 inline void loadXmlBroadcast(const std::string & file,
                              Teuchos::ParameterList & out,
                              const Teuchos::Comm<int> & comm,
@@ -48,9 +48,6 @@ inline void loadXmlBroadcast(const std::string & file,
   if (len > 0) Teuchos::broadcast<int,char>(comm, 0, len, &text[0]);
   Teuchos::updateParametersFromXmlString(text, Teuchos::ptr(&out));
 }
-
-template<class Node>
-class LinearSolverContext;
 
 inline std::string canonicalPreconditionerType(const std::string & raw) {
   const std::string u = toUpperAsciiCopy(raw);
@@ -82,8 +79,6 @@ inline std::string canonicalSchurTriangle(const std::string & raw) {
   return triangleSideName(parseTriangleSide(raw));
 }
 
-// Hierarchy: keep the preconditioner and re-setup it against the new J, which
-// is where MueLu applies its own 'reuse: type'. Operator: keep it untouched.
 inline bool reuseKeepsHierarchy(const std::string & t) {
   return t == "update" || t == "full";
 }
@@ -103,7 +98,13 @@ inline std::string canonicalReuseType(const std::string & raw) {
   return "update";
 }
 
-// Load a complete MueLu parameter list from XML when configured.
+// MueLu defaults 'disable addon' to true. no key = no addon.
+inline bool refMaxwellAddonEnabled(const Teuchos::ParameterList & refmaxwellParams) {
+  return refmaxwellParams.isParameter("refmaxwell: disable addon") &&
+         !refmaxwellParams.get<bool>("refmaxwell: disable addon");
+}
+
+// Load a complete MueLu parameter list from XML.
 inline bool loadMueLuXmlIfPresent(const Teuchos::ParameterList & amgSublist,
                                   Teuchos::ParameterList & outParams,
                                   const std::string & context,
@@ -115,7 +116,6 @@ inline bool loadMueLuXmlIfPresent(const Teuchos::ParameterList & amgSublist,
   return true;
 }
 
-// Map integer verbosity to MueLu string (none/low/medium/high).
 inline void normalizeMueLuVerbosity(Teuchos::ParameterList & mueluParams, const int verbosity) {
   if (mueluParams.isParameter("verbosity") && mueluParams.getEntry("verbosity").isType<int>()) {
     const int v = mueluParams.get<int>("verbosity");
@@ -146,6 +146,7 @@ inline Teuchos::ParameterList validRefMaxwellParams() {
   v.set("xml param file", "");
   v.set("filter SM", false);
   v.set("filter threshold", 1.0e-14);
+  v.set("verify", false);
   v.set("verify complex", false);
   return v;
 }
@@ -182,8 +183,6 @@ inline Teuchos::ParameterList validSchurBlockParams() {
   v.set("triangle", "auto");
   v.set("damping", 1.0);
   v.set("diag use lumped pivot diagonal", false);
-  v.set("smoother: type", "");
-  v.sublist("smoother: params").disableRecursiveValidation();
   return v;
 }
 
@@ -226,26 +225,14 @@ inline void validateSchurBlockSettingsSection(const Teuchos::ParameterList & lis
   validateNestedBlockSublists(list, sectionName);
 }
 
-// Promote all params from a sublist to top level (for Ifpack2 Chebyshev: smoother: params -> top).
 inline void promoteSublistToTopLevel(Teuchos::ParameterList & list, const std::string & sublistName) {
   if (!list.isSublist(sublistName)) return;
-  const Teuchos::ParameterList & sub = list.sublist(sublistName);
-  for (Teuchos::ParameterList::ConstIterator it = sub.begin(); it != sub.end(); ++it) {
-    const std::string key = sub.name(it);
-    if (sub.isSublist(key)) continue;
-    if (sub.isType<int>(key))
-      list.set(key, sub.get<int>(key));
-    else if (sub.isType<double>(key))
-      list.set(key, sub.get<double>(key));
-    else if (sub.isType<std::string>(key))
-      list.set(key, sub.get<std::string>(key));
-    else if (sub.isType<bool>(key))
-      list.set(key, sub.get<bool>(key));
-  }
+  const Teuchos::ParameterList sub = list.sublist(sublistName);
+  list.setParameters(sub);
   list.remove(sublistName, false);
 }
 
-// Keys consumed by MrHyDE before dispatching to MueLu/Ifpack2.
+// Keys parsed by MrHyDE before dispatching to MueLu/Ifpack2.
 inline const std::vector<std::string> & mrhydeOwnedKeys() {
   static const std::vector<std::string> keys = {
     "preconditioner type", "preconditioner variant", "use mass matrix", "xml param file",
@@ -314,11 +301,9 @@ inline void sanitizeDirectCoarseParams(Teuchos::ParameterList & sublist) {
     "SUPERLU", "SUPERLU_DIST"};
   if (!sublist.isParameter("coarse: type") || !sublist.isSublist("coarse: params")) return;
   if (!directCoarse.count(toUpperAsciiCopy(sublist.get<std::string>("coarse: type")))) return;
-  // Dropping the whole sublist would also discard legitimate Amesos2 options.
   removeIfpack2OnlyKeys(sublist.sublist("coarse: params"));
 }
 
-// Print warning on rank 0 if RefMaxwell sublist uses Krylov smoother.
 inline void warnNonStationarySmoother(const Teuchos::ParameterList & refmaxwellParams,
                                       const std::string & listName,
                                       const Teuchos::RCP<const Teuchos::Comm<int> > & comm) {
@@ -339,5 +324,6 @@ inline void warnNonStationarySmoother(const Teuchos::ParameterList & refmaxwellP
   }
 }
 
+} // namespace block_prec
 } // namespace MrHyDE
 #endif

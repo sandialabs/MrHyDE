@@ -516,8 +516,8 @@ public:
   bool preconditionerNeedsRebuild(const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
                                   const bool havePreconditioner) const {
     return !havePreconditioner ||
-           !reuseKeepsOperator(cntxt->preconditioner_reuse_type,
-                               cntxt->jacobian_rebuilt_this_step);
+           !block_prec::reuseKeepsOperator(cntxt->preconditioner_reuse_type,
+                                          cntxt->jacobian_rebuilt_this_step);
   }
   /** @brief Attach preconditioner to Belos linear problem honoring left/right setting. */
   void attachPreconditionerToProblem(const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,

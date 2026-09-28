@@ -16,7 +16,7 @@ namespace MrHyDE {
 namespace block_prec {
 
 // Teko's sub-solver registry plus the inverses built from it; labels must be
-// unique per block. Per context: addInverse retains every list it is handed.
+// unique per block. Re-registering a label replaces its list.
 template<class Node>
 class InverseLibraryCache {
 public:
@@ -27,8 +27,6 @@ public:
     Teuchos::RCP<Stratimikos::DefaultLinearSolverBuilder> builder =
       Teuchos::rcp(new Stratimikos::DefaultLinearSolverBuilder);
     Stratimikos::enableMueLu<ScalarT,LO,GO,Node>(*builder);
-    Stratimikos::enableMueLuRefMaxwell<ScalarT,LO,GO,Node>(*builder);
-    Stratimikos::enableMueLuMaxwell1<ScalarT,LO,GO,Node>(*builder);
     lib_ = Teko::InverseLibrary::buildFromStratimikos(builder);
   }
 
@@ -64,7 +62,6 @@ private:
     Teko::InverseLinearOp inverse;
   };
 
-  // Re-registering drops the previous list, releasing its MueLu 'user data' RCPs.
   Teuchos::RCP<Teko::InverseFactory> registerInverse(const std::string & type,
                                                      const Teuchos::ParameterList & params,
                                                      const std::string & label) {
@@ -74,7 +71,7 @@ private:
     return lib_->getInverseFactory(label);
   }
 
-  // Anything derived from J goes stale on reuse; coordinates do not.
+  // Anything derived from J goes stale on reuse, except for coordinates.
   static bool carriesStaleUserData(const Teuchos::ParameterList & params) {
     if (!params.isSublist("user data")) return false;
     const Teuchos::ParameterList & data = params.sublist("user data");

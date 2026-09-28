@@ -20,9 +20,7 @@
 namespace MrHyDE {
 namespace block_prec {
 
-// BlockTypes centralizes Tpetra aliases used across block-preconditioner code.
-// Includes Map/Vector/MultiVector/CrsMatrix/Operator aliases plus import/export
-// and host row-view types reused by extraction, assembly, and apply helpers.
+// Tpetra aliases
 template<class Node>
 struct BlockTypes {
   using Map = Tpetra::Map<LO,GO,Node>;
@@ -43,10 +41,6 @@ struct BlockTypes {
   using HostVals = typename CrsMatrix::nonconst_values_host_view_type;
 };
 
-} // namespace block_prec
-
-// Enums and string utilities below are at MrHyDE scope (not block_prec)
-// because LinearSolverContext and ParamUtils reference them directly.
 enum class SchurVariant { Base, Diag };
 
 inline std::string schurVariantName(const SchurVariant variant) {
@@ -76,7 +70,6 @@ inline SchurVariant parseSchurVariant(const std::string & canonical) {
   return SchurVariant::Base;
 }
 
-// Triangle used by the block Gauss-Seidel sweep. Auto follows right_preconditioner.
 enum class TriangleSide { Auto, Upper, Lower };
 
 inline std::string triangleSideName(const TriangleSide side) {
@@ -110,6 +103,8 @@ inline BlockPrecType parseBlockPrecType(const std::string & raw) {
     "Unsupported block preconditioner type '" << raw << "'. Supported: AMG, RefMaxwell, Maxwell1, Direct, Diagonal.");
   return BlockPrecType::AMG;
 }
+
+} // namespace block_prec
 } // namespace MrHyDE
 
 #endif

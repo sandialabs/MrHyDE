@@ -12,8 +12,13 @@
 namespace MrHyDE {
 namespace block_prec {
 
-// 2x2 block-triangular preconditioner. Not a Teko::BlockPreconditionerFactory:
-// it builds a GaussSeidelPreconditionerFactory and applies it here.
+// Builds the 2x2 block-triangular preconditioner, one of
+//
+//     upper  [ J00  J01 ]^-1        lower  [ J00   0  ]^-1
+//            [  0    S  ]                  [ J10   S  ]
+//
+// with S the Schur approximation from SchurApproximation.hpp and the two diagonal
+// inverses supplied as sub-preconditioners.
 template<class Node>
 class BlockTriangularFactory {
 public:
@@ -40,6 +45,10 @@ public:
     matrix_rcp schurCorr;
     matrix_rcp schurApprox =
       interface_.buildBlockTriangularSchurApproximation(blocks_, cntxt_, &schurCorr);
+    if (interface_.verbosity >= 5 && interface_.comm->getRank() == 0 &&
+        cntxt_->schur.damping == Teuchos::ScalarTraits<ScalarT>::zero()) {
+      std::cout << "[BlockTri] damping is 0; the diagonal correction is off." << std::endl;
+    }
     this->recordSchurAddonBeta(schurCorr);
 
     verifyBlockSystem<Node>(blocks_, J_, schurApprox,
@@ -69,8 +78,7 @@ private:
   void recordSchurAddonBeta(const matrix_rcp & schurCorr) const {
     RefMaxwellData<Node> & refMaxwell = cntxt_->refMaxwell;
     const size_t pivot = static_cast<size_t>(cntxt_->schur.pivot_block);
-    // The Schur XML is read during the RefMaxwell build, so the first pass assumes the addon.
-    const bool wanted = refMaxwell.schur_addon_wanted || !cntxt_->have_preconditioner;
+    const bool wanted = cntxt_->schurAddonWanted(*J_->getComm());
     const bool haveInputs = !schurCorr.is_null() && !refMaxwell.nodal_lumped_mass.is_null() &&
       pivot < cntxt_->block.mass_matrices.size() &&
       !cntxt_->block.mass_matrices[pivot].is_null();
@@ -117,12 +125,13 @@ private:
 
   bool useUpperTriangular() const {
     const TriangleSide triangle = parseTriangleSide(cntxt_->schur.triangle);
-    if (interface_.verbosity >= 5 && interface_.comm->getRank() == 0 &&
-        cntxt_->schur.damping == Teuchos::ScalarTraits<ScalarT>::zero()) {
-      std::cout << "Schur damping is 0; diagonal correction disabled." << std::endl;
+    const bool upper = (triangle == TriangleSide::Auto) ? cntxt_->right_preconditioner
+                                                        : (triangle == TriangleSide::Upper);
+    if (interface_.verbosity >= 5 && interface_.comm->getRank() == 0) {
+      std::cout << "[BlockTri] triangle = " << (upper ? "upper" : "lower")
+                << (triangle == TriangleSide::Auto ? " (auto)" : "") << std::endl;
     }
-    return (triangle == TriangleSide::Auto) ? cntxt_->right_preconditioner
-                                            : (triangle == TriangleSide::Upper);
+    return upper;
   }
 
   LinearAlgebraInterface<Node> & interface_;

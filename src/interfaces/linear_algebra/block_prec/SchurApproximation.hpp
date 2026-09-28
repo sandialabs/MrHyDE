@@ -20,7 +20,8 @@ namespace block_prec {
 // Helpers
 // =============================================================================
 
-// S = base + scale * left * inv(weight) * right.
+// S = base + scale * left * inv(diag(weight)) * right. buildSchurApproximation below
+// fills these from the BlockSystem for whichever variant the deck asked for.
 template<class Node>
 struct SchurAssemblyInputs {
   using matrix_rcp = typename block_prec::BlockTypes<Node>::CrsMatrixRCP;
@@ -36,13 +37,6 @@ struct SchurAssemblyInputs {
 // =============================================================================
 // Schur builders
 // =============================================================================
-
-// S = J11
-template<class Node>
-typename block_prec::BlockTypes<Node>::CrsMatrixRCP schurBase(const typename block_prec::BlockTypes<Node>::CrsMatrixRCP & J11) {
-  using LA_CrsMatrix = typename block_prec::BlockTypes<Node>::CrsMatrix;
-  return Teuchos::rcp(new LA_CrsMatrix(*J11, Teuchos::Copy));
-}
 
 // beta = alpha_u^2 * (v'*corr*v) / (w'*diag(M_pivot)^-1*w), w = J01*v.
 template<class Node>
@@ -75,7 +69,13 @@ ScalarT addonBeta(const BlockSystem<Node> & blocks,
   const ScalarT num = v.dot(cv);
   const ScalarT den = w.dot(dw);
   // An unassembled J gives an empty correction, so beta is undefined here.
-  if (den == zero || num <= zero) return zero;
+  if (den == zero || num <= zero) {
+    if (verbosity >= 5 && blocks.targetMap->getComm()->getRank() == 0) {
+      std::cout << "[ADDON] beta undefined (num=" << num << ", den=" << den
+                << "); running without the addon." << std::endl;
+    }
+    return zero;
+  }
   // Both off-diagonal blocks carry the DIRK spatial scaling, which cancels in r.
   const ScalarT beta = alphaU * alphaU * (num / den);
 
@@ -158,7 +158,8 @@ typename block_prec::BlockTypes<Node>::CrsMatrixRCP buildSchurApproximation(cons
   if (diagTermOut != nullptr) *diagTermOut = Teuchos::null;
   const SchurVariant variant = parseSchurVariant(cntxt.schur.approximation_type);
   if (variant == SchurVariant::Base) {
-    return schurBase<Node>(blocks.J11);
+    // MueLu treats the system matrix as read-only, so S can alias J11.
+    return blocks.J11;
   }
   TEUCHOS_TEST_FOR_EXCEPTION(variant != SchurVariant::Diag, std::runtime_error,
     "buildSchurApproximation: unsupported Schur variant.");

@@ -194,7 +194,8 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
   const bool blockSublistWantsD0 = declaresAuxiliaryBases(cntxt->pivot_block_sublist) ||
                                    declaresAuxiliaryBases(cntxt->schur_block_sublist);
 
-  // Assemble full H(curl) mass matrix M1 (overlapped then exported). Used for RefMaxwell edge block.
+  // No per-variable assembly, so build the mass over the whole set and extract the
+  // edge block below.
   matrix_RCP M1_over = linalg->getNewOverlappedMatrix(set);
   vector_RCP diagM1_over = linalg->getNewOverlappedVector(set);
   assembler->updatePhysicsSet(set);
@@ -325,7 +326,9 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
   hgrad_dof->buildGlobalUnknowns();
   hcurl_dof->buildGlobalUnknowns();
 
-  // D0 = gradient: nodal (Hgrad) -> edge (Hcurl). RefMaxwell uses it for the auxiliary space.
+  // D0 = gradient: nodal (Hgrad) -> edge (Hcurl), used for RefMaxwell's auxiliary space.
+  // Entries are +-0.5, not the +-1 of an incidence matrix: the Intrepid2 HCURL_HEX_I1
+  // edge DOF is a tangential integral over a reference edge of length 2.
   Teuchos::RCP<Thyra::LinearOpBase<ScalarT> > D0_thyra =
     panzer::buildInterpolation(conn, hgrad_dof, hcurl_dof,
                                hgrad_basis, hcurl_basis,
@@ -396,7 +399,7 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
     Teuchos::RCP<LA_CrsMatrix> D0_remapped =
       Teuchos::rcp(new LA_CrsMatrix(edge_block_map, std::max<size_t>(1, cntxt->refMaxwell.D0_matrix->getLocalMaxNumRowEntries())));
     const LO n_aux_rows = aux_edge_map->getLocalNumElements();
-    GO unmappedGid = -1;
+    GO unmappedGid = -1, nonOwnedGid = -1;
     for (LO lid = 0; lid < n_aux_rows; ++lid) {
       const GO aux_row_gid = aux_edge_map->getGlobalElement(lid);
       auto it = aux2prim.find(aux_row_gid);
@@ -405,6 +408,8 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
         continue;
       }
       const GO row_gid = it->second;
+      // globalAssemble would absorb a non-owned row and hide an aux/primary ownership mismatch.
+      if (nonOwnedGid < 0 && !edge_block_map->isNodeGlobalElement(row_gid)) nonOwnedGid = row_gid;
       size_t nent = cntxt->refMaxwell.D0_matrix->getNumEntriesInLocalRow(lid);
       if (nent == 0) continue;
       host_inds_type col_lids("d0_col_lids", nent);
@@ -424,12 +429,15 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
         D0_remapped->insertGlobalValues(row_gid, col_gids, vals);
       }
     }
-    GO bad[2] = {conflictGid, unmappedGid}, worst[2] = {-1, -1};
-    Teuchos::reduceAll<int, GO>(*(aux_edge_map->getComm()), Teuchos::REDUCE_MAX, 2, bad, worst);
+    GO bad[3] = {conflictGid, unmappedGid, nonOwnedGid}, worst[3] = {-1, -1, -1};
+    Teuchos::reduceAll<int, GO>(*(aux_edge_map->getComm()), Teuchos::REDUCE_MAX, 3, bad, worst);
     TEUCHOS_TEST_FOR_EXCEPTION(worst[0] >= 0, std::runtime_error,
       "D0 remap: auxiliary edge GID " << worst[0] << " maps to two primary GIDs.");
     TEUCHOS_TEST_FOR_EXCEPTION(worst[1] >= 0, std::runtime_error,
       "D0 remap: no primary GID for auxiliary GID " << worst[1] << ".");
+    TEUCHOS_TEST_FOR_EXCEPTION(worst[2] >= 0, std::runtime_error,
+      "D0 remap: primary edge GID " << worst[2] << " is not owned by the rank that "
+      "owns its auxiliary row.");
     D0_remapped->fillComplete(nodal_map, edge_block_map);
     cntxt->refMaxwell.D0_matrix = D0_remapped;
   }

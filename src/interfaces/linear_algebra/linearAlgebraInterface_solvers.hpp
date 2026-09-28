@@ -8,6 +8,7 @@
 
 #include "block_prec/ParamUtils.hpp"
 #include "block_prec/BlockAssembly.hpp"
+#include "block_prec/BlockVerify.hpp"
 #include <Teuchos_XMLParameterListHelpers.hpp>
 #include <MueLu_Maxwell_Utils.hpp>
 #include <cctype>
@@ -44,6 +45,7 @@ RefMaxwellXpetraInputs<Node> buildRefMaxwellXpetraInputs(
   return out;
 }
 
+// BC diagonals keep their original value: the nodal diagonal is O(h), so 1.0 is an outlier.
 template<class Node>
 void applyDirichletBCsToKn(
     Teuchos::RCP<Xpetra::Matrix<ScalarT, LO, GO, Node> > & Kn,
@@ -64,7 +66,7 @@ void applyDirichletBCsToKn(
   MueLu::UtilitiesBase<ScalarT, LO, GO, Node>::ZeroDirichletRows(Kn, BCdomain_c);
   MueLu::UtilitiesBase<ScalarT, LO, GO, Node>::ZeroDirichletCols(Kn, BCcols_c);
 
-  Kn->resumeFill();
+  // Values-only edit, so no resumeFill/fillComplete cycle.
   auto lclKn = Kn->getLocalMatrixDevice();
   auto lclColMap = knColMap->getLocalMap();
   auto lclRowMap = knRowMap->getLocalMap();
@@ -82,7 +84,6 @@ void applyDirichletBCsToKn(
           }
         }
       });
-  Kn->fillComplete(Kn->getDomainMap(), Kn->getRangeMap());
   repairNodalDiagonal<Node>(Kn, verbosity);
 }
 
@@ -203,7 +204,7 @@ LinearAlgebraInterface<Node>::buildOrUpdatePreconditioner(
       cntxt->prec = this->buildAMGPreconditioner(J, cntxt);
       cntxt->have_preconditioner = true;
     }
-    else if (!reuseKeepsOperator(cntxt->preconditioner_reuse_type,
+    else if (!block_prec::reuseKeepsOperator(cntxt->preconditioner_reuse_type,
                                  cntxt->jacobian_rebuilt_this_step)) {
       MueLu::ReuseTpetraPreconditioner(J, *(cntxt->prec));
     }
@@ -239,7 +240,7 @@ LinearAlgebraInterface<Node>::createBelosSolverManager(
     const Teuchos::RCP<Teuchos::ParameterList> & belosList,
     const std::string & belosType) const {
   using BelosMV = Tpetra::MultiVector<ScalarT,LO,GO,Node>;
-  const std::string belosUpper = toUpperAsciiCopy(belosType);
+  const std::string belosUpper = block_prec::toUpperAsciiCopy(belosType);
   // The Belos solver factory registers neither of these, so construct them directly.
   if (belosUpper == "PSEUDO BLOCK STOCHASTIC CG") {
     return Teuchos::rcp(new Belos::PseudoBlockStochasticCGSolMgr<ScalarT,BelosMV,LA_Operator>(problem, belosList));
@@ -283,7 +284,7 @@ void LinearAlgebraInterface<Node>::maybeReportConditionEstimate(
                                             Tpetra::Operator<ScalarT,LO,GO,Node> > > & solver,
     const Teuchos::RCP<LinearSolverContext<Node> > & cntxt) const {
   if (!doCondEst) return;
-  if (toUpperAsciiCopy(cntxt->belos_type) != "PSEUDO BLOCK CG") return;
+  if (block_prec::toUpperAsciiCopy(cntxt->belos_type) != "PSEUDO BLOCK CG") return;
   using BelosMV = Tpetra::MultiVector<ScalarT,LO,GO,Node>;
   Teuchos::RCP<Belos::PseudoBlockCGSolMgr<ScalarT,BelosMV,LA_Operator> > solverCg =
     Teuchos::rcp_dynamic_cast<Belos::PseudoBlockCGSolMgr<ScalarT,BelosMV,LA_Operator> >(solver);
@@ -359,19 +360,19 @@ Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > LinearAlgebraInterfa
   // Check if XML parameter file is specified (optional)
   if (!cntxt->amg.xml_param_file.empty()) {
     // Load parameters from XML file
-    loadXmlBroadcast(cntxt->amg.xml_param_file, mueluParams, *J->getComm(), "AMG");
+    block_prec::loadXmlBroadcast(cntxt->amg.xml_param_file, mueluParams, *J->getComm(), "AMG");
     if (verbosity >= 6 && J->getComm()->getRank() == 0) {
       std::cout << "[AMG] Loaded parameters from XML file: "
                 << cntxt->amg.xml_param_file << std::endl;
     }
   } else {
     // Use YAML-based parameters with defaults
-    mueluParams = defaultMueLuParams();
+    mueluParams = block_prec::defaultMueLuParams();
 
     if (cntxt->prec_sublist.name() != "empty" ) {
       Teuchos::ParameterList filteredParams(cntxt->prec_sublist);
-      removeMrHyDEOwnedKeys(filteredParams);
-      removeIfpack2OnlyKeys(filteredParams);
+      block_prec::removeMrHyDEOwnedKeys(filteredParams);
+      block_prec::removeIfpack2OnlyKeys(filteredParams);
       mueluParams.setParameters(filteredParams);
     }
     if (cntxt->prec_sublist.name() == "empty" ) {
@@ -397,11 +398,13 @@ Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > LinearAlgebraInterfa
   return Mnew;
 }
 
-// Maxwell nomenclature used below:
-//   SM  = HCURL system block: M/dt + curl(1/mu) curl.
-//   D0  = nodal-to-edge gradient, as Panzer emits it (+-0.5).
-//   M1  = HCURL edge mass matrix.
-//   Kn  = nodal auxiliary matrix D0^T M1 D0.
+// Maxwell nomenclature, used by both builders below and by the structs that carry
+// these operators. With n nodes and e edges:
+//   SM  = HCURL system block, M/dt + curl(1/mu) curl        e x e
+//   M1  = HCURL edge mass matrix                            e x e
+//   D0  = nodal-to-edge gradient, as Panzer emits it        e x n, +-0.5
+//   Kn  = nodal auxiliary matrix D0^T M1 D0                 n x n
+//   m_n = lumped nodal mass, integral(N_n)                  n
 template<class Node>
 Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> >
 LinearAlgebraInterface<Node>::buildRefMaxwellPreconditioner(
@@ -415,50 +418,13 @@ LinearAlgebraInterface<Node>::buildRefMaxwellPreconditioner(
   Teuchos::RCP<RefMaxwellType> & precCache = forSchur ? cntxt->schur_refmaxwell_prec : cntxt->refmaxwell_prec;
 
   using XpetraMatrix = Xpetra::Matrix<ScalarT, LO, GO, Node>;
+  using XpetraOperator = Xpetra::Operator<ScalarT, LO, GO, Node>;
 
-  TEUCHOS_TEST_FOR_EXCEPTION(cntxt->refMaxwell.D0_matrix.is_null(), std::runtime_error,
-    "RefMaxwell requires D0_matrix in context.");
-  TEUCHOS_TEST_FOR_EXCEPTION(cntxt->refMaxwell.nodal_coords.is_null(), std::runtime_error,
-    "RefMaxwell requires nodal_coords in context.");
-  TEUCHOS_TEST_FOR_EXCEPTION(cntxt->refMaxwell.D0_matrix->getDomainMap().is_null(), std::runtime_error,
-    "RefMaxwell requires D0 domain map to be non-null.");
-  TEUCHOS_TEST_FOR_EXCEPTION(cntxt->refMaxwell.D0_matrix->getRangeMap().is_null(), std::runtime_error,
-    "RefMaxwell requires D0 range map to be non-null.");
+  // D0/M1/coords and their maps are checked by validateRefMaxwellBlockInputs.
   const int rank = J->getComm()->getRank();
-  const GO J_global_rows = J->getGlobalNumRows();
   const GO D0_global_rows = cntxt->refMaxwell.D0_matrix->getGlobalNumRows();
   const GO D0_global_cols = cntxt->refMaxwell.D0_matrix->getGlobalNumCols();
-  TEUCHOS_TEST_FOR_EXCEPTION(J_global_rows != D0_global_rows, std::runtime_error,
-    "RefMaxwell map mismatch: system matrix has " << J_global_rows
-    << " rows but D0 has " << D0_global_rows << " rows.");
-  const Teuchos::RCP<const LA_Map> d0_edge_map = cntxt->refMaxwell.D0_matrix->getRangeMap();
-  TEUCHOS_TEST_FOR_EXCEPTION(!J->getRowMap()->isSameAs(*d0_edge_map), std::runtime_error,
-    "RefMaxwell requires A-block row map to match D0 range map.");
-  TEUCHOS_TEST_FOR_EXCEPTION(!J->getDomainMap()->isSameAs(*d0_edge_map), std::runtime_error,
-    "RefMaxwell requires A-block domain map to match D0 range map.");
-
-  const Teuchos::RCP<const LA_Map> edge_map = d0_edge_map;
   matrix_RCP M1_use = cntxt->refMaxwell.M1_matrix;
-  bool m1_ok = !M1_use.is_null();
-  if (m1_ok) {
-    m1_ok = M1_use->getGlobalNumRows() == edge_map->getGlobalNumElements() &&
-            M1_use->getGlobalNumCols() == edge_map->getGlobalNumElements() &&
-            M1_use->getRowMap()->isSameAs(*edge_map) &&
-            M1_use->getDomainMap()->isSameAs(*edge_map);
-  }
-  TEUCHOS_TEST_FOR_EXCEPTION(!m1_ok, std::runtime_error,
-    "RefMaxwell requires M1_matrix with row/domain maps equal to D0 range map.");
-
-  const Teuchos::RCP<const LA_Map> nodal_map = cntxt->refMaxwell.D0_matrix->getDomainMap();
-  TEUCHOS_TEST_FOR_EXCEPTION(!cntxt->refMaxwell.nodal_coords->getMap()->isSameAs(*nodal_map), std::runtime_error,
-    "RefMaxwell requires nodal coordinates map to match D0 domain map.");
-  TEUCHOS_TEST_FOR_EXCEPTION(
-    cntxt->refMaxwell.nodal_coords->getGlobalLength() != static_cast<Tpetra::global_size_t>(D0_global_cols),
-    std::runtime_error,
-    "RefMaxwell requires nodal coordinates length to match D0 column count.");
-  TEUCHOS_TEST_FOR_EXCEPTION(cntxt->refMaxwell.nodal_coords->getLocalLength() != nodal_map->getLocalNumElements(), std::runtime_error,
-    "RefMaxwell requires nodal coordinates local length to match local D0 domain size.");
-  using XpetraOperator = Xpetra::Operator<ScalarT, LO, GO, Node>;
   const Teuchos::ParameterList rmSettings = blockSublist.isSublist("RefMaxwell Settings")
     ? blockSublist.sublist("RefMaxwell Settings") : Teuchos::ParameterList();
 
@@ -466,7 +432,7 @@ LinearAlgebraInterface<Node>::buildRefMaxwellPreconditioner(
   const block_prec::detail::FilterOpts filterOpts = block_prec::detail::readFilterOpts(rmSettings);
 
   // MueLu bakes beta into the hierarchy, and only the Schur one has an addon.
-  const ScalarT betaTarget = (forSchur && cntxt->refMaxwell.schur_addon_wanted)
+  const ScalarT betaTarget = (forSchur && cntxt->schurAddonWanted(*J->getComm()))
     ? cntxt->refMaxwell.schur_addon_beta : 0.0;
   const ScalarT betaWas = forSchur ? cntxt->refMaxwell.schur_addon_beta_built : 0.0;
   // Relative, so round-off in the beta probe does not discard the hierarchy.
@@ -475,7 +441,7 @@ LinearAlgebraInterface<Node>::buildRefMaxwellPreconditioner(
     precCache = Teuchos::null;
   }
   const bool canReuse = !precCache.is_null() &&
-    reuseKeepsHierarchy(cntxt->preconditioner_reuse_type);
+    block_prec::reuseKeepsHierarchy(cntxt->preconditioner_reuse_type);
 
   block_prec::detail::MaxwellInputs<Node> in = block_prec::detail::filterSMOnly<Node>(
     J, M1_use, cntxt->refMaxwell.D0_matrix, filterOpts, canReuse);
@@ -518,26 +484,23 @@ LinearAlgebraInterface<Node>::buildRefMaxwellPreconditioner(
     "RefMaxwell requires 'xml param file' in "
     << (forSchur ? "Schur" : "Pivot") << " Block Settings -> RefMaxwell Settings.");
 
-  Teuchos::ParameterList refmaxwellParams;
-
-  loadXmlBroadcast(refmaxwellXmlFile, refmaxwellParams, *J->getComm(), "RefMaxwell");
+  // Copy: the list is cached on the context and everything below mutates it.
+  Teuchos::ParameterList refmaxwellParams = cntxt->refMaxwellParams(forSchur, *J->getComm());
   if (verbosity >= 6 && J->getComm()->getRank() == 0) {
     std::cout << "[RefMaxwell] Loaded parameters from XML file: " << refmaxwellXmlFile << std::endl;
   }
 
-  sanitizeDirectCoarseParams(refmaxwellParams.sublist("refmaxwell: 11list"));
-  sanitizeDirectCoarseParams(refmaxwellParams.sublist("refmaxwell: 22list"));
-  warnNonStationarySmoother(refmaxwellParams, "refmaxwell: 11list", J->getComm());
-  warnNonStationarySmoother(refmaxwellParams, "refmaxwell: 22list", J->getComm());
+  block_prec::sanitizeDirectCoarseParams(refmaxwellParams.sublist("refmaxwell: 11list"));
+  block_prec::sanitizeDirectCoarseParams(refmaxwellParams.sublist("refmaxwell: 22list"));
+  block_prec::warnNonStationarySmoother(refmaxwellParams, "refmaxwell: 11list", J->getComm());
+  block_prec::warnNonStationarySmoother(refmaxwellParams, "refmaxwell: 22list", J->getComm());
 
   // AMS only for this path.
   refmaxwellParams.set("refmaxwell: space number", 1);
-  // M0(1/beta)^-1 needs beta, so fall back to no addon until it is known.
-  const bool wantAddon = !refmaxwellParams.get<bool>("refmaxwell: disable addon", true);
+  const bool wantAddon = block_prec::refMaxwellAddonEnabled(refmaxwellParams);
   TEUCHOS_TEST_FOR_EXCEPTION(wantAddon && !forSchur, std::runtime_error,
     "RefMaxwell XML '" << refmaxwellXmlFile << "' enables the addon on the pivot block. "
     "beta is read off the Schur correction and has no pivot-block counterpart.");
-  if (forSchur) cntxt->refMaxwell.schur_addon_wanted = wantAddon;
   const bool haveAddon = wantAddon && cntxt->refMaxwell.schur_addon_beta > 0.0 &&
                          !cntxt->refMaxwell.nodal_lumped_mass.is_null();
   TEUCHOS_TEST_FOR_EXCEPTION(wantAddon && cntxt->refMaxwell.nodal_lumped_mass.is_null(),
@@ -603,17 +566,11 @@ LinearAlgebraInterface<Node>::buildMaxwell1Preconditioner(
   using XpetraMatrix = Xpetra::Matrix<ScalarT, LO, GO, Node>;
   using XpetraOperator = Xpetra::Operator<ScalarT, LO, GO, Node>;
 
-  TEUCHOS_TEST_FOR_EXCEPTION(cntxt->refMaxwell.D0_matrix.is_null(), std::runtime_error,
-    "Maxwell1 requires D0_matrix in context (shared with RefMaxwell setup).");
-  TEUCHOS_TEST_FOR_EXCEPTION(cntxt->refMaxwell.nodal_coords.is_null(), std::runtime_error,
-    "Maxwell1 requires nodal_coords in context.");
-
+  // D0/M1/coords are checked by validateRefMaxwellBlockInputs.
   matrix_RCP M1_use = cntxt->refMaxwell.M1_matrix;
-  TEUCHOS_TEST_FOR_EXCEPTION(M1_use.is_null(), std::runtime_error,
-    "Maxwell1 setup path reuses the RefMaxwell auxiliary M1 matrix. It is null.");
 
   const int rank = J->getComm()->getRank();
-  // Panzer OPERATOR_GRAD emits +-0.5; MueLu's ReitzingerP requires +-1.
+  // ReitzingerP requires +-1; Panzer's D0 is +-0.5.
   if (cntxt->maxwell1.D0_normalized.is_null()) {
     cntxt->maxwell1.D0_normalized = block_prec::detail::snapCrsMatrixSigns<Node>(
       cntxt->refMaxwell.D0_matrix);
@@ -624,7 +581,7 @@ LinearAlgebraInterface<Node>::buildMaxwell1Preconditioner(
     ? blockSublist.sublist("Maxwell1 Settings") : Teuchos::ParameterList();
   const block_prec::detail::FilterOpts filterOpts = block_prec::detail::readFilterOpts(m1Settings);
   const bool canReuse = !precCache.is_null() &&
-    reuseKeepsHierarchy(cntxt->preconditioner_reuse_type);
+    block_prec::reuseKeepsHierarchy(cntxt->preconditioner_reuse_type);
 
   block_prec::detail::MaxwellInputs<Node> in = block_prec::detail::filterSMOnly<Node>(
     J, M1_use, cntxt->maxwell1.D0_normalized, filterOpts, canReuse);
@@ -651,13 +608,13 @@ LinearAlgebraInterface<Node>::buildMaxwell1Preconditioner(
     << (forSchur ? "'Schur Block Settings'" : "'Pivot Block Settings'")
     << " 'Maxwell1 Settings' sublist.");
   Teuchos::ParameterList maxwell1Params;
-  loadXmlBroadcast(maxwell1XmlFile, maxwell1Params, *J->getComm(), "Maxwell1");
+  block_prec::loadXmlBroadcast(maxwell1XmlFile, maxwell1Params, *J->getComm(), "Maxwell1");
   if (verbosity >= 6 && rank == 0) {
     std::cout << "[Maxwell1] Loaded parameters from XML file: " << maxwell1XmlFile << std::endl;
   }
 
-  sanitizeDirectCoarseParams(maxwell1Params.sublist("maxwell1: 11list"));
-  sanitizeDirectCoarseParams(maxwell1Params.sublist("maxwell1: 22list"));
+  block_prec::sanitizeDirectCoarseParams(maxwell1Params.sublist("maxwell1: 11list"));
+  block_prec::sanitizeDirectCoarseParams(maxwell1Params.sublist("maxwell1: 22list"));
 
   // Use M1 because PEC identity rows in SM create O(1)/O(h) diagonal contrast
   // that breaks aggregation in D0^T SM D0.

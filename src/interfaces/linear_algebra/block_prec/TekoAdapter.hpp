@@ -1,8 +1,6 @@
 /***********************************************************************
- MrHyDE - Adapter wrapping a Teko block preconditioner as a Tpetra::Operator
- on the full (multi-block) map.
+ MrHyDE - Teko/Thyra composition for the block preconditioners.
 
- Teko's BlockedTpetraOperator re-indexes blocks onto contiguous maps, so MrHyDE supplies the blocks.
  ************************************************************************/
 
 #ifndef MRHYDE_LINEAR_ALGEBRA_TEKO_ADAPTER_H
@@ -36,7 +34,6 @@ tpetraToThyraConst(const typename BlockTypes<Node>::CrsMatrixRCP & A) {
   return Thyra::createConstLinearOp<ScalarT,LO,GO,Node>(op, range, domain);
 }
 
-// Teko requires non-const handles for inverse operators.
 template<class Node>
 inline Teuchos::RCP<Thyra::LinearOpBase<ScalarT> >
 tpetraToThyra(const Teuchos::RCP<Tpetra::Operator<ScalarT,LO,GO,Node> > & op,
@@ -82,7 +79,10 @@ buildThyraBlocked2x2(const typename BlockTypes<Node>::CrsMatrixRCP & J00,
   return Teko::toBlockedLinearOp(lo);
 }
 
-// Adapt a blocked Thyra preconditioner to a monolithic Tpetra operator.
+// Adapt a blocked Thyra preconditioner to a monolithic Tpetra operator:
+//
+//     X on fullMap --import--> [x0; x1] --tekoPrec--> [y0; y1] --export--> Y on fullMap
+//
 template<class Node>
 class TekoTpetraAdapter : public Tpetra::Operator<ScalarT,LO,GO,Node> {
 public:
@@ -104,7 +104,6 @@ public:
     yBlock_.resize(nb);
     xThyra_.resize(nb);
     yThyra_.resize(nb);
-    // beta==0 exports with REPLACE and never zeroes Y, so an uncovered row keeps stale data.
     GO blockSum = 0;
     for (size_t b = 0; b < nb; ++b) blockSum += static_cast<GO>(blockMaps[b]->getGlobalNumElements());
     TEUCHOS_TEST_FOR_EXCEPTION(blockSum != static_cast<GO>(fullMap_->getGlobalNumElements()),
@@ -142,7 +141,6 @@ public:
     Teuchos::RCP<const Thyra::MultiVectorBase<ScalarT> > xProdConst = xProd_;
     Thyra::apply(*tekoPrec_, Thyra::NOTRANS, *xProdConst, yProd_.ptr());
 
-    // Export directly for Y = P*X; otherwise stage the sum before scaling Y.
     const ScalarT zero = Teuchos::ScalarTraits<ScalarT>::zero();
     const ScalarT one  = Teuchos::ScalarTraits<ScalarT>::one();
     if (beta == zero && alpha == one) {

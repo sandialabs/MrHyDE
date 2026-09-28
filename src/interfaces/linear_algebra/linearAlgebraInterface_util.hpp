@@ -83,13 +83,13 @@ Teuchos::RCP<Teuchos::ParameterList> LinearAlgebraInterface<Node>::getBelosParam
   belosList->set("Num Blocks", maxLinearIters);
   belosList->set("Convergence Tolerance", linearTOL);    // Relative convergence tolerance requested
 
-  if (toUpperAsciiCopy(cntxt->belos_type) == "GCRODR") {
+  if (block_prec::toUpperAsciiCopy(cntxt->belos_type) == "GCRODR") {
     Teuchos::ParameterList & solverList = settings->sublist("Solver");
     belosList->set("Num Blocks", solverList.get<int>("Num Blocks", 30));
     belosList->set("Num Recycled Blocks", solverList.get<int>("Num Recycled Blocks", 20));
     belosList->set("Maximum Restarts", solverList.get<int>("Maximum Restarts", 100));
   }
-  if (toUpperAsciiCopy(cntxt->belos_type) != "MINRES") {
+  if (block_prec::toUpperAsciiCopy(cntxt->belos_type) != "MINRES") {
     belosList->set("Estimate Condition Number", doCondEst); // Only implemented in Belos for Pseudo Block CG, based on AztecOO
   }
   if (verbosity > 9) {
@@ -108,7 +108,7 @@ Teuchos::RCP<Teuchos::ParameterList> LinearAlgebraInterface<Node>::getBelosParam
   if (disc->block_names.size() == 1) {
     numEqns = disc->physics->num_vars[0][0];
   }
-  if (toUpperAsciiCopy(cntxt->belos_type) != "MINRES") {
+  if (block_prec::toUpperAsciiCopy(cntxt->belos_type) != "MINRES") {
     belosList->set("number of equations", numEqns);
   }
   

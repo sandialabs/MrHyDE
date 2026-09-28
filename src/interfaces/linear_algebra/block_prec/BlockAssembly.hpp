@@ -1,7 +1,6 @@
 #ifndef MRHYDE_BLOCK_PREC_ASSEMBLY_HPP
 #define MRHYDE_BLOCK_PREC_ASSEMBLY_HPP
 
-#include "block_prec/BlockOperators.hpp"
 #include "block_prec/InverseLibraryOps.hpp"
 #include "block_prec/ParamUtils.hpp"
 #include "linearAlgebraInterface.hpp"
@@ -31,26 +30,33 @@
 namespace MrHyDE {
 namespace block_prec {
 
-// BlockAssembly.hpp owns Jacobian block extraction/remap and preconditioner assembly helpers.
-// It builds the pivot/target BlockSystem, map-safe remapped Teko blocks, and local
-// block operators consumed by the block-preconditioner orchestration layer.
-// It also owns the shared diagonal/lumped inverse utility used by Schur and pivot paths.
-// It does not own apply-time operator classes (BlockOperators) or Schur policy parsing.
+// Tools for preconditioner setup:
+//   - block extraction and remap (BlockSystem, remapBlockToMaps)
+//   - the shared diagonal/lumped inverse used by both the Schur and pivot paths
+//   - the Maxwell auxiliary pipeline (SM/M1/D0 filtering, Kn, Dirichlet handling)
+//   - per-block preconditioner dispatch (buildBlockOperator and friends)
 
+// The extracted 2x2 system, labelled by role (not variable index as that may change):
+//
+//                 pivotMap  targetMap
+//     pivotMap  [   J00       J01    ]     J00 is inverted directly,
+//     targetMap [   J10       J11    ]     J11 is where the Schur complement forms.
+//
+//
+//     pivot 0:  J00 = A(0,0)   J01 = A(0,1)      pivot 1:  J00 = A(1,1)   J01 = A(1,0)
+//               J10 = A(1,0)   J11 = A(1,1)                J10 = A(0,1)   J11 = A(0,0)
+//
+// All blocks keep the GIDs they have in the monolithic Jacobian.
 template<class Node>
 struct BlockSystem {
   using Types = BlockTypes<Node>;
   using matrix_rcp = typename Types::CrsMatrixRCP;
   using map_rcp = typename Types::MapRCP;
 
-  map_rcp pivotMap;    // Owned map for the pivot block (block index = pivotBlock)
-  map_rcp targetMap;   // Owned map for the target (Schur complement) block.
-  matrix_rcp J00;      // Pivot diagonal block.
-  matrix_rcp J11;      // Target diagonal block.
-  matrix_rcp J10;      // Target-from-pivot off-diagonal.
-  matrix_rcp J01;      // Pivot-from-target off-diagonal.
-  size_t targetBlock = 0;  // Block index for the target (Schur) block.
-  int pivotBlock = 0;     // Block index for the pivot block.
+  map_rcp pivotMap, targetMap;          // Owned row maps
+  matrix_rcp J00, J01, J10, J11;
+  int pivotBlock = 0;                   // Variable index for the pivot role.
+  size_t targetBlock = 0;               // Variable index for the target role.
 };
 
 
@@ -202,7 +208,7 @@ remapBlockToMaps(const ConstMatrixRCP<Node> & src,
 
 template<class Node>
 std::vector<std::vector<MatrixRCP<Node> > >
-extractAndRemapBlocks(const MatrixRCP<Node> & J,
+extractBlocks(const MatrixRCP<Node> & J,
                       const std::vector<MapRCP<Node> > & blockMaps,
                       const bool diagonalOnly = false) {
   const size_t nBlocks = blockMaps.size();
@@ -217,7 +223,7 @@ extractAndRemapBlocks(const MatrixRCP<Node> & J,
         !remapped[i][j]->getRowMap()->isSameAs(*blockMaps[i]) ||
         !remapped[i][j]->getDomainMap()->isSameAs(*blockMaps[j]),
         std::runtime_error,
-        "extractAndRemapBlocks: map contract check failed for block (" << i << "," << j << ").");
+        "extractBlocks: map contract check failed for block (" << i << "," << j << ").");
     }
   }
   return remapped;
@@ -318,8 +324,11 @@ struct FilterOpts {
   double tol                = 1.0e-14;
 };
 
+// 'verify' turns on every check, but individual keys can be used to over-ride it
 inline FilterOpts readFilterOpts(const Teuchos::ParameterList & pl) {
   FilterOpts o;
+  const bool all = pl.isParameter("verify") && pl.get<bool>("verify");
+  o.verifyComplex = o.verifyKnConsistency = all;
   if (pl.isParameter("filter SM"))              o.filterSM            = pl.get<bool>("filter SM");
   if (pl.isParameter("filter threshold"))       o.tol                 = pl.get<double>("filter threshold");
   if (pl.isParameter("verify complex"))         o.verifyComplex       = pl.get<bool>("verify complex");
@@ -415,81 +424,6 @@ filterExplicitZeros(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Nod
   return result;
 }
 
-// Require every nonzero (i,j) to have a matching (j,i).
-// TODO: might be expensive for high-order stencils.
-template<class Node>
-void assertStructuralSymmetry(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & A,
-                              const std::string & label) {
-  using LA_CrsMatrix = typename BlockTypes<Node>::CrsMatrix;
-  using host_inds_t = typename LA_CrsMatrix::nonconst_local_inds_host_view_type;
-  using host_vals_t = typename LA_CrsMatrix::nonconst_values_host_view_type;
-  Tpetra::RowMatrixTransposer<ScalarT,LO,GO,Node> transposer(Teuchos::rcp_const_cast<LA_CrsMatrix>(A));
-  Teuchos::RCP<LA_CrsMatrix> At = transposer.createTranspose();
-  const LO n = static_cast<LO>(A->getRowMap()->getLocalNumElements());
-  const size_t maxEnt = std::max<size_t>(1, std::max(A->getLocalMaxNumRowEntries(),
-                                                     At->getLocalMaxNumRowEntries()));
-  host_inds_t colsA("sym_colsA", maxEnt), colsT("sym_colsT", maxEnt);
-  host_vals_t valsA("sym_valsA", maxEnt), valsT("sym_valsT", maxEnt);
-  const auto colMapA = A->getColMap();
-  const auto colMapT = At->getColMap();
-  for (LO lid = 0; lid < n; ++lid) {
-    size_t nA = A->getNumEntriesInLocalRow(lid);
-    size_t nT = At->getNumEntriesInLocalRow(lid);
-    TEUCHOS_TEST_FOR_EXCEPTION(nA != nT, std::runtime_error,
-      label << ": row " << A->getRowMap()->getGlobalElement(lid)
-      << " has " << nA << " entries; its transpose has " << nT << ".");
-    if (nA == 0) continue;
-    A->getLocalRowCopy(lid, colsA, valsA, nA);
-    At->getLocalRowCopy(lid, colsT, valsT, nT);
-    std::set<GO> gA, gT;
-    for (size_t k = 0; k < nA; ++k) gA.insert(colMapA->getGlobalElement(colsA(k)));
-    for (size_t k = 0; k < nT; ++k) gT.insert(colMapT->getGlobalElement(colsT(k)));
-    TEUCHOS_TEST_FOR_EXCEPTION(gA != gT, std::runtime_error,
-      label << ": row " << A->getRowMap()->getGlobalElement(lid)
-      << " has different columns in A and A^T.");
-  }
-}
-
-// Check only the filter's change to SM*D0. The DIRK mass term makes SM*D0 nonzero.
-template<class Node>
-void assertKernelBound(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & SM_filtered,
-                       const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & SM_orig,
-                       const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & D0,
-                       const typename Teuchos::ScalarTraits<ScalarT>::magnitudeType tol,
-                       const std::string & label) {
-  using LA_MultiVector = Tpetra::MultiVector<ScalarT,LO,GO,Node>;
-  using MagT = typename Teuchos::ScalarTraits<ScalarT>::magnitudeType;
-  Teuchos::RCP<LA_MultiVector> x = Teuchos::rcp(new LA_MultiVector(D0->getDomainMap(), 1));
-  x->putScalar(Teuchos::ScalarTraits<ScalarT>::one());
-  Teuchos::RCP<LA_MultiVector> Dx = Teuchos::rcp(new LA_MultiVector(D0->getRangeMap(), 1));
-  D0->apply(*x, *Dx);
-  Teuchos::Array<MagT> dx_nrm(1);
-  Dx->normInf(dx_nrm());
-  Teuchos::RCP<LA_MultiVector> SDx_orig = Teuchos::rcp(new LA_MultiVector(SM_orig->getRangeMap(), 1));
-  Teuchos::RCP<LA_MultiVector> SDx_filt = Teuchos::rcp(new LA_MultiVector(SM_filtered->getRangeMap(), 1));
-  SM_orig->apply(*Dx, *SDx_orig);
-  SM_filtered->apply(*Dx, *SDx_filt);
-  SDx_orig->update(-Teuchos::ScalarTraits<ScalarT>::one(), *SDx_filt, Teuchos::ScalarTraits<ScalarT>::one());
-  Teuchos::Array<MagT> pert_nrm(1);
-  SDx_orig->normInf(pert_nrm());
-  const MagT sm_norm = SM_orig->getFrobeniusNorm();
-  const MagT bound = tol * sm_norm * dx_nrm[0];
-  TEUCHOS_TEST_FOR_EXCEPTION(pert_nrm[0] > bound, std::runtime_error,
-    label << ": SM filter changed SM*D0 above tolerance"
-    << " (measured=" << pert_nrm[0] << ", limit=" << bound << ", tol=" << tol << ").");
-}
-
-// The kernel bound rides with the SM filter in finishMaxwellInputs instead.
-template<class Node>
-FilterResult<Node> filterM1Checked(
-    const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & M1,
-    const FilterOpts & opts,
-    const std::string & label) {
-  FilterResult<Node> out = filterExplicitZeros<Node>(M1, opts.tol, opts.verifyComplex);
-  assertStructuralSymmetry<Node>(out.matrix, label + " M1 filter");
-  return out;
-}
-
 template<class Node>
 void logFilterCounts(const FilterResult<Node> & sm, const FilterResult<Node> & m1,
                      const FilterOpts & opts, const std::string & label,
@@ -505,7 +439,7 @@ void logFilterCounts(const FilterResult<Node> & sm, const FilterResult<Node> & m
             << " (dropped " << pct(m1.nnzIn, m1.nnzOut) << "%)" << std::endl;
 }
 
-// Import a nodal domain-map mask onto Kn's column map.
+// detectBoundaryConditionsSM returns BCcols on D0's column map, not Kn's.
 template<class Node>
 Kokkos::View<bool*, typename Node::device_type::memory_space>
 knColumnMask(const Teuchos::RCP<Xpetra::Matrix<ScalarT, LO, GO, Node> > & Kn,
@@ -563,188 +497,9 @@ resetAndWrap(const Teuchos::RCP<PrecT> & prec,
   return Teuchos::rcp(new MueLu::TpetraOperator<ScalarT, LO, GO, Node>(
       Teuchos::rcp_static_cast<Xpetra::Operator<ScalarT, LO, GO, Node> >(prec)));
 }
-
-// De Rham sanity checks. D0 row structure throws; symmetry, curl(grad)=0 and
-// the Rayleigh quotient only warn.
-template<class Node>
-void verifyMaxwellComplex(
-    const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & D0,
-    const Teuchos::RCP<const Tpetra::MultiVector<
-      typename Teuchos::ScalarTraits<ScalarT>::coordinateType,LO,GO,Node>> & coords,
-    const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & SM,
-    const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & M1,
-    const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & SM_f,
-    const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & M1_f,
-    const std::vector<std::pair<GO,GO>> & dropped_SM,
-    const std::vector<std::pair<GO,GO>> & dropped_M1,
-    const typename Teuchos::ScalarTraits<ScalarT>::magnitudeType tol,
-    const int verbosity,
-    const int rank,
-    const std::string & label) {
-  using MagT = typename Teuchos::ScalarTraits<ScalarT>::magnitudeType;
-  using LA_CrsMatrix = typename BlockTypes<Node>::CrsMatrix;
-  using LA_MultiVector = Tpetra::MultiVector<ScalarT,LO,GO,Node>;
-  using host_inds_t = typename LA_CrsMatrix::nonconst_local_inds_host_view_type;
-  using host_vals_t = typename LA_CrsMatrix::nonconst_values_host_view_type;
-
-  auto log = [&](const std::string & line) {
-    if (verbosity >= 6 && rank == 0) std::cout << "[" << label << " verify] " << line << std::endl;
-  };
-  auto logs = [&](auto&&... args) {
-    if (verbosity < 6 || rank != 0) return;
-    std::ostringstream os;
-    (os << ... << args);
-    log(os.str());
-  };
-
-  const auto comm = D0->getRowMap()->getComm();
-
-  // D0 row structure. Panzer OPERATOR_GRAD uses +-0.5; Reitzinger +-1. Both are valid.
-  {
-    const auto rowMap = D0->getRowMap();
-    const LO nrows = static_cast<LO>(rowMap->getLocalNumElements());
-    LO local_bad_nnz = 0, local_bad_val = 0, local_bad_sum = 0;
-    LO local_empty = 0, local_single = 0, local_pair = 0;
-    LO local_half = 0, local_unit = 0;
-    for (LO lid = 0; lid < nrows; ++lid) {
-      size_t nent = D0->getNumEntriesInLocalRow(lid);
-      if (nent == 0) { local_empty++; continue; }
-      if (nent > 2) local_bad_nnz++;
-      host_inds_t cols("c1_cols", nent);
-      host_vals_t vals("c1_vals", nent);
-      D0->getLocalRowCopy(lid, cols, vals, nent);
-      ScalarT sum = Teuchos::ScalarTraits<ScalarT>::zero();
-      for (size_t k = 0; k < nent; ++k) {
-        const ScalarT v = vals(k);
-        const bool is_unit = (v == ScalarT(1.0) || v == ScalarT(-1.0));
-        const bool is_half = (v == ScalarT(0.5) || v == ScalarT(-0.5));
-        if (is_unit) local_unit++;
-        else if (is_half) local_half++;
-        else local_bad_val++;
-        sum += v;
-      }
-      if (nent == 1) local_single++;
-      else if (nent == 2) local_pair++;
-      if (nent >= 2 && sum != Teuchos::ScalarTraits<ScalarT>::zero()) local_bad_sum++;
-    }
-    LO g[9] = {local_bad_nnz, local_bad_val, local_bad_sum,
-               local_empty, local_single, local_pair, nrows,
-               local_unit, local_half};
-    LO gout[9];
-    Teuchos::reduceAll<int,LO>(*comm, Teuchos::REDUCE_SUM, 9, g, gout);
-    logs("D0 rows: total=", gout[6],
-         " empty=", gout[3], " one_ep=", gout[4], " two_ep=", gout[5],
-         " unit_vals=", gout[7], " half_vals=", gout[8],
-         " bad_nnz=", gout[0], " bad_val=", gout[1], " bad_sum=", gout[2]);
-    TEUCHOS_TEST_FOR_EXCEPTION(gout[0] || gout[1] || gout[2], std::runtime_error,
-      "[" << label << "] invalid D0 rows: too_many_entries=" << gout[0]
-      << ", invalid_values=" << gout[1] << ", nonzero_sums=" << gout[2] << ".");
-  }
-
-  // Symmetry: |xTAy - yTAx| / (|x||y||A|_inf) on two independent probes.
-  auto sym_test = [&](const Teuchos::RCP<const LA_CrsMatrix> & A, const std::string & name) {
-    const auto rowMap = A->getRowMap();
-    // Estimate |A|_inf with the maximum absolute row sum.
-    MagT Ainf = MagT(0);
-    {
-      const LO nr = static_cast<LO>(rowMap->getLocalNumElements());
-      for (LO i = 0; i < nr; ++i) {
-        size_t nent = A->getNumEntriesInLocalRow(i);
-        if (nent == 0) continue;
-        host_inds_t cols("sym_cols", nent);
-        host_vals_t vals("sym_vals", nent);
-        A->getLocalRowCopy(i, cols, vals, nent);
-        MagT rs = MagT(0);
-        for (size_t k = 0; k < nent; ++k) rs += Teuchos::ScalarTraits<ScalarT>::magnitude(vals(k));
-        if (rs > Ainf) Ainf = rs;
-      }
-      MagT Ainf_g = Ainf;
-      Teuchos::reduceAll<int,MagT>(*comm, Teuchos::REDUCE_MAX, 1, &Ainf, &Ainf_g);
-      Ainf = Ainf_g;
-    }
-    LA_MultiVector x(rowMap, 1), y(rowMap, 1), Ax(rowMap, 1), Ay(rowMap, 1);
-    for (int seed = 0; seed < 3; ++seed) {
-      fillProbe<Node>(x, 2 * seed); fillProbe<Node>(y, 2 * seed + 1);
-      A->apply(x, Ax);
-      A->apply(y, Ay);
-      Teuchos::Array<ScalarT> xtAy(1), ytAx(1);
-      Teuchos::Array<MagT> nx(1), ny(1);
-      x.dot(Ay, xtAy()); y.dot(Ax, ytAx());
-      x.norm2(nx());     y.norm2(ny());
-      const MagT diff = Teuchos::ScalarTraits<ScalarT>::magnitude(xtAy[0] - ytAx[0]);
-      const MagT denom = std::max(nx[0] * ny[0] * Ainf, MagT(1e-30));
-      const MagT rel = diff / denom;
-      logs("symmetry ", name, " seed=", seed, ": |xTAy - yTAx| rel = ", rel);
-      if (rel > MagT(1e-13)) {
-        logs("symmetry ", name, " seed=", seed, ": rel ", rel, " > 1e-13");
-      }
-    }
-  };
-  sym_test(SM_f, "SM_f");
-  sym_test(M1_f, "M1_f");
-
-  // Filtering should not change the small curl-curl residual on gradients.
-  if (!SM.is_null() && !M1.is_null()) {
-    const auto nodalMap = D0->getDomainMap();
-    LA_MultiVector v(nodalMap, 1);
-    fillProbe<Node>(v);
-    LA_MultiVector D0v(D0->getRangeMap(), 1);
-    D0->apply(v, D0v);
-    LA_MultiVector r_unf(SM->getRangeMap(), 1);
-    LA_MultiVector t1(SM->getRangeMap(), 1), t2(M1->getRangeMap(), 1);
-    SM->apply(D0v, t1);
-    M1->apply(D0v, t2);
-    r_unf.update(Teuchos::ScalarTraits<ScalarT>::one(), t1, -Teuchos::ScalarTraits<ScalarT>::one(),
-                 t2, Teuchos::ScalarTraits<ScalarT>::zero());
-    LA_MultiVector r_flt(SM_f->getRangeMap(), 1);
-    LA_MultiVector t1f(SM_f->getRangeMap(), 1), t2f(M1_f->getRangeMap(), 1);
-    SM_f->apply(D0v, t1f);
-    M1_f->apply(D0v, t2f);
-    r_flt.update(Teuchos::ScalarTraits<ScalarT>::one(), t1f, -Teuchos::ScalarTraits<ScalarT>::one(),
-                 t2f, Teuchos::ScalarTraits<ScalarT>::zero());
-    Teuchos::Array<MagT> nr_u(1), nr_f(1), nDv(1);
-    r_unf.norm2(nr_u()); r_flt.norm2(nr_f()); D0v.norm2(nDv());
-    const MagT rat = (nr_u[0] > MagT(1e-30)) ? (nr_f[0] / nr_u[0]) : MagT(1);
-    logs("(SM-M1)*D0v: unf=", nr_u[0], " flt=", nr_f[0], " |D0v|=", nDv[0], " ratio flt/unf=", rat);
-    if (nr_u[0] > MagT(1e-30) && (rat > MagT(2.0) || rat < MagT(0.5))) {
-      logs("filter shifted (SM-M1)*D0v by more than 2x (ratio ", rat, ")");
-    }
-  }
-
-  // The filtered and original Rayleigh quotients should agree within the drop bound.
-  auto rayleigh = [&](const Teuchos::RCP<const LA_CrsMatrix> & A,
-                      const Teuchos::RCP<const LA_CrsMatrix> & A_f,
-                      const size_t nDrop,
-                      const std::string & name) {
-    const MagT delta = std::max(MagT(1e-12), static_cast<MagT>(nDrop) * tol);
-    const auto rowMap = A->getRowMap();
-    LA_MultiVector x(rowMap, 1), Ax(rowMap, 1), Afx(A_f->getRangeMap(), 1);
-    auto one_test = [&](const std::string & tag) {
-      A->apply(x, Ax);
-      A_f->apply(x, Afx);
-      Teuchos::Array<ScalarT> num(1), den(1);
-      x.dot(Afx, num()); x.dot(Ax, den());
-      const MagT ratio = (Teuchos::ScalarTraits<ScalarT>::magnitude(den[0]) > MagT(1e-30))
-        ? Teuchos::ScalarTraits<ScalarT>::magnitude(num[0] / den[0])
-        : MagT(0);
-      logs("Rayleigh ", name, " ", tag, ": xTA_f x / xTAx = ", ratio,
-           " (window 1 +/- ", delta, ")");
-      if (Teuchos::ScalarTraits<ScalarT>::magnitude(den[0]) > MagT(1e-30) &&
-          (ratio > MagT(1) + delta || ratio < MagT(1) - delta)) {
-        logs("Rayleigh ", name, " ", tag, ": outside window");
-      }
-    };
-    for (int seed = 0; seed < 3; ++seed) {
-      fillProbe<Node>(x, seed);
-      one_test("probe seed=" + std::to_string(seed));
-    }
-  };
-  rayleigh(SM, SM_f, dropped_SM.size(), "SM");
-  rayleigh(M1, M1_f, dropped_M1.size(), "M1");
-}
-
-// SM is filtered even on reuse: resetMatrix() must get the matrix the
-// hierarchy was built from.
+// RefMaxwell/Maxwell1 inputs, before and after the optional filter. SM is filtered
+// even on reuse, because resetMatrix() must get the matrix the hierarchy was built
+// from.
 template<class Node>
 struct MaxwellInputs {
   ConstMatrixRCP<Node> SM_orig, M1_orig, D0;
@@ -764,34 +519,13 @@ MaxwellInputs<Node> filterSMOnly(const ConstMatrixRCP<Node> & SM,
   in.SM = Teuchos::rcp_const_cast<typename BlockTypes<Node>::CrsMatrix>(SM);
   in.M1 = Teuchos::rcp_const_cast<typename BlockTypes<Node>::CrsMatrix>(M1);
   if (!opts.filterSM) return in;
-  // Dropped entries only feed verifyMaxwellComplex, which reuse skips.
+  
   in.smFilter = filterExplicitZeros<Node>(SM, opts.tol, opts.verifyComplex && !forReuse);
   in.SM = in.smFilter.matrix;
   return in;
 }
-
-// Build-only: the kernel bound, the M1 filter, the complex checks.
-template<class Node>
-void finishMaxwellInputs(MaxwellInputs<Node> & in,
-                         const Teuchos::RCP<const Tpetra::MultiVector<
-                           typename Teuchos::ScalarTraits<ScalarT>::coordinateType,LO,GO,Node>> & coords,
-                         const FilterOpts & opts, const std::string & label,
-                         const int verbosity, const int rank) {
-  if (opts.filterSM) {
-    assertKernelBound<Node>(in.SM, in.SM_orig, in.D0, opts.tol, label + " SM filter");
-    in.m1Filter = filterM1Checked<Node>(in.M1_orig, opts, label);
-    in.M1 = in.m1Filter.matrix;
-    logFilterCounts<Node>(in.smFilter, in.m1Filter, opts, label, verbosity, rank);
-  }
-  if (opts.verifyComplex) {
-    verifyMaxwellComplex<Node>(in.D0, coords, in.SM_orig, in.M1_orig, in.SM, in.M1,
-                               in.smFilter.dropped, in.m1Filter.dropped,
-                               opts.tol, verbosity, rank, label);
-  }
-}
-
-// Normalize D0 to {-1, +1} and remove stored zeros. ReitzingerPFactory
-// rejects all other values; dropBCRows prevents MueLu from adding zeros back.
+// ReitzingerPFactory's sign kernel aborts on any D0 entry that is not exactly
+// +1, -1 or 0, and Panzer emits +-0.5.
 template<class Node>
 Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,Node>>
 snapCrsMatrixSigns(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & src) {
@@ -836,7 +570,7 @@ snapCrsMatrixSigns(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node
   return out;
 }
 
-// Remove boundary rows so Maxwell1 cannot add stored zeros to D0.
+// Drop whole rows, so the result keeps D0's maps but loses those edges entirely.
 template<class Node>
 Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,Node>>
 dropBCRows(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & src,
@@ -915,7 +649,7 @@ BlockSystem<Node> buildBlockSystemForSet(LinearAlgebraInterface<Node> & interfac
   pairMaps[0] = pivotMap;
   pairMaps[1] = targetMap;
   const std::vector<std::vector<typename Types::CrsMatrixRCP> > remappedBlocks =
-    detail::extractAndRemapBlocks<Node>(J, pairMaps);
+    detail::extractBlocks<Node>(J, pairMaps);
 
   BlockSystem<Node> blocks;
   blocks.pivotMap = pivotMap;
@@ -929,8 +663,35 @@ BlockSystem<Node> buildBlockSystemForSet(LinearAlgebraInterface<Node> & interfac
   return blocks;
 }
 
+// Applies diag(M)^-1. Thyra::diagonal would do the same through RTOps, which zero-fill
+// Y and drop to a serial loop; elementWiseMultiply is one fused kernel.
 template<class Node>
-Teuchos::RCP<Tpetra::Operator<ScalarT,LO,GO,Node> >
+class DiagonalInverseOperator : public Tpetra::Operator<ScalarT,LO,GO,Node> {
+public:
+  using LA_Map = typename BlockTypes<Node>::Map;
+  using LA_MultiVector = typename BlockTypes<Node>::MultiVector;
+  using LA_Vector = typename BlockTypes<Node>::Vector;
+
+  explicit DiagonalInverseOperator(const Teuchos::RCP<LA_Vector> & invDiag) : invDiag_(invDiag) {}
+
+  Teuchos::RCP<const LA_Map> getDomainMap() const override { return invDiag_->getMap(); }
+  Teuchos::RCP<const LA_Map> getRangeMap() const override { return invDiag_->getMap(); }
+  bool hasTransposeApply() const override { return true; }
+
+  void apply(const LA_MultiVector & X, LA_MultiVector & Y,
+             Teuchos::ETransp = Teuchos::NO_TRANS,
+             ScalarT alpha = Teuchos::ScalarTraits<ScalarT>::one(),
+             ScalarT beta = Teuchos::ScalarTraits<ScalarT>::zero()) const override {
+    // Symmetric, so the transpose mode needs no special case.
+    Y.elementWiseMultiply(alpha, *invDiag_, X, beta);
+  }
+
+private:
+  Teuchos::RCP<LA_Vector> invDiag_;
+};
+
+template<class Node>
+Teko::LinearOp
 buildDiagonalBlockInverse(const typename BlockTypes<Node>::CrsMatrixRCP & J00,
                           const bool useLumpedDiagonal,
                           const Teuchos::RCP<const Teuchos::Comm<int> > & comm,
@@ -941,7 +702,9 @@ buildDiagonalBlockInverse(const typename BlockTypes<Node>::CrsMatrixRCP & J00,
     detail::buildInverseDiagonal<Node>(
       Teuchos::rcp_implicit_cast<const typename Types::CrsMatrix>(J00), useLumpedDiagonal, counts);
   detail::reportInverseDiagonal<Node>(counts, "Pivot-block diag inverse", comm, verbosity);
-  return Teuchos::rcp(new DiagonalInverseOperator<Node>(invDiag));
+  Teuchos::RCP<Tpetra::Operator<ScalarT,LO,GO,Node> > op =
+    Teuchos::rcp(new DiagonalInverseOperator<Node>(invDiag));
+  return tpetraToThyra<Node>(op, J00->getRangeMap(), J00->getDomainMap());
 }
 
 template<class Node>
@@ -1030,8 +793,8 @@ buildBlockOperator(LinearAlgebraInterface<Node> & interface,
       // S is formed from J00, so inverting its diagonal is not an approximation of it.
       TEUCHOS_TEST_FOR_EXCEPTION(forSchur, std::runtime_error,
         "Schur block does not support Diagonal.");
-      tpetraPrec = buildDiagonalBlockInverse<Node>(mat, cntxt->schur.pivot_block_diag_use_lumped_diagonal,
-                                                   interface.comm, interface.verbosity);
+      innerPrec = buildDiagonalBlockInverse<Node>(mat, cntxt->schur.pivot_block_diag_use_lumped_diagonal,
+                                                  interface.comm, interface.verbosity);
       break;
     default:
       innerPrec = buildGeneric();

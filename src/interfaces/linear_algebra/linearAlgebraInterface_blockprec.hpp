@@ -8,7 +8,6 @@
 #include "linearAlgebraInterface.hpp"
 #include "block_prec/ParamUtils.hpp"
 #include "block_prec/BlockTypes.hpp"
-#include "block_prec/BlockOperators.hpp"
 #include "block_prec/BlockAssembly.hpp"
 #include "block_prec/SchurApproximation.hpp"
 #include "block_prec/TekoAdapter.hpp"
@@ -51,16 +50,9 @@ namespace MrHyDE {
 //   Pivot 0: S = J11 - J10 * J00^{-1} * J01
 //   Pivot 1: S = J00 - J01 * J11^{-1} * J10
 //
-// Block extraction convention: pivot block index (0 or 1) is set by Schur pivot block.
-// After extraction, blocks are always named by role.
-// In code:
-//    - J00 = pivot diagonal,
-//    - J11 = target diagonal,
-//    - J10 = target-from-pivot,
-//    - J01 = pivot-from-target.
-// So when
-//    - pivot is 0, J00 is system (0,0) and J11 is (1,1);
-//    - when pivot is 1, J00 is (1,1) and J11 is (0,0).
+// After extraction the blocks are named by role, not by variable index: J00 is the
+// pivot diagonal and J11 the target. block_prec::BlockSystem has the layout and both
+// relabellings.
 //
 // Schur variants:
 //   (all variants approximate the exact Schur complement above)
@@ -419,8 +411,8 @@ LinearAlgebraInterface<Node>::buildBlockDiagonalPreconditioner(const matrix_RCP 
   using Types = LATypes<Node>;
   using LA_Map = typename Types::Map;
 
-  BlockPrecType pivotType = parseBlockPrecType((cntxt != Teuchos::null) ? cntxt->schur.pivot_block_preconditioner_type : "AMG");
-  const bool useRefMaxwellOnBlock0 = (pivotType == BlockPrecType::RefMaxwell);
+  block_prec::BlockPrecType pivotType = block_prec::parseBlockPrecType((cntxt != Teuchos::null) ? cntxt->schur.pivot_block_preconditioner_type : "AMG");
+  const bool useRefMaxwellOnBlock0 = (pivotType == block_prec::BlockPrecType::RefMaxwell);
 
   // Build one local map per variable block.
   vector<Teuchos::RCP<const LA_Map> > blockMaps = this->buildBlockMaps(set);
@@ -432,7 +424,7 @@ LinearAlgebraInterface<Node>::buildBlockDiagonalPreconditioner(const matrix_RCP 
   }
 
   const std::vector<std::vector<matrix_RCP> > remappedBlocks =
-    block_prec::detail::extractAndRemapBlocks<Node>(J, blockMaps, true);
+    block_prec::detail::extractBlocks<Node>(J, blockMaps, true);
 
   // Build one diagonal-block preconditioner per block map.
   vector<Teko::LinearOp> blockPrecs(blockMaps.size());
@@ -476,19 +468,19 @@ LinearAlgebraInterface<Node>::getBlockTriangularMueLuParams(const Teuchos::RCP<L
     (cntxt->schur_block_sublist.name() != "empty") &&
     cntxt->schur_block_sublist.isSublist("AMG Settings");
   if (hasNestedSchurAmg &&
-      loadMueLuXmlIfPresent(cntxt->schur_block_sublist.sublist("AMG Settings"), mueluParams, "Schur block", comm)) {
-    normalizeMueLuVerbosity(mueluParams, verbosity);
+      block_prec::loadMueLuXmlIfPresent(cntxt->schur_block_sublist.sublist("AMG Settings"), mueluParams, "Schur block", comm)) {
+    block_prec::normalizeMueLuVerbosity(mueluParams, verbosity);
     block_prec::detail::addHiptmairUserData<Node>(mueluParams, SchurApprox,
       schurBlockD0(cntxt, SchurApprox), "Schur Block Settings", verbosity);
     return mueluParams;
   }
-  mueluParams = defaultMueLuParams();
+  mueluParams = block_prec::defaultMueLuParams();
   if (hasNestedSchurAmg || cntxt->prec_sublist.name() != "empty") {
     Teuchos::ParameterList filteredParams = hasNestedSchurAmg
       ? Teuchos::ParameterList(cntxt->schur_block_sublist.sublist("AMG Settings"))
       : Teuchos::ParameterList(cntxt->prec_sublist);
-    removeMrHyDEOwnedKeys(filteredParams);
-    removeIfpack2OnlyKeys(filteredParams);
+    block_prec::removeMrHyDEOwnedKeys(filteredParams);
+    block_prec::removeIfpack2OnlyKeys(filteredParams);
     mueluParams.setParameters(filteredParams);
   } else {
     mueluParams.sublist("smoother: params").set("chebyshev: degree", 2);
@@ -496,7 +488,7 @@ LinearAlgebraInterface<Node>::getBlockTriangularMueLuParams(const Teuchos::RCP<L
     mueluParams.sublist("smoother: params").set("chebyshev: min eigenvalue", 0.1);
     mueluParams.sublist("smoother: params").set("chebyshev: zero starting solution", true);
   }
-  normalizeMueLuVerbosity(mueluParams, verbosity);
+  block_prec::normalizeMueLuVerbosity(mueluParams, verbosity);
   block_prec::detail::addHiptmairUserData<Node>(mueluParams, SchurApprox,
     schurBlockD0(cntxt, SchurApprox), "Schur Block Settings", verbosity);
   return mueluParams;
