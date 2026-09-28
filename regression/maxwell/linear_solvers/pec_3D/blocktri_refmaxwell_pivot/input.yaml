@@ -1,6 +1,5 @@
 %YAML 1.1
 ---
-# Pivot on block 0 (E, HCURL) with KLU on both blocks.
 ANONYMOUS:
   debug level: 0
   verbosity: 10
@@ -17,10 +16,16 @@ ANONYMOUS:
   Solver:
     preconditioner type: block triangular
     Pivot Block Settings:
-      preconditioner type: Direct
+      preconditioner type: RefMaxwell
+      hgrad basis name: phi_aux
+      hcurl basis name: E
+      RefMaxwell Settings:
+        xml param file: ../xml/refmaxwell_p2v3.xml
     Schur Block Settings:
       pivot block: 0
       approximation type: diag
       diag use lumped pivot diagonal: true
-      preconditioner type: Direct
+      preconditioner type: AMG
+      AMG Settings:
+        xml param file: ../xml/cheb_1level.xml
 ...

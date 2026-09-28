@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import re
 import sys
 sys.path.append("../../../../scripts")
 sys.path.append("../../../../../scripts/data_processing")
@@ -14,18 +15,21 @@ its.opts.verbose = True
 #TESTING -n 4
 #TESTING -k maxwell,HCURL,blocktriangular,refmaxwell,parallel,regression
 
-# 3x the elements per step. An h-independent preconditioner holds max iterations
-# nearly flat here; SA-AMG on the same Schur block roughly doubles over the same
-# sequence, so the gate separates the two.
 MESHES = ["N8x8x4", "N16x8x4", "N24x12x6"]
+NXNYNZ = {"N8x8x4": (8, 8, 4), "N16x8x4": (16, 8, 4), "N24x12x6": (24, 12, 6)}
 GROWTH = 1.6
 
 res = Results()
-status = enable_trilinos_debug()
+status = enable_trilinos_debug(tpetra=False)
 imax = {}
 for mesh in MESHES:
     log = "mrhyde_%s.log" % mesh
     status += its.call("mpiexec -n 4 ../../../../mrhyde input_%s.yaml >& %s" % (mesh, log))
+    text = open(log).read()
+    built = tuple(int(re.search(r"^ %s = (\d+)$" % n, text, re.M).group(1))
+                  for n in ("NX", "NY", "NZ"))
+    res.add(built == NXNYNZ[mesh], "%s mesh built" % mesh,
+            "NX/NY/NZ %s, expected %s" % (built, NXNYNZ[mesh]))
     s = stats(log)
     if s is None:
         res.add(False, "%s ran" % mesh, "no Belos solves in " + log)
