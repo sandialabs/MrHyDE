@@ -1,5 +1,11 @@
-// Checks on the block system and the Maxwell auxiliary operators.
-// Everything here is off unless a 'verify' flag or verbosity >= 5 turns it on.
+/***********************************************************************
+ MrHyDE - Checks on the block system and the Maxwell auxiliary operators.
+ Everything here is off unless a 'verify' flag or verbosity >= 5 turns
+ it on.
+
+ Questions? Contact Alexey Voronin (abvoron@sandia.gov)
+ ************************************************************************/
+
 #ifndef MRHYDE_BLOCK_PREC_VERIFY_HPP
 #define MRHYDE_BLOCK_PREC_VERIFY_HPP
 

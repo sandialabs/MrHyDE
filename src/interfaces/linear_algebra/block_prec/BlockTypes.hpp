@@ -1,3 +1,10 @@
+/***********************************************************************
+ MrHyDE - Shared Tpetra aliases and option enums for the block
+ preconditioners.
+
+ Questions? Contact Alexey Voronin (abvoron@sandia.gov)
+ ************************************************************************/
+
 #ifndef MRHYDE_BLOCK_PREC_TYPES_HPP
 #define MRHYDE_BLOCK_PREC_TYPES_HPP
 

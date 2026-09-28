@@ -1,3 +1,9 @@
+/***********************************************************************
+ MrHyDE - Assembly of the 2x2 block-triangular preconditioner.
+
+ Questions? Contact Alexey Voronin (abvoron@sandia.gov)
+ ************************************************************************/
+
 #ifndef MRHYDE_BLOCK_PREC_TRIANGULAR_FACTORY_HPP
 #define MRHYDE_BLOCK_PREC_TRIANGULAR_FACTORY_HPP
 

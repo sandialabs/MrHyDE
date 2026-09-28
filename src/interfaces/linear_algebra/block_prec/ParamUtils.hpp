@@ -1,7 +1,9 @@
 /***********************************************************************
 MrHyDE - Parameter canonicalization, validation, and filtering for the block
 preconditioners. Normalizes keys and strips MrHyDE-owned ones before a list is
-handed to MueLu or Ifpack2. No matrices are modified  here.
+handed to MueLu or Ifpack2. No matrices are modified here.
+
+ Questions? Contact Alexey Voronin (abvoron@sandia.gov)
  ************************************************************************/
 
 #ifndef MRHYDE_BLOCK_PREC_PARAM_UTILS_HPP

@@ -1,5 +1,7 @@
 /***********************************************************************
  MrHyDE - Block preconditioners for 2x2 block systems (block 0 / block 1).
+
+ Questions? Contact Alexey Voronin (abvoron@sandia.gov)
  ************************************************************************/
 
 #ifndef MRHYDE_LINEAR_ALGEBRA_BLOCK_PREC_H

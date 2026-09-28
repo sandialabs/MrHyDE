@@ -1,3 +1,9 @@
+/***********************************************************************
+ MrHyDE - Jacobian block extraction and per-block preconditioner assembly.
+
+ Questions? Contact Alexey Voronin (abvoron@sandia.gov)
+ ************************************************************************/
+
 #ifndef MRHYDE_BLOCK_PREC_ASSEMBLY_HPP
 #define MRHYDE_BLOCK_PREC_ASSEMBLY_HPP
 

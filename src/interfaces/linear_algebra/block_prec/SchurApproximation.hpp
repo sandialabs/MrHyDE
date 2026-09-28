@@ -2,6 +2,8 @@
  MrHyDE - Schur approximation builders for block preconditioners.
  Block arguments (J00, J11, J10, J01) follow the pivot-relative convention:
  J00 = pivot diagonal, J11 = target diagonal (see BlockSystem / linearAlgebraInterface_blockprec overview).
+
+ Questions? Contact Alexey Voronin (abvoron@sandia.gov)
  ************************************************************************/
 
 #ifndef MRHYDE_BLOCK_PREC_SCHUR_APPROXIMATION_HPP

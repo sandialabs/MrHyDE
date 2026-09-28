@@ -1,3 +1,9 @@
+/***********************************************************************
+ MrHyDE - Teko inverse library used to build the block sub-solvers.
+
+ Questions? Contact Alexey Voronin (abvoron@sandia.gov)
+ ************************************************************************/
+
 #ifndef MRHYDE_BLOCK_PREC_INVERSE_LIBRARY_OPS_HPP
 #define MRHYDE_BLOCK_PREC_INVERSE_LIBRARY_OPS_HPP
 

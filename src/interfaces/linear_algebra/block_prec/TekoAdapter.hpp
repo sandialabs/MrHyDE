@@ -1,6 +1,7 @@
 /***********************************************************************
  MrHyDE - Teko/Thyra composition for the block preconditioners.
 
+ Questions? Contact Alexey Voronin (abvoron@sandia.gov)
  ************************************************************************/
 
 #ifndef MRHYDE_LINEAR_ALGEBRA_TEKO_ADAPTER_H
