@@ -495,8 +495,10 @@ LinearAlgebraInterface<Node>::buildRefMaxwellPreconditioner(
   block_prec::warnNonStationarySmoother(refmaxwellParams, "refmaxwell: 11list", J->getComm());
   block_prec::warnNonStationarySmoother(refmaxwellParams, "refmaxwell: 22list", J->getComm());
 
-  // AMS only for this path.
-  refmaxwellParams.set("refmaxwell: space number", 1);
+  TEUCHOS_TEST_FOR_EXCEPTION(refmaxwellParams.get<int>("refmaxwell: space number", 1) != 1,
+    std::runtime_error, "RefMaxwell XML '" << refmaxwellXmlFile
+    << "' sets 'refmaxwell: space number' to something other than 1, but this path "
+    "supplies an edge D0 and nodal coordinates.");
   const bool wantAddon = block_prec::refMaxwellAddonEnabled(refmaxwellParams);
   TEUCHOS_TEST_FOR_EXCEPTION(wantAddon && !forSchur, std::runtime_error,
     "RefMaxwell XML '" << refmaxwellXmlFile << "' enables the addon on the pivot block. "

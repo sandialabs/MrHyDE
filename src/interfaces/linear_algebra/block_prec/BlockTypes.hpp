@@ -1,6 +1,7 @@
 /***********************************************************************
- MrHyDE - Shared Tpetra aliases and option enums for the block
- preconditioners.
+ MrHyDE - Tpetra aliases and option enums shared across block_prec/.
+
+ Everything in block_prec/ is in MrHyDE::block_prec; ::detail is module-private.
 
  Questions? Contact Alexey Voronin (abvoron@sandia.gov)
  ************************************************************************/

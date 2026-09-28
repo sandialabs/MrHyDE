@@ -635,7 +635,7 @@ BlockSystem<Node> buildBlockSystemForSet(LinearAlgebraInterface<Node> & interfac
   TEUCHOS_TEST_FOR_EXCEPTION(blockMaps.size() != 2, std::runtime_error,
     "Block-triangular preconditioner supports exactly two variable blocks, but set "
     << set << " has " << blockMaps.size()
-    << ". N-block support through Teko is not implemented.");
+    << ". Use 'preconditioner type: block diagonal' for more than two.");
 
   const int pivotBlock = cntxt->schur.pivot_block;
   TEUCHOS_TEST_FOR_EXCEPTION(pivotBlock < 0 || static_cast<size_t>(pivotBlock) >= blockMaps.size(),
