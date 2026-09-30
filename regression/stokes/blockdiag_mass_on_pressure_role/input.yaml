@@ -1,0 +1,67 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  debug level: 0
+  verbosity: 10
+  disable timers: true
+  Mesh:
+    dimension: 2
+    element type: quad
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    NX: 24
+    NY: 24
+  Physics:
+    usePSPG: false
+    modules: Stokes
+    Dirichlet conditions:
+      ux:
+        bottom: '0.0'
+        top: '0.0'
+      uy:
+        bottom: '0.0'
+        top: '0.0'
+  Solver:
+    solver: steady-state
+    Belos solver: Block GMRES
+    workset size: 16
+    nonlinear TOL: 1.0e-10
+    linear TOL: 1.0e-10
+    max linear iters: 300  # 129 observed
+    max nonlinear iters: 2
+    initial type: none
+    use direct solver: false
+    use preconditioner: true
+    preconditioner type: block diagonal
+    # usePSPG: false leaves the pressure diagonal exactly zero, so that role needs its mass matrix.
+    Block Diagonal Settings:
+      variable groups:
+        ux: 'ux'
+        pr: 'pr'
+        uy: 'uy'
+      ux:
+        preconditioner: AMG
+      pr:
+        preconditioner: AMG
+        use mass matrix: true
+      uy:
+        preconditioner: AMG
+  Discretization:
+    order:
+      ux: 2
+      uy: 2
+      pr: 1
+    quadrature: 4
+  Analysis:
+    analysis type: forward
+  Postprocess:
+    compute errors: true
+    True solutions:
+      ux: '0.5*y*(1.0-y)'
+      uy: '0.0'
+      pr: '0.0'
+  Functions:
+    source ux: '1.0'
+...
