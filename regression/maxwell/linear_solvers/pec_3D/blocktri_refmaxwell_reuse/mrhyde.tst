@@ -13,7 +13,7 @@ its.opts.verbose = True
 
 #TESTING active
 #TESTING -n 4
-#TESTING -k maxwell,HCURL,blocktriangular,refmaxwell,parallel,regression
+#TESTING -k regression,maxwell,HCURL,HDIV,blocktriangular,schur,schur_hcurl,refmaxwell,reuse,crossrun
 
 # J is identical at every solve, so this catches reuse not happening and reset
 # disagreeing with rebuild, not a reset carrying a stale copy of that matrix.
@@ -47,12 +47,12 @@ def compare(a, b, tol):
     return True, "%d solves agree within %d" % (len(runs[a]), tol)
 
 if len(runs) == len(MODES):
-    res.add(resets["update"] > 0, "update reuses",
+    res.add(resets["update"] > 0, "update reuses the hierarchy",
             "%d resetMatrix calls; 0 means the short-circuit is dead" % resets["update"])
-    res.add(builds["none"] > builds["update"], "none rebuilds",
+    res.add(builds["none"] > builds["update"], "none rebuilds the hierarchy",
             "none %d builds, update %d" % (builds["none"], builds["update"]))
     for a, b, tol in (("none", "update", 0), ("none", "full", FREEZE_TOL)):
         ok, detail = compare(a, b, tol)
-        res.add(ok, "%s vs %s" % (a, b), detail)
+        res.add(ok, "%s vs %s iterations" % (a, b), detail)
 
 sys.exit(status + res.write())

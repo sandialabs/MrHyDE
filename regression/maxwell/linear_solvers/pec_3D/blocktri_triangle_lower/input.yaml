@@ -15,14 +15,18 @@ ANONYMOUS:
 
   Solver:
     preconditioner type: block triangular
-    Pivot Block Settings:
-      preconditioner type: Diagonal
-    Schur Block Settings:
-      pivot block: 1
+    Block Triangular Settings:
+      variable groups:
+        B: 'B'
+        E: 'E'
+      schur target: E
       approximation type: diag
       diag use lumped pivot diagonal: true
       triangle: lower
-      preconditioner type: AMG
-      AMG Settings:
-        xml param file: ../xml/cheb_1level.xml
+      B:
+        preconditioner: Diagonal
+      E:
+        preconditioner: AMG
+        AMG Settings:
+          xml param file: ../xml/cheb_1level.xml
 ...

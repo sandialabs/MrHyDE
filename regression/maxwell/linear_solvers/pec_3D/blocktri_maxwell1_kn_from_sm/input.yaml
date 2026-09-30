@@ -1,6 +1,5 @@
 %YAML 1.1
 ---
-# Block-triangular Maxwell1 Schur with Kn built from SM, not from M1.
 ANONYMOUS:
   debug level: 0
   verbosity: 10
@@ -16,18 +15,22 @@ ANONYMOUS:
 
   Solver:
     preconditioner type: block triangular
-    Pivot Block Settings:
-      preconditioner type: AMG
-      AMG Settings:
-        xml param file: ../xml/amg_pivot.xml
-    Schur Block Settings:
-      pivot block: 1
+    Block Triangular Settings:
+      variable groups:
+        B: 'B'
+        E: 'E'
+      schur target: E
       approximation type: diag
       diag use lumped pivot diagonal: true
-      preconditioner type: Maxwell1
-      hgrad basis name: phi_aux
-      hcurl basis name: E
-      Maxwell1 Settings:
-        use Kn from M1: false
-        xml param file: ../xml/maxwell1_sa.xml
+      B:
+        preconditioner: AMG
+        AMG Settings:
+          xml param file: ../xml/amg_pivot.xml
+      E:
+        preconditioner: Maxwell1
+        hgrad basis name: phi_aux
+        hcurl basis name: E
+        Maxwell1 Settings:
+          use Kn from M1: false
+          xml param file: ../xml/maxwell1_sa.xml
 ...

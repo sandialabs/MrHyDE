@@ -28,10 +28,6 @@
 
 namespace MrHyDE {
 
-// ========================================================================================
-// Mathematical overview
-// ========================================================================================
-//
 // Block preconditioners for 2x2 mixed systems:
 //
 //   [ J00  J01 ] [ x0 ] = [ b0 ]
@@ -85,10 +81,16 @@ Teuchos::ParameterList mergeBlockSettings(LinearAlgebraInterface<Node> & interfa
     list.setParameters(cntxt->prec_sublist);
   }
   if (interface.settings != Teuchos::null) {
-    Teuchos::ParameterList & solverList = interface.settings->sublist("Solver");
-    const std::string blockKey = "Block " + std::to_string(blockIndex) + " Settings";
-    if (solverList.isSublist(blockKey)) {
-      list.setParameters(solverList.sublist(blockKey));
+    if (cntxt != Teuchos::null && !cntxt->role_sublists.empty()) {
+      // Named layout: the role's own sublist is the override.
+      list.setParameters(cntxt->roleSettings(blockIndex));
+    }
+    else {
+      Teuchos::ParameterList & solverList = interface.settings->sublist("Solver");
+      const std::string blockKey = "Block " + std::to_string(blockIndex) + " Settings";
+      if (solverList.isSublist(blockKey)) {
+        list.setParameters(solverList.sublist(blockKey));
+      }
     }
   }
   return list;
@@ -104,7 +106,10 @@ inline void ensureRelaxationDampingDouble(Teuchos::ParameterList & list) {
 }
 
 inline std::string resolveBlockMethod(Teuchos::ParameterList & blockList) {
-  std::string method = blockList.get<std::string>("preconditioner variant", "RELAXATION");
+  // 'preconditioner' is the unified key; 'preconditioner variant' is the older spelling.
+  std::string method = blockList.isParameter("preconditioner")
+    ? blockList.get<std::string>("preconditioner")
+    : blockList.get<std::string>("preconditioner variant", "RELAXATION");
   if (toUpperAsciiCopy(method) != "AMG" &&
       blockList.isParameter("smoother: type") &&
       toUpperAsciiCopy(blockList.get<std::string>("smoother: type")) == "CHEBYSHEV") {
@@ -264,7 +269,7 @@ buildSingleBlockPreconditioner(LinearAlgebraInterface<Node> & interface,
                                const bool useRefMaxwellOnBlock0) {
   const std::string label = "BlockDiag block " + std::to_string(blockIndex);
   if (blockIndex == 0 && useRefMaxwellOnBlock0) {
-    return block_prec::buildBlockOperator<Node>(interface, blockMat, cntxt, cntxt->pivot_block_sublist,
+    return block_prec::buildBlockOperator<Node>(interface, blockMat, cntxt, cntxt->pivotSettings(),
       BlockPrecType::RefMaxwell, false, label,
       [] { return Teko::LinearOp(); });
   }
@@ -276,14 +281,23 @@ buildSingleBlockPreconditioner(LinearAlgebraInterface<Node> & interface,
   const bool useMassMatrix = blockList.isParameter("use mass matrix") &&
                              blockList.get<bool>("use mass matrix");
   if (useMassMatrix) {
-    TEUCHOS_TEST_FOR_EXCEPTION(cntxt.is_null() ||
-      blockIndex >= cntxt->block.mass_matrices.size() ||
-      cntxt->block.mass_matrices[blockIndex].is_null(),
-      std::runtime_error,
-      "'use mass matrix: true' on Block " << blockIndex << " Settings but no block mass matrix "
-      "was assembled. Check that block-diagonal preconditioning is active and that "
-      "setupBlockTriangularAuxiliary ran (needs 'use mass matrix' on at least one Block N Settings).");
-    preconditioner_matrix = cntxt->block.mass_matrices[blockIndex];
+    // Prefer the index; fall back to matching by map, the only option for a fused role.
+    typename LATypes<Node>::CrsMatrixRCP mass = Teuchos::null;
+    if (cntxt != Teuchos::null) {
+      if (blockIndex < cntxt->block.mass_matrices.size() &&
+          !cntxt->block.mass_matrices[blockIndex].is_null() &&
+          cntxt->block.mass_matrices[blockIndex]->getRowMap()->isSameAs(*blockMat->getRowMap())) {
+        mass = cntxt->block.mass_matrices[blockIndex];
+      }
+      else {
+        mass = block_prec::massMatrixOnMap<Node>(cntxt->block.mass_matrices,
+                                                blockMat->getRowMap());
+      }
+    }
+    TEUCHOS_TEST_FOR_EXCEPTION(mass.is_null(), std::runtime_error,
+      "'use mass matrix: true' on role " << blockIndex << " but no assembled mass matrix "
+      "lives on that role's map; a fused role has none.");
+    preconditioner_matrix = mass;
     if (interface.verbosity >= 10 && interface.comm->getRank() == 0) {
       std::cout << "[BlockDiag] Block " << blockIndex
                 << ": substituting mass matrix for extracted Jacobian block" << std::endl;
@@ -416,8 +430,13 @@ LinearAlgebraInterface<Node>::buildBlockDiagonalPreconditioner(const matrix_RCP 
   block_prec::BlockPrecType pivotType = block_prec::parseBlockPrecType((cntxt != Teuchos::null) ? cntxt->schur.pivot_block_preconditioner_type : "AMG");
   const bool useRefMaxwellOnBlock0 = (pivotType == block_prec::BlockPrecType::RefMaxwell);
 
-  // Build one local map per variable block.
+  // One map per role: per variable on the flat layout, per named group otherwise.
   vector<Teuchos::RCP<const LA_Map> > blockMaps = this->buildBlockMaps(set);
+  if (cntxt != Teuchos::null && !cntxt->role_variables.empty()) {
+    const std::vector<std::string> varNames = block_prec::setVariableNames<Node>(*this, set);
+    blockMaps = block_prec::fuseRoleMaps<Node>(
+      block_prec::resolveVariableGroups(cntxt->role_variables, varNames), blockMaps);
+  }
   TEUCHOS_TEST_FOR_EXCEPTION(blockMaps.size() < 2, std::runtime_error,
     "Block-diagonal preconditioner needs at least two variable blocks, but set "
     << set << " has " << blockMaps.size() << ".");
@@ -467,10 +486,10 @@ LinearAlgebraInterface<Node>::getBlockTriangularMueLuParams(const Teuchos::RCP<L
                                                            const matrix_RCP & SchurApprox) {
   Teuchos::ParameterList mueluParams;
   const bool hasNestedSchurAmg =
-    (cntxt->schur_block_sublist.name() != "empty") &&
-    cntxt->schur_block_sublist.isSublist("AMG Settings");
+    (cntxt->targetSettings().name() != "empty") &&
+    cntxt->targetSettings().isSublist("AMG Settings");
   if (hasNestedSchurAmg &&
-      block_prec::loadMueLuXmlIfPresent(cntxt->schur_block_sublist.sublist("AMG Settings"), mueluParams, "Schur block", comm)) {
+      block_prec::loadMueLuXmlIfPresent(cntxt->targetSettings().sublist("AMG Settings"), mueluParams, "Schur block", comm)) {
     block_prec::normalizeMueLuVerbosity(mueluParams, verbosity);
     block_prec::detail::addHiptmairUserData<Node>(mueluParams, SchurApprox,
       schurBlockD0(cntxt, SchurApprox), "Schur Block Settings", verbosity);
@@ -479,7 +498,7 @@ LinearAlgebraInterface<Node>::getBlockTriangularMueLuParams(const Teuchos::RCP<L
   mueluParams = block_prec::defaultMueLuParams();
   if (hasNestedSchurAmg || cntxt->prec_sublist.name() != "empty") {
     Teuchos::ParameterList filteredParams = hasNestedSchurAmg
-      ? Teuchos::ParameterList(cntxt->schur_block_sublist.sublist("AMG Settings"))
+      ? Teuchos::ParameterList(cntxt->targetSettings().sublist("AMG Settings"))
       : Teuchos::ParameterList(cntxt->prec_sublist);
     block_prec::removeMrHyDEOwnedKeys(filteredParams);
     block_prec::removeIfpack2OnlyKeys(filteredParams);
@@ -499,7 +518,7 @@ LinearAlgebraInterface<Node>::getBlockTriangularMueLuParams(const Teuchos::RCP<L
 // ========================================================================================
 // Block triangular: Schur and setup
 // ========================================================================================
-// Build Schur approximation matrix (variant from context); optional output of diagonal correction term.
+// diagTermOut = -gamma*J10*diag(J00)^-1*J01, null unless 'diag'.
 template<class Node>
 Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,Node> >
 LinearAlgebraInterface<Node>::buildBlockTriangularSchurApproximation(
@@ -514,7 +533,7 @@ template<class Node>
 void LinearAlgebraInterface<Node>::validateRefMaxwellBlockInputs(
     const matrix_RCP & J00,
     const Teuchos::RCP<LinearSolverContext<Node> > & cntxt) const {
-  // RefMaxwell pivot block requires D0, M1, and nodal coords on maps compatible with J00.
+  // Needs range(D0) = row/domain(J00) = row/domain(M1), nodal coords on domain(D0).
   TEUCHOS_TEST_FOR_EXCEPTION(cntxt->refMaxwell.D0_matrix.is_null(), std::runtime_error,
     "RefMaxwell pivot-block setup missing D0_matrix in solver context.");
   TEUCHOS_TEST_FOR_EXCEPTION(cntxt->refMaxwell.M1_matrix.is_null(), std::runtime_error,
@@ -572,8 +591,13 @@ LinearAlgebraInterface<Node>::setupBlockTriangularPreconditioner(
   if (!this->preconditionerNeedsRebuild(cntxt, !cntxt->prec_block.is_null())) {
     return cntxt->prec_block;
   }
-  block_prec::BlockTriangularFactory<Node> factory(*this, J, cntxt, set);
-  return factory.build();
+  block_prec::BlockSystem<Node> blocks =
+    block_prec::buildBlockSystemForSet<Node>(*this, J, cntxt, set);
+  Teko::BlockedLinearOp blocked = block_prec::buildThyraBlockedFromRoles<Node>(blocks.blocks);
+  Teuchos::RCP<Teko::PreconditionerFactory> factory =
+    Teuchos::rcp(new block_prec::BlockTriangularFactory<Node>(*this, J, cntxt, blocks.targetBlock));
+  Teko::LinearOp prec = block_prec::detail::tekoBuildInverse(factory, blocked);
+  return Teuchos::rcp(new block_prec::TekoTpetraAdapter<Node>(J->getRowMap(), blocks.maps, prec));
 }
 
 } // namespace MrHyDE

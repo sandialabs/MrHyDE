@@ -16,14 +16,21 @@ ANONYMOUS:
   Solver:
     preconditioner type: block triangular
     Block Triangular Settings:
+      # 'Bz' is not a variable this set carries; the deck must be rejected by name.
       variable groups:
-        E: 'E'
         B: 'B'
-      schur target: B
+        Bz: 'Bz'
+      schur target: Bz
       approximation type: diag
       diag use lumped pivot diagonal: true
-      E:
-        preconditioner: Direct
       B:
-        preconditioner: Direct
+        preconditioner: AMG
+        AMG Settings:
+          xml param file: ../xml/amg_pivot.xml
+      Bz:
+        preconditioner: RefMaxwell
+        hgrad basis name: phi_aux
+        hcurl basis name: E
+        RefMaxwell Settings:
+          xml param file: ../xml/refmaxwell_p2v3.xml
 ...

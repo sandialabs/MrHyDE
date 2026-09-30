@@ -9,6 +9,7 @@
 
 #include "block_prec/InverseLibraryOps.hpp"
 #include "block_prec/ParamUtils.hpp"
+#include "block_prec/TekoAdapter.hpp"
 #include "linearAlgebraInterface.hpp"
 #include "linearSolverContext.hpp"
 
@@ -59,10 +60,15 @@ struct BlockSystem {
   using matrix_rcp = typename Types::CrsMatrixRCP;
   using map_rcp = typename Types::MapRCP;
 
+  // Role order: maps[0] is the pivot, maps.back() the Schur target.
+  std::vector<map_rcp> maps;
+  std::vector<std::vector<matrix_rcp> > blocks;
+
   map_rcp pivotMap, targetMap;          // Owned row maps
   matrix_rcp J00, J01, J10, J11;
-  int pivotBlock = 0;                   // Variable index for the pivot role.
   size_t targetBlock = 0;               // Variable index for the target role.
+
+  size_t numBlocks() const { return maps.size(); }
 };
 
 
@@ -342,7 +348,7 @@ inline FilterOpts readFilterOpts(const Teuchos::ParameterList & pl) {
   return o;
 }
 
-// Drop small off-diagonals relative to their row and column diagonals.
+// Drops off-diagonal |A(i,j)| < tol*sqrt(|A(i,i)|*|A(j,j)|).
 template<class Node>
 FilterResult<Node>
 filterExplicitZeros(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & src,
@@ -624,6 +630,150 @@ dropBCRows(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & src
 
 } // namespace detail
 
+// Variable names in declaration order for block 0: the index space 'pivot block' and
+// 'target block' index into.
+template<class Node>
+std::vector<std::string> setVariableNames(LinearAlgebraInterface<Node> & interface,
+                                         const size_t set) {
+  const std::vector<std::vector<std::vector<std::string> > > & vars =
+    interface.disc->physics->getVarList();
+  if (set < vars.size() && !vars[set].empty()) return vars[set][0];
+  return std::vector<std::string>();
+}
+
+inline std::string joinNames(const std::vector<std::string> & names) {
+  std::string out;
+  for (size_t v = 0; v < names.size(); ++v) {
+    if (v) out += ", ";
+    out += std::to_string(v) + "=" + names[v];
+  }
+  return out;
+}
+
+// Variable name to index. Throws listing declared names, since a misspelling and an
+// absent variable are otherwise indistinguishable.
+inline int variableIndexByName(const std::vector<std::string> & names,
+                               const std::string & want, const std::string & key) {
+  for (size_t v = 0; v < names.size(); ++v) {
+    if (names[v] == want) return static_cast<int>(v);
+  }
+  TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error,
+    "Schur '" << key << ": " << want << "' names no variable in this set. Declared: "
+    << joinNames(names) << ".");
+  return -1;
+}
+
+// One role's comma-separated variable list to indices; 'seen' rejects repeats across roles.
+inline std::vector<size_t>
+roleVariableIndices(const std::string & role, const std::vector<std::string> & names,
+                    std::vector<bool> & seen) {
+  std::vector<size_t> group;
+  size_t vpos = 0;
+  while (vpos <= role.size()) {
+    const size_t comma = role.find(',', vpos);
+    std::string name = role.substr(vpos, comma == std::string::npos ? std::string::npos
+                                                                   : comma - vpos);
+    const size_t b = name.find_first_not_of(" \t");
+    const size_t e = name.find_last_not_of(" \t");
+    name = (b == std::string::npos) ? "" : name.substr(b, e - b + 1);
+    if (!name.empty()) {
+      const size_t v = static_cast<size_t>(
+        variableIndexByName(names, name, "variable groups"));
+      TEUCHOS_TEST_FOR_EXCEPTION(seen[v], std::runtime_error,
+        "Schur 'variable groups' names '" << name << "' more than once.");
+      seen[v] = true;
+      group.push_back(v);
+    }
+    if (comma == std::string::npos) break;
+    vpos = comma + 1;
+  }
+  return group;
+}
+
+inline void requireEveryVariableGrouped(const std::vector<std::string> & names,
+                                        const std::vector<bool> & seen) {
+  for (size_t v = 0; v < names.size(); ++v) {
+    TEUCHOS_TEST_FOR_EXCEPTION(!seen[v], std::runtime_error,
+      "Schur 'variable groups' leaves '" << names[v]
+      << "' out; every variable must appear exactly once. Declared: "
+      << joinNames(names) << ".");
+  }
+}
+
+// One entry per role, in role order. The last group is the Schur target.
+inline std::vector<std::vector<size_t> >
+resolveVariableGroups(const std::vector<std::string> & roles,
+                      const std::vector<std::string> & names) {
+  std::vector<std::vector<size_t> > groups;
+  if (roles.empty()) return groups;
+  std::vector<bool> seen(names.size(), false);
+  for (size_t r = 0; r < roles.size(); ++r) {
+    std::vector<size_t> group = roleVariableIndices(roles[r], names, seen);
+    TEUCHOS_TEST_FOR_EXCEPTION(group.empty(), std::runtime_error,
+      "Schur 'variable groups' role " << r << " names no variables.");
+    groups.push_back(group);
+  }
+  TEUCHOS_TEST_FOR_EXCEPTION(groups.size() < 2, std::runtime_error,
+    "Schur 'variable groups' needs at least two roles, got " << groups.size() << ".");
+  requireEveryVariableGrouped(names, seen);
+  return groups;
+}
+
+// Scalar form 'ux,uy; pr': ';' between roles, ',' within one. Empty when the key is unset.
+inline std::vector<std::vector<size_t> >
+parseVariableGroups(const std::string & spec, const std::vector<std::string> & names) {
+  std::vector<std::vector<size_t> > groups;
+  if (spec.empty()) return groups;
+  std::vector<bool> seen(names.size(), false);
+  size_t pos = 0;
+  while (pos <= spec.size()) {
+    const size_t semi = spec.find(';', pos);
+    const std::string role = spec.substr(pos, semi == std::string::npos ? std::string::npos
+                                                                       : semi - pos);
+    std::vector<size_t> group = roleVariableIndices(role, names, seen);
+    if (!group.empty()) groups.push_back(group);
+    if (semi == std::string::npos) break;
+    pos = semi + 1;
+  }
+  requireEveryVariableGrouped(names, seen);
+  return groups;
+}
+
+// Role maps from named groups; a multi-variable group gets one fused, sorted map.
+template<class Node>
+std::vector<typename BlockTypes<Node>::MapRCP>
+fuseRoleMaps(const std::vector<std::vector<size_t> > & groups,
+             const std::vector<typename BlockTypes<Node>::MapRCP> & blockMaps) {
+  using LA_Map = typename BlockTypes<Node>::Map;
+  std::vector<typename BlockTypes<Node>::MapRCP> roleMaps;
+  for (size_t r = 0; r < groups.size(); ++r) {
+    if (groups[r].size() == 1) {
+      roleMaps.push_back(blockMaps[groups[r][0]]);
+      continue;
+    }
+    std::vector<GO> fused;
+    for (size_t k = 0; k < groups[r].size(); ++k) {
+      auto gids = blockMaps[groups[r][k]]->getLocalElementList();
+      for (size_t g = 0; g < static_cast<size_t>(gids.size()); ++g) fused.push_back(gids[g]);
+    }
+    std::sort(fused.begin(), fused.end());
+    roleMaps.push_back(Teuchos::rcp(new LA_Map(Teuchos::OrdinalTraits<GO>::invalid(), fused, 0,
+                                               blockMaps[0]->getComm())));
+  }
+  return roleMaps;
+}
+
+// A fused role has no single variable index, so its mass matrix is found by map.
+template<class Node>
+typename BlockTypes<Node>::CrsMatrixRCP
+massMatrixOnMap(const std::vector<typename BlockTypes<Node>::CrsMatrixRCP> & masses,
+                const typename BlockTypes<Node>::MapRCP & map) {
+  for (size_t m = 0; m < masses.size(); ++m) {
+    if (!masses[m].is_null() && masses[m]->getRowMap()->isSameAs(*map)) return masses[m];
+  }
+  return Teuchos::null;
+}
+
 template<class Node>
 BlockSystem<Node> buildBlockSystemForSet(LinearAlgebraInterface<Node> & interface,
                                          const typename BlockTypes<Node>::CrsMatrixRCP & J,
@@ -632,40 +782,182 @@ BlockSystem<Node> buildBlockSystemForSet(LinearAlgebraInterface<Node> & interfac
   using Types = BlockTypes<Node>;
   using LA_Map = typename Types::Map;
   std::vector<Teuchos::RCP<const LA_Map> > blockMaps = interface.buildBlockMaps(set);
-  TEUCHOS_TEST_FOR_EXCEPTION(blockMaps.size() != 2, std::runtime_error,
-    "Block-triangular preconditioner supports exactly two variable blocks, but set "
-    << set << " has " << blockMaps.size()
-    << ". Use 'preconditioner type: block diagonal' for more than two.");
+  TEUCHOS_TEST_FOR_EXCEPTION(blockMaps.size() < 2, std::runtime_error,
+    "Block-triangular preconditioner needs at least two variable blocks, but set "
+    << set << " has " << blockMaps.size() << ".");
 
-  const int pivotBlock = cntxt->schur.pivot_block;
+  // Names resolve against declaration order, so naming a variable survives a dimension
+  // change that renumbers the indices.
+  const std::vector<std::string> varNames = setVariableNames<Node>(interface, set);
+  TEUCHOS_TEST_FOR_EXCEPTION(!cntxt->schur.pivot_variable.empty() &&
+    cntxt->schur.pivot_block != 0, std::runtime_error,
+    "Schur 'pivot variable' and 'pivot block' are both set; use one.");
+  TEUCHOS_TEST_FOR_EXCEPTION(!cntxt->schur.target_variable.empty() &&
+    cntxt->schur.target_block != -1, std::runtime_error,
+    "Schur 'target variable' and 'target block' are both set; use one.");
+  const int pivotBlock = cntxt->schur.pivot_variable.empty()
+    ? cntxt->schur.pivot_block
+    : variableIndexByName(varNames, cntxt->schur.pivot_variable, "pivot variable");
   TEUCHOS_TEST_FOR_EXCEPTION(pivotBlock < 0 || static_cast<size_t>(pivotBlock) >= blockMaps.size(),
     std::runtime_error, "Schur pivot block index is out of range.");
 
+  // Default target is the first non-pivot variable, so declaration order decides it.
+  const int targetKey = cntxt->schur.target_variable.empty()
+    ? cntxt->schur.target_block
+    : variableIndexByName(varNames, cntxt->schur.target_variable, "target variable");
+  TEUCHOS_TEST_FOR_EXCEPTION(targetKey < -1, std::runtime_error,
+    "Schur 'target block' is " << targetKey << "; use -1 to infer it or a variable index.");
+  TEUCHOS_TEST_FOR_EXCEPTION(targetKey >= static_cast<int>(blockMaps.size()), std::runtime_error,
+    "Schur 'target block' is " << targetKey << " but set " << set << " has only "
+    << blockMaps.size() << " variable blocks.");
+  TEUCHOS_TEST_FOR_EXCEPTION(targetKey >= 0 && targetKey == pivotBlock, std::runtime_error,
+    "Schur 'target block' and 'pivot block' are both " << targetKey << "; they must differ.");
   size_t targetBlock = 0;
-  for (size_t b = 0; b < blockMaps.size(); ++b) {
-    if (b != static_cast<size_t>(pivotBlock)) {
-      targetBlock = b;
-      break;
+  if (targetKey >= 0) {
+    targetBlock = static_cast<size_t>(targetKey);
+  }
+  else {
+    for (size_t b = 0; b < blockMaps.size(); ++b) {
+      if (b != static_cast<size_t>(pivotBlock)) {
+        targetBlock = b;
+        break;
+      }
     }
   }
 
-  Teuchos::RCP<const LA_Map> pivotMap = blockMaps[static_cast<size_t>(pivotBlock)];
-  Teuchos::RCP<const LA_Map> targetMap = blockMaps[targetBlock];
-  std::vector<Teuchos::RCP<const LA_Map> > pairMaps(2);
-  pairMaps[0] = pivotMap;
-  pairMaps[1] = targetMap;
-  const std::vector<std::vector<typename Types::CrsMatrixRCP> > remappedBlocks =
-    detail::extractBlocks<Node>(J, pairMaps);
+  // An explicit partition wins over both the boolean and the pivot/target selectors.
+  const std::vector<std::vector<size_t> > groups = cntxt->role_variables.empty()
+    ? parseVariableGroups(cntxt->schur.variable_groups, varNames)
+    : resolveVariableGroups(cntxt->role_variables, varNames);
+  const bool grouped = !groups.empty();
+  if (grouped) {
+    TEUCHOS_TEST_FOR_EXCEPTION(!cntxt->schur.pivot_variable.empty() ||
+      !cntxt->schur.target_variable.empty() || cntxt->schur.target_block != -1,
+      std::runtime_error,
+      "Schur 'variable groups' already fixes the roles; drop 'pivot variable', "
+      "'target variable' and 'target block'.");
+    targetBlock = groups.back()[0];
+  }
+
+  std::vector<Teuchos::RCP<const LA_Map> > roleMaps;
+  std::vector<size_t> roleVarCount;
+  const bool merge = !grouped && cntxt->schur.merge_pivot_variables && blockMaps.size() > 2;
+  if (grouped) {
+    for (size_t r = 0; r < groups.size(); ++r) roleVarCount.push_back(groups[r].size());
+    roleMaps = fuseRoleMaps<Node>(groups, blockMaps);
+  }
+  else if (merge) {
+    std::vector<GO> merged;
+    for (size_t b = 0; b < blockMaps.size(); ++b) {
+      if (b == targetBlock) continue;
+      auto gids = blockMaps[b]->getLocalElementList();
+      for (size_t k = 0; k < static_cast<size_t>(gids.size()); ++k) merged.push_back(gids[k]);
+    }
+    std::sort(merged.begin(), merged.end());
+    roleMaps.push_back(Teuchos::rcp(new LA_Map(Teuchos::OrdinalTraits<GO>::invalid(), merged, 0,
+                                               blockMaps[targetBlock]->getComm())));
+    roleMaps.push_back(blockMaps[targetBlock]);
+  }
+  else {
+    // Target goes last: it carries the fullest Schur correction and is the only role
+    // never used as an elimination weight.
+    roleMaps.push_back(blockMaps[static_cast<size_t>(pivotBlock)]);
+    for (size_t b = 0; b < blockMaps.size(); ++b) {
+      if (b != static_cast<size_t>(pivotBlock) && b != targetBlock) roleMaps.push_back(blockMaps[b]);
+    }
+    roleMaps.push_back(blockMaps[targetBlock]);
+  }
+  if (roleVarCount.empty()) {
+    roleVarCount.assign(roleMaps.size(), 1);
+    if (merge) roleVarCount[0] = blockMaps.size() - 1;
+  }
+  // getInvDNBlock only implements the diag correction, so mass would silently give S_k = J_kk.
+  TEUCHOS_TEST_FOR_EXCEPTION(roleMaps.size() > 2 &&
+    parseSchurVariant(cntxt->schur.approximation_type) == SchurVariant::Mass, std::runtime_error,
+    "Schur 'approximation type: mass' supports two roles, but this set has " << roleMaps.size()
+    << "; use 'approximation type: diag'.");
+  TEUCHOS_TEST_FOR_EXCEPTION(grouped && groups.back().size() != 1 &&
+    parseSchurVariant(cntxt->schur.approximation_type) == SchurVariant::Mass, std::runtime_error,
+    "Schur 'approximation type: mass' needs one variable in the target role, but the last "
+    "group in 'variable groups' holds " << groups.back().size() << ".");
+  if (interface.verbosity >= 10 && interface.comm->getRank() == 0) {
+    std::cout << "[BlockTri] " << blockMaps.size() << " variable blocks, "
+              << roleMaps.size() << " roles"
+              << (merge ? " (merged pivot)" : (grouped ? " (from variable groups)" : ""))
+              << "; target variable " << targetBlock
+              << (grouped ? " (from groups)"
+                          : (targetKey >= 0 ? " (from deck)" : " (inferred)")) << std::endl;
+    if (!varNames.empty()) {
+      std::cout << "[BlockTri] variables: " << joinNames(varNames) << "; target = "
+                << (targetBlock < varNames.size() ? varNames[targetBlock] : "?") << std::endl;
+    }
+  }
+  std::vector<std::vector<typename Types::CrsMatrixRCP> > remappedBlocks =
+    detail::extractBlocks<Node>(J, roleMaps);
+
+  // A role fusing several variables carries cross-variable explicit zeros that MueLu would
+  // aggregate across.
+  for (size_t r = 0; r < roleMaps.size(); ++r) {
+    if (roleVarCount[r] < 2) continue;
+    const detail::FilterResult<Node> filtered = detail::filterExplicitZeros<Node>(
+      Teuchos::rcp_implicit_cast<const typename Types::CrsMatrix>(remappedBlocks[r][r]),
+      1.0e-14);
+    if (interface.verbosity >= 10 && interface.comm->getRank() == 0) {
+      std::cout << "[BlockTri] " << (r == 0 ? "merged pivot" : "fused role") << ": dropped "
+                << (filtered.nnzIn - filtered.nnzOut) << " explicit zeros of "
+                << filtered.nnzIn << std::endl;
+    }
+    remappedBlocks[r][r] = filtered.matrix;
+  }
 
   BlockSystem<Node> blocks;
-  blocks.pivotMap = pivotMap;
-  blocks.targetMap = targetMap;
-  blocks.J00 = remappedBlocks[0][0];
-  blocks.J11 = remappedBlocks[1][1];
-  blocks.J10 = remappedBlocks[1][0];
-  blocks.J01 = remappedBlocks[0][1];
-  blocks.pivotBlock = pivotBlock;
+  blocks.maps = roleMaps;
+  blocks.blocks = remappedBlocks;
+  blocks.pivotMap = roleMaps[0];
+  blocks.targetMap = roleMaps.back();
+  // Only the two-role view has these; above two roles every consumer reads blocks[i][j].
+  if (roleMaps.size() == 2) {
+    blocks.J00 = remappedBlocks[0][0];
+    blocks.J11 = remappedBlocks[1][1];
+    blocks.J10 = remappedBlocks[1][0];
+    blocks.J01 = remappedBlocks[0][1];
+  }
   blocks.targetBlock = targetBlock;
+  return blocks;
+}
+
+// Rebuild the role view from a blocked Thyra operator; role order and fusing are already
+// baked in. targetBlock is not recoverable from the operator, so the caller sets it.
+template<class Node>
+BlockSystem<Node> blockSystemFromBlockedOp(const Teko::BlockedLinearOp & blo) {
+  using Types = BlockTypes<Node>;
+  const int nb = Teko::blockRowCount(blo);
+  BlockSystem<Node> blocks;
+  blocks.blocks.assign(static_cast<size_t>(nb),
+                       std::vector<typename Types::CrsMatrixRCP>(static_cast<size_t>(nb),
+                                                                 Teuchos::null));
+  blocks.maps.resize(static_cast<size_t>(nb));
+  for (int i = 0; i < nb; ++i) {
+    for (int j = 0; j < nb; ++j) {
+      Teko::LinearOp op = Teko::getBlock(i, j, blo);
+      if (op.is_null()) continue;
+      typename Types::CrsMatrixRCP crs = Teuchos::rcp_const_cast<typename Types::CrsMatrix>(
+        thyraToTpetraCrs<Node>(op));
+      blocks.blocks[i][j] = crs;
+      if (i == j) blocks.maps[i] = crs->getRowMap();
+    }
+    TEUCHOS_TEST_FOR_EXCEPTION(blocks.maps[i].is_null(), std::runtime_error,
+      "blockSystemFromBlockedOp: diagonal block " << i << " is missing, so its map is unknown.");
+  }
+  blocks.pivotMap = blocks.maps[0];
+  blocks.targetMap = blocks.maps.back();
+  // Only the two-role view has these; above two roles every consumer reads blocks[i][j].
+  if (blocks.maps.size() == 2) {
+    blocks.J00 = blocks.blocks[0][0];
+    blocks.J01 = blocks.blocks[0][1];
+    blocks.J10 = blocks.blocks[1][0];
+    blocks.J11 = blocks.blocks[1][1];
+  }
   return blocks;
 }
 
@@ -818,7 +1110,7 @@ buildPivotBlockPrec(LinearAlgebraInterface<Node> & interface,
                     const typename BlockTypes<Node>::CrsMatrixRCP & J00,
                     const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
                     Teuchos::ParameterList & pivotMueLuParams) {
-  return buildBlockOperator<Node>(interface, J00, cntxt, cntxt->pivot_block_sublist,
+  return buildBlockOperator<Node>(interface, J00, cntxt, cntxt->pivotSettings(),
     parseBlockPrecType(cntxt->schur.pivot_block_preconditioner_type), false, "BlockTri pivot",
     [&] {
       return interface.inverseLibrary(cntxt).build("MueLu", pivotMueLuParams,
@@ -832,7 +1124,7 @@ buildSchurBlockPrec(LinearAlgebraInterface<Node> & interface,
                     const typename BlockTypes<Node>::CrsMatrixRCP & SchurApprox,
                     const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
                     Teuchos::ParameterList & schurMueLuParams) {
-  return buildBlockOperator<Node>(interface, SchurApprox, cntxt, cntxt->schur_block_sublist,
+  return buildBlockOperator<Node>(interface, SchurApprox, cntxt, cntxt->targetSettings(),
     parseBlockPrecType(cntxt->schur.schur_block_preconditioner_type), true, "BlockTri Schur",
     [&] {
       return interface.inverseLibrary(cntxt).build("MueLu", schurMueLuParams,

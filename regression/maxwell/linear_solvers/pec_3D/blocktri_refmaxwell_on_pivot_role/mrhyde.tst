@@ -8,12 +8,12 @@ from mrhyde_test_support import *
 from trilinos_env import enable_trilinos_debug
 from parse_log import check, Results
 
-its = mrhyde_test_support('''Block-triangular with RefMaxwell on the HCURL pivot block.''')
+its = mrhyde_test_support('''Per-role settings routing: RefMaxwell attaches to the pivot role, not the Schur role.''')
 its.opts.verbose = True
 
 #TESTING active
 #TESTING -n 4
-#TESTING -k maxwell,HCURL,blocktriangular,refmaxwell,pivot0,regression
+#TESTING -k regression,maxwell,HCURL,HDIV,blocktriangular,schur,schur_hdiv,refmaxwell,routing
 
 res = Results()
 status = enable_trilinos_debug()

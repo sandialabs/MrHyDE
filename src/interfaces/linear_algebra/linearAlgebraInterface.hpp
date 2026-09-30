@@ -66,8 +66,6 @@ class LinearAlgebraInterface {
   typedef Tpetra::Map<LO,GO,Node>                 LA_Map;
   typedef Tpetra::Operator<ScalarT,LO,GO,Node>    LA_Operator;
   typedef Tpetra::MultiVector<ScalarT,LO,GO,Node> LA_MultiVector;
-  typedef typename Teuchos::ScalarTraits<ScalarT>::coordinateType CoordScalar;
-  typedef Tpetra::MultiVector<CoordScalar,LO,GO,Node> LA_CoordMultiVector;
   typedef Teuchos::RCP<LA_MultiVector>            vector_RCP;
   typedef Teuchos::RCP<LA_CrsMatrix>              matrix_RCP;
   typedef typename Node::device_type              LA_device;
@@ -620,8 +618,7 @@ public:
   Teuchos::RCP<MueLu::TpetraOperator<ScalarT,LO,GO,Node> > buildAMGPreconditioner(const matrix_RCP & J,
                                                                                   const Teuchos::RCP<LinearSolverContext<Node> > & cntxt);
   /** @brief Build RefMaxwell auxiliary-space preconditioner for an HCURL block.
-   *  @param blockSublist  The block-specific sublist (A Block Settings or Schur Block Settings)
-   *                       from which "RefMaxwell Settings" will be read.
+   *  @param blockSublist  The role sublist from which "RefMaxwell Settings" is read.
    *  @param forSchur      If true, store in schur_refmaxwell_prec and use it for reuse; else refmaxwell_prec.
    */
   Teuchos::RCP<MueLu::TpetraOperator<ScalarT,LO,GO,Node> > buildRefMaxwellPreconditioner(const matrix_RCP & J,
@@ -642,7 +639,7 @@ public:
   /** @brief Extract diagonal block submatrix for given row/column map. */
   matrix_RCP extractDiagonalBlock(const matrix_RCP & J,
                                   const Teuchos::RCP<const LA_Map> & blockMap);
-  /** @brief Build block-diagonal preconditioner; per-block smoother from Block b Settings (preconditioner variant, default RELAXATION/Jacobi). */
+  /** @brief Build block-diagonal preconditioner; per-role smoother, default RELAXATION/Jacobi. */
   Teuchos::RCP<LA_Operator> buildBlockDiagonalPreconditioner(const matrix_RCP & J,
                                                              const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
                                                              const size_t & set);

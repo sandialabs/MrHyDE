@@ -43,7 +43,7 @@ ANONYMOUS:
     use direct solver: false
     Belos implicit residual scaling: Norm of Initial Residual
     storage proportion: 1.0
-    Preconditioner Settings:
+    Ifpack2 Settings:
       "relaxation: type": "Jacobi"
       "relaxation: damping factor": 0.5
       "relaxation: backward mode": false

@@ -12,7 +12,7 @@ its.opts.verbose = True
 
 #TESTING active
 #TESTING -n 4
-#TESTING -k maxwell,HCURL,blocktriangular,schur,hiptmair,regression
+#TESTING -k regression,maxwell,HCURL,HDIV,blocktriangular,schur,schur_hcurl,hiptmair,routing
 
 status = enable_trilinos_debug()
 status += its.call('mpiexec -n 4 ../../../../mrhyde >& mrhyde.log')

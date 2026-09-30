@@ -12,7 +12,7 @@ its.opts.verbose = True
 
 #TESTING active
 #TESTING -n 4
-#TESTING -k maxwell,HCURL,blocktriangular,direct,parallel,regression
+#TESTING -k regression,maxwell,HCURL,HDIV,blocktriangular,schur,schur_hdiv,onelevel,parallel,crossrun
 
 RANKS = [1, 2, 4]
 ITER_TOL = 1
@@ -36,11 +36,11 @@ for n in RANKS[1:]:
     if n not in runs or ref not in runs:
         continue
     if len(runs[n]) != len(runs[ref]):
-        res.add(False, "np=%d vs np=%d" % (n, ref),
+        res.add(False, "np=%d vs np=%d iters" % (n, ref),
                 "%d solves against %d" % (len(runs[n]), len(runs[ref])))
         continue
     off = [i for i, (a, b) in enumerate(zip(runs[ref], runs[n])) if abs(a - b) > ITER_TOL]
-    res.add(not off, "np=%d vs np=%d" % (n, ref),
+    res.add(not off, "np=%d vs np=%d iters" % (n, ref),
             "solves %s differ by more than %d" % (off, ITER_TOL) if off
             else "%d solves agree within %d" % (len(runs[n]), ITER_TOL))
 

@@ -13,7 +13,7 @@ its.opts.verbose = True
 
 #TESTING active
 #TESTING -n 4
-#TESTING -k maxwell,HCURL,blocktriangular,refmaxwell,addon,regression
+#TESTING -k regression,maxwell,HCURL,HDIV,blocktriangular,schur,schur_hcurl,refmaxwell,algebra
 
 BETA, BETA_TOL = 0.1, 1.0e-10
 

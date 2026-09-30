@@ -13,7 +13,6 @@
 #include "preferences.hpp"
 #include "block_prec/ParamUtils.hpp"
 #include "block_prec/InverseLibraryOps.hpp"
-#include <cctype>
 
 // Belos
 #include <BelosConfigDefs.hpp>
@@ -47,6 +46,12 @@ struct SchurConfig {
   std::string pivot_block_preconditioner_type;
   bool pivot_block_diag_use_lumped_diagonal;
   std::string schur_block_preconditioner_type;
+  bool merge_pivot_variables;       // group every non-target variable into the pivot role
+  int target_block;                 // variable index taking the Schur role; -1 infers it
+  std::string pivot_variable;       // names the pivot instead of indexing it
+  std::string target_variable;      // names the Schur target instead of indexing it
+  std::string variable_groups;      // 'ux,uy; pr' spells the partition; last role is target
+  ScalarT mass_scale;               // multiplies M_p in the 'mass' Schur variant
 };
 
 // Auxiliary operators for the H(curl) preconditioners, built once per set by
@@ -103,8 +108,6 @@ template<class Node>
 class LinearSolverContext {
   typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node>   LA_CrsMatrix;
   typedef Tpetra::MultiVector<ScalarT,LO,GO,Node> LA_MultiVector;
-  typedef typename Teuchos::ScalarTraits<ScalarT>::coordinateType CoordScalar;
-  typedef Tpetra::MultiVector<CoordScalar,LO,GO,Node> LA_CoordMultiVector;
   typedef Teuchos::RCP<LA_CrsMatrix>              matrix_RCP;
   
 public:
@@ -122,6 +125,31 @@ public:
     parsePivotBlockSublist();
     parseSchurBlockSublist();
     initializeRuntimeState();
+  }
+
+  const Teuchos::ParameterList & pivotSettings() const {
+    return role_sublists.empty() ? pivot_block_sublist : role_sublists.front();
+  }
+
+  const Teuchos::ParameterList & targetSettings() const {
+    return role_sublists.empty() ? schur_block_sublist : role_sublists.back();
+  }
+
+  const Teuchos::ParameterList & roleSettings(const size_t role) const {
+    if (!role_sublists.empty()) return role_sublists[role];
+    return (role == 0) ? pivot_block_sublist : schur_block_sublist;
+  }
+
+  std::string rolePrecType(const size_t role) const {
+    if (!role_sublists.empty()) {
+      const Teuchos::ParameterList & list = role_sublists[role];
+      if (list.isParameter("preconditioner")) {
+        return list.template get<std::string>("preconditioner");
+      }
+      return "AMG";
+    }
+    return (role == 0) ? schur.pivot_block_preconditioner_type
+                       : schur.schur_block_preconditioner_type;
   }
 
   void reset() {
@@ -167,6 +195,16 @@ public:
 
   Teuchos::ParameterList prec_sublist, belos_sublist;
   Teuchos::ParameterList pivot_block_sublist, schur_block_sublist;
+  // Named-role layout: one container, one sublist per group, target role last.
+  Teuchos::ParameterList scheme_sublist;
+  std::string scheme_sublist_name;
+  std::string monolithic_sublist_name;
+  bool flat_prec_sublist_used = false;
+  std::string deprecated_prec_sublist_message;
+  std::string schur_target_role;
+  std::vector<std::string> role_names;      // role order, target last
+  std::vector<std::string> role_variables;  // parallel: 'ux, uy' per role
+  std::vector<Teuchos::ParameterList> role_sublists;
 
   // Cached across solves so GCRODR's recycled subspace and RCG's conjugate
   // vectors survive.
@@ -242,15 +280,99 @@ private:
     belos_sublist = settings.isSublist("Belos Settings")
       ? settings.sublist("Belos Settings")
       : Teuchos::ParameterList("empty");
-    prec_sublist = settings.isSublist("Preconditioner Settings")
-      ? settings.sublist("Preconditioner Settings")
-      : Teuchos::ParameterList("empty");
+    // Monolithic settings: a per-scheme container is preferred, and the flat
+    // 'Preconditioner Settings' is the deprecated flat form.
+    prec_sublist = Teuchos::ParameterList("empty");
+    static const char * monolithic[] = {"Ifpack2 Settings", "MueLu Settings",
+                                        "Domain Decomposition Settings"};
+    for (size_t k = 0; k < 3; ++k) {
+      if (!settings.isSublist(monolithic[k])) continue;
+      TEUCHOS_TEST_FOR_EXCEPTION(prec_sublist.name() != "empty", std::runtime_error,
+        "More than one monolithic settings container is present; use one.");
+      prec_sublist = settings.sublist(monolithic[k]);
+      monolithic_sublist_name = monolithic[k];
+    }
+    if (monolithic_sublist_name.empty() && settings.isSublist("Preconditioner Settings")) {
+      prec_sublist = settings.sublist("Preconditioner Settings");
+      flat_prec_sublist_used = true;
+    }
     pivot_block_sublist = settings.isSublist("Pivot Block Settings")
       ? settings.sublist("Pivot Block Settings")
       : Teuchos::ParameterList("empty");
     schur_block_sublist = settings.isSublist("Schur Block Settings")
       ? settings.sublist("Schur Block Settings")
       : Teuchos::ParameterList("empty");
+    parseSchemeContainer(settings);
+  }
+
+  // One container per scheme, holding the grouping and one sublist per role. Named roles
+  void parseSchemeContainer(Teuchos::ParameterList & settings) {
+    static const char * names[] = {"Block Triangular Settings", "Block Diagonal Settings"};
+    scheme_sublist = Teuchos::ParameterList("empty");
+    scheme_sublist_name = "";
+    for (size_t k = 0; k < 2; ++k) {
+      if (!settings.isSublist(names[k])) continue;
+      TEUCHOS_TEST_FOR_EXCEPTION(!scheme_sublist_name.empty(), std::runtime_error,
+        "Both 'Block Triangular Settings' and 'Block Diagonal Settings' are present; use one.");
+      scheme_sublist = settings.sublist(names[k]);
+      scheme_sublist_name = names[k];
+    }
+    if (scheme_sublist_name.empty()) return;
+
+    // 'variable groups' is an ordered name -> variable-list map; input order is role order.
+    TEUCHOS_TEST_FOR_EXCEPTION(!scheme_sublist.isSublist("variable groups"), std::runtime_error,
+      scheme_sublist_name << " requires a 'variable groups' sublist naming each role.");
+    const Teuchos::ParameterList & groups = scheme_sublist.sublist("variable groups");
+    for (Teuchos::ParameterList::ConstIterator it = groups.begin(); it != groups.end(); ++it) {
+      role_names.push_back(groups.name(it));
+      role_variables.push_back(groups.get<std::string>(groups.name(it)));
+    }
+    TEUCHOS_TEST_FOR_EXCEPTION(role_names.size() < 2, std::runtime_error,
+      scheme_sublist_name << " 'variable groups' needs at least two roles, got "
+      << role_names.size() << ".");
+
+    if (scheme_sublist.isParameter("schur target")) {
+      schur_target_role = scheme_sublist.get<std::string>("schur target");
+    }
+    orderRolesTargetLast();
+    collectRoleSublists();
+  }
+
+  // Only the last role escapes being used as an elimination weight, so the target goes
+  // there regardless of the order the groups were listed in.
+  void orderRolesTargetLast() {
+    if (schur_target_role.empty()) return;
+    size_t at = role_names.size();
+    for (size_t r = 0; r < role_names.size(); ++r) {
+      if (role_names[r] == schur_target_role) at = r;
+    }
+    TEUCHOS_TEST_FOR_EXCEPTION(at == role_names.size(), std::runtime_error,
+      "'schur target: " << schur_target_role << "' names no group in 'variable groups'.");
+    role_names.push_back(role_names[at]);
+    role_variables.push_back(role_variables[at]);
+    role_names.erase(role_names.begin() + at);
+    role_variables.erase(role_variables.begin() + at);
+  }
+
+  void collectRoleSublists() {
+    role_sublists.clear();
+    for (size_t r = 0; r < role_names.size(); ++r) {
+      TEUCHOS_TEST_FOR_EXCEPTION(!scheme_sublist.isSublist(role_names[r]), std::runtime_error,
+        scheme_sublist_name << " has no '" << role_names[r]
+        << "' sublist for the role of that name.");
+      role_sublists.push_back(scheme_sublist.sublist(role_names[r]));
+    }
+    // Anything else that is a sublist is a typo, not an ignorable extra.
+    for (Teuchos::ParameterList::ConstIterator it = scheme_sublist.begin();
+         it != scheme_sublist.end(); ++it) {
+      const std::string key = scheme_sublist.name(it);
+      if (!scheme_sublist.isSublist(key) || key == "variable groups") continue;
+      bool known = false;
+      for (size_t r = 0; r < role_names.size(); ++r) known = known || role_names[r] == key;
+      TEUCHOS_TEST_FOR_EXCEPTION(!known, std::runtime_error,
+        scheme_sublist_name << " sublist '" << key
+        << "' names no group in 'variable groups'.");
+    }
   }
 
   void validateSublists() {
@@ -265,6 +387,30 @@ private:
   void parseGeneralSettings(Teuchos::ParameterList & settings) {
     use_direct = settings.get<bool>("use direct solver",false);
     prec_type = block_prec::canonicalPreconditionerType(settings.get<string>("preconditioner type","AMG"));
+    if (flat_prec_sublist_used) {
+      const std::string want = (prec_type == "Ifpack2") ? "Ifpack2 Settings"
+                             : (prec_type == "AMG") ? "MueLu Settings"
+                             : "Domain Decomposition Settings";
+      // 'AMG' maps to 'MueLu Settings' rather than 'AMG Settings', because the latter
+      // already names the nested MueLu list inside a role.
+      deprecated_prec_sublist_message =
+        "WARNING: 'Preconditioner Settings' is deprecated and will be removed.\n"
+        "         This deck has 'preconditioner type: " + prec_type + "', so rename it to '"
+        + want + "'.\n"
+        "         The full mapping:\n"
+        "           preconditioner type: Ifpack2               ->  Ifpack2 Settings\n"
+        "           preconditioner type: AMG                   ->  MueLu Settings\n"
+        "           preconditioner type: domain decomposition  ->  Domain Decomposition Settings\n"
+        "         Keys inside the sublist do not change.";
+    }
+    // A scheme container that does not match the selected scheme is a silent no-op
+    if (!scheme_sublist_name.empty()) {
+      const std::string want = (scheme_sublist_name == "Block Triangular Settings")
+        ? "block triangular" : "block diagonal";
+      TEUCHOS_TEST_FOR_EXCEPTION(prec_type != want, std::runtime_error,
+        "'" << scheme_sublist_name << "' is present but 'preconditioner type' is '"
+        << prec_type << "'; it must be '" << want << "'.");
+    }
     use_preconditioner = settings.get<bool>("use preconditioner",true);
     preconditioner_reuse_type = block_prec::canonicalReuseType(settings.get<string>("preconditioner reuse type","update"));
     if (settings.isType<bool>("reuse preconditioner") &&
@@ -274,6 +420,12 @@ private:
     right_preconditioner = settings.get<bool>("right preconditioner",false);
     reuse_matrix = settings.get<bool>("reuse Jacobian",false);
     schur.approximation_type = "base";
+    schur.merge_pivot_variables = true;
+    schur.target_block = -1;
+    schur.pivot_variable = "";
+    schur.target_variable = "";
+    schur.variable_groups = "";
+    schur.mass_scale = 1.0;
     schur.pivot_block = 0;
     schur.damping = Teuchos::ScalarTraits<ScalarT>::one();
     schur.diag_use_lumped_pivot_diagonal = false;
@@ -295,63 +447,105 @@ private:
   }
 
   void parsePivotBlockSublist() {
-    if (pivot_block_sublist.name() == "empty") return;
-    if (pivot_block_sublist.isParameter("preconditioner type")) {
+    if (role_sublists.empty() && pivot_block_sublist.name() == "empty") return;
+    if (pivotSettings().isParameter("preconditioner type")) {
       schur.pivot_block_preconditioner_type =
-        block_prec::canonicalBlockPrecType(pivot_block_sublist.get<string>("preconditioner type"));
+        block_prec::canonicalBlockPrecType(pivotSettings().template get<string>("preconditioner type"));
     }
-    if (pivot_block_sublist.isParameter("diag use lumped diagonal")) {
+    if (pivotSettings().isParameter("diag use lumped diagonal")) {
       schur.pivot_block_diag_use_lumped_diagonal =
-        pivot_block_sublist.get<bool>("diag use lumped diagonal");
+        pivotSettings().template get<bool>("diag use lumped diagonal");
     }
-    if (pivot_block_sublist.isSublist("RefMaxwell Settings")) {
-      Teuchos::ParameterList & refmaxwellSettings = pivot_block_sublist.sublist("RefMaxwell Settings");
+    if (pivotSettings().isSublist("RefMaxwell Settings")) {
+      Teuchos::ParameterList & refmaxwellSettings = pivotSettingsMutable().sublist("RefMaxwell Settings");
       if (refmaxwellSettings.isParameter("xml param file")) {
         refMaxwell.xml_param_file_pivot = refmaxwellSettings.get<string>("xml param file");
       }
     }
-    if (pivot_block_sublist.isSublist("Maxwell1 Settings")) {
-      Teuchos::ParameterList & maxwell1Settings = pivot_block_sublist.sublist("Maxwell1 Settings");
+    if (pivotSettings().isSublist("Maxwell1 Settings")) {
+      Teuchos::ParameterList & maxwell1Settings = pivotSettingsMutable().sublist("Maxwell1 Settings");
       if (maxwell1Settings.isParameter("xml param file")) {
         maxwell1.xml_param_file_pivot = maxwell1Settings.get<string>("xml param file");
       }
     }
   }
 
+  const Teuchos::ParameterList & schemeSettings() const {
+    return scheme_sublist_name.empty() ? schur_block_sublist : scheme_sublist;
+  }
+
+  // Nested RefMaxwell/Maxwell1 Settings live in a role sublist, not the container.
+  Teuchos::ParameterList & pivotSettingsMutable() {
+    return role_sublists.empty() ? pivot_block_sublist : role_sublists.front();
+  }
+
+  Teuchos::ParameterList & targetSettingsMutable() {
+    return role_sublists.empty() ? schur_block_sublist : role_sublists.back();
+  }
+
   void parseSchurBlockSublist() {
-    if (schur_block_sublist.name() == "empty") return;
-    if (schur_block_sublist.isParameter("preconditioner type")) {
+    if (scheme_sublist_name.empty() && schur_block_sublist.name() == "empty") return;
+    if (schemeSettings().isParameter("preconditioner type")) {
       schur.schur_block_preconditioner_type =
-        block_prec::canonicalBlockPrecType(schur_block_sublist.get<string>("preconditioner type"));
+        block_prec::canonicalBlockPrecType(schemeSettings().template get<string>("preconditioner type"));
     }
-    if (schur_block_sublist.isParameter("approximation type")) {
+    if (schemeSettings().isParameter("approximation type")) {
       schur.approximation_type =
-        block_prec::canonicalSchurApproximationType(schur_block_sublist.get<string>("approximation type"));
+        block_prec::canonicalSchurApproximationType(schemeSettings().template get<string>("approximation type"));
     }
-    if (schur_block_sublist.isParameter("pivot block")) {
-      schur.pivot_block = schur_block_sublist.get<int>("pivot block");
+    if (schemeSettings().isParameter("pivot block")) {
+      schur.pivot_block = schemeSettings().template get<int>("pivot block");
     }
-    if (schur_block_sublist.isParameter("diag use lumped pivot diagonal")) {
+    if (schemeSettings().isParameter("mass scale")) {
+      schur.mass_scale = schemeSettings().template get<ScalarT>("mass scale");
+    }
+    if (schemeSettings().isParameter("target block")) {
+      schur.target_block = schemeSettings().template get<int>("target block");
+    }
+    if (schemeSettings().isParameter("pivot variable")) {
+      schur.pivot_variable = schemeSettings().template get<std::string>("pivot variable");
+    }
+    if (schemeSettings().isParameter("target variable")) {
+      schur.target_variable = schemeSettings().template get<std::string>("target variable");
+    }
+    // isParameter is true for sublists too, and the named layout spells this as one.
+    if (schemeSettings().isParameter("variable groups") &&
+        !schemeSettings().isSublist("variable groups")) {
+      schur.variable_groups = schemeSettings().template get<std::string>("variable groups");
+    }
+    if (schemeSettings().isParameter("merge pivot variables")) {
+      schur.merge_pivot_variables = schemeSettings().template get<bool>("merge pivot variables");
+    }
+    if (schemeSettings().isParameter("diag use lumped pivot diagonal")) {
       schur.diag_use_lumped_pivot_diagonal =
-        schur_block_sublist.get<bool>("diag use lumped pivot diagonal");
+        schemeSettings().template get<bool>("diag use lumped pivot diagonal");
     }
-    if (schur_block_sublist.isParameter("triangle")) {
-      schur.triangle = block_prec::canonicalSchurTriangle(schur_block_sublist.get<string>("triangle"));
+    if (schemeSettings().isParameter("triangle")) {
+      schur.triangle = block_prec::canonicalSchurTriangle(schemeSettings().template get<string>("triangle"));
     }
-    if (schur_block_sublist.isParameter("damping")) {
-      schur.damping = schur_block_sublist.get<ScalarT>("damping");
+    if (schemeSettings().isParameter("damping")) {
+      schur.damping = schemeSettings().template get<ScalarT>("damping");
     }
-    if (schur_block_sublist.isSublist("RefMaxwell Settings")) {
-      Teuchos::ParameterList & refmaxwellSettings = schur_block_sublist.sublist("RefMaxwell Settings");
+    if (targetSettings().isSublist("RefMaxwell Settings")) {
+      Teuchos::ParameterList & refmaxwellSettings = targetSettingsMutable().sublist("RefMaxwell Settings");
       if (refmaxwellSettings.isParameter("xml param file")) {
         refMaxwell.xml_param_file_schur = refmaxwellSettings.get<string>("xml param file");
       }
     }
-    if (schur_block_sublist.isSublist("Maxwell1 Settings")) {
-      Teuchos::ParameterList & maxwell1Settings = schur_block_sublist.sublist("Maxwell1 Settings");
+    if (targetSettings().isSublist("Maxwell1 Settings")) {
+      Teuchos::ParameterList & maxwell1Settings = targetSettingsMutable().sublist("Maxwell1 Settings");
       if (maxwell1Settings.isParameter("xml param file")) {
         maxwell1.xml_param_file_schur = maxwell1Settings.get<string>("xml param file");
       }
+    }
+    // Mirror role 0 and the target into the flat fields the two-role path reads.
+    // Only the triangular container: block-diagonal roles name Ifpack2 smoothers such as
+    // RELAXATION, which are not block-preconditioner types.
+    if (!role_sublists.empty() && scheme_sublist_name == "Block Triangular Settings") {
+      schur.pivot_block_preconditioner_type =
+        block_prec::canonicalBlockPrecType(rolePrecType(0));
+      schur.schur_block_preconditioner_type =
+        block_prec::canonicalBlockPrecType(rolePrecType(role_sublists.size() - 1));
     }
   }
 

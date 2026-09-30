@@ -10,12 +10,12 @@ from parse_log import check
 # 44 is expected: S lands on H(div) and one-level Chebyshev cannot resolve
 # its near-kernel. The test pins the path, not a good count.
 
-its = mrhyde_test_support('''Block-triangular with pivot block 0: Schur forms on the HDIV block.''')
+its = mrhyde_test_support('''Schur target on the HDIV variable: the diag Schur complement forms on B, not E.''')
 its.opts.verbose = True
 
 #TESTING active
 #TESTING -n 4
-#TESTING -k maxwell,HDIV,blocktriangular,schur,pivot0,regression
+#TESTING -k regression,maxwell,HCURL,HDIV,blocktriangular,schur,schur_hdiv,onelevel,iters
 
 status = enable_trilinos_debug()
 status += its.call('mpiexec -n 4 ../../../../mrhyde >& mrhyde.log')

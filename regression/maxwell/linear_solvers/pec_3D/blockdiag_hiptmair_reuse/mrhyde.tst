@@ -8,12 +8,12 @@ from mrhyde_test_support import *
 from trilinos_env import enable_trilinos_debug
 from parse_log import stats, Results
 
-its = mrhyde_test_support('''A Hiptmair block must rebuild; its neighbour must still reuse.''')
+its = mrhyde_test_support('''Per-role reuse under 'update': the Hiptmair role rebuilds, the plain AMG role reuses.''')
 its.opts.verbose = True
 
 #TESTING active
 #TESTING -n 4
-#TESTING -k maxwell,HCURL,blockdiagonal,amg,parallel,regression
+#TESTING -k regression,maxwell,HCURL,HDIV,blockdiagonal,hiptmair,reuse,routing
 
 LOG = "mrhyde.log"
 

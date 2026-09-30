@@ -15,17 +15,21 @@ ANONYMOUS:
 
   Solver:
     preconditioner type: block triangular
-    Pivot Block Settings:
-      preconditioner type: RefMaxwell
-      hgrad basis name: phi_aux
-      hcurl basis name: E
-      RefMaxwell Settings:
-        xml param file: ../xml/refmaxwell_p2v3.xml
-    Schur Block Settings:
-      pivot block: 0
+    Block Triangular Settings:
+      variable groups:
+        E: 'E'
+        B: 'B'
+      schur target: B
       approximation type: diag
       diag use lumped pivot diagonal: true
-      preconditioner type: AMG
-      AMG Settings:
-        xml param file: ../xml/cheb_1level.xml
+      E:
+        preconditioner: RefMaxwell
+        hgrad basis name: phi_aux
+        hcurl basis name: E
+        RefMaxwell Settings:
+          xml param file: ../xml/refmaxwell_p2v3.xml
+      B:
+        preconditioner: AMG
+        AMG Settings:
+          xml param file: ../xml/cheb_1level.xml
 ...

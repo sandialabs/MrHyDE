@@ -10,8 +10,9 @@
 #include "block_prec/BlockTypes.hpp"
 
 #include <Teko_Utilities.hpp>
+#include <Teko_InverseFactory.hpp>
+#include <Teko_PreconditionerInverseFactory.hpp>
 #include <Teko_JacobiPreconditionerFactory.hpp>
-#include <Teko_GaussSeidelPreconditionerFactory.hpp>
 #include <Teko_BlockInvDiagonalStrategy.hpp>
 
 #include <Thyra_DefaultBlockedLinearOp.hpp>
@@ -35,6 +36,22 @@ tpetraToThyraConst(const typename BlockTypes<Node>::CrsMatrixRCP & A) {
   return Thyra::createConstLinearOp<ScalarT,LO,GO,Node>(op, range, domain);
 }
 
+// Inverse of tpetraToThyraConst. Teko's own TpetraHelpers hard-fix the node type in
+// its config, so they cannot serve MrHyDE's templated Node.
+template<class Node>
+inline Teuchos::RCP<const typename BlockTypes<Node>::CrsMatrix>
+thyraToTpetraCrs(const Teko::LinearOp & op) {
+  using LA_CrsMatrix = typename BlockTypes<Node>::CrsMatrix;
+  if (op.is_null()) return Teuchos::null;
+  auto tpOp = Teuchos::rcp_dynamic_cast<const Thyra::TpetraLinearOp<ScalarT,LO,GO,Node> >(op);
+  TEUCHOS_TEST_FOR_EXCEPTION(tpOp.is_null(), std::runtime_error,
+    "thyraToTpetraCrs: operator is not a Thyra::TpetraLinearOp over this node type.");
+  auto crs = Teuchos::rcp_dynamic_cast<const LA_CrsMatrix>(tpOp->getConstTpetraOperator());
+  TEUCHOS_TEST_FOR_EXCEPTION(crs.is_null(), std::runtime_error,
+    "thyraToTpetraCrs: Tpetra operator is not a CrsMatrix.");
+  return crs;
+}
+
 template<class Node>
 inline Teuchos::RCP<Thyra::LinearOpBase<ScalarT> >
 tpetraToThyra(const Teuchos::RCP<Tpetra::Operator<ScalarT,LO,GO,Node> > & op,
@@ -56,28 +73,22 @@ buildThyraBlockedDiagonal(const std::vector<typename BlockTypes<Node>::CrsMatrix
   return Teko::toBlockedLinearOp(Teko::LinearOp(blo));
 }
 
+// Role-ordered NxN assembly; unset blocks are zero to Thyra.
 template<class Node>
 Teko::BlockedLinearOp
-buildThyraBlocked2x2(const typename BlockTypes<Node>::CrsMatrixRCP & J00,
-                     const typename BlockTypes<Node>::CrsMatrixRCP & J01,
-                     const typename BlockTypes<Node>::CrsMatrixRCP & J10,
-                     const typename BlockTypes<Node>::CrsMatrixRCP & J11) {
-  auto A00 = tpetraToThyraConst<Node>(J00);
-  auto A11 = tpetraToThyraConst<Node>(J11);
-  auto A01 = J01.is_null() ? Teuchos::null : tpetraToThyraConst<Node>(J01);
-  auto A10 = J10.is_null() ? Teuchos::null : tpetraToThyraConst<Node>(J10);
-  Teko::LinearOp lo;
-  if (A01.is_null() && A10.is_null()) {
-    auto blo = Thyra::defaultBlockedLinearOp<ScalarT>();
-    blo->beginBlockFill(2, 2);
-    blo->setBlock(0, 0, A00);
-    blo->setBlock(1, 1, A11);
-    blo->endBlockFill();
-    lo = blo;
-  } else {
-    lo = Thyra::block2x2<ScalarT>(A00, A01, A10, A11);
+buildThyraBlockedFromRoles(
+    const std::vector<std::vector<typename BlockTypes<Node>::CrsMatrixRCP> > & blocks) {
+  const int nb = static_cast<int>(blocks.size());
+  auto blo = Thyra::defaultBlockedLinearOp<ScalarT>();
+  blo->beginBlockFill(nb, nb);
+  for (int i = 0; i < nb; ++i) {
+    for (int j = 0; j < nb; ++j) {
+      if (blocks[i][j].is_null()) continue;
+      blo->setBlock(i, j, tpetraToThyraConst<Node>(blocks[i][j]));
+    }
   }
-  return Teko::toBlockedLinearOp(lo);
+  blo->endBlockFill();
+  return Teko::toBlockedLinearOp(Teko::LinearOp(blo));
 }
 
 // Adapt a blocked Thyra preconditioner to a monolithic Tpetra operator:
@@ -194,6 +205,15 @@ private:
 
 namespace detail {
 
+// Teko drives the factory: buildInverse -> initializePrec -> buildPreconditionerOperator.
+inline Teko::LinearOp
+tekoBuildInverse(const Teuchos::RCP<Teko::PreconditionerFactory> & factory,
+                 Teko::BlockedLinearOp & blocked) {
+  Teuchos::RCP<Teko::InverseFactory> inverse =
+    Teuchos::rcp(new Teko::PreconditionerInverseFactory(factory, Teuchos::null));
+  return Teko::buildInverse(*inverse, blocked);
+}
+
 template<class BuildFactoryFn>
 inline Teko::LinearOp
 composeTekoBlockOp(Teko::BlockedLinearOp & blocked,
@@ -201,8 +221,7 @@ composeTekoBlockOp(Teko::BlockedLinearOp & blocked,
                    BuildFactoryFn && factoryBuild) {
   Teuchos::RCP<Teko::BlockInvDiagonalStrategy> strategy =
     Teuchos::rcp(new Teko::StaticInvDiagStrategy(invs));
-  Teko::BlockPreconditionerState state;
-  return factoryBuild(strategy)->buildPreconditionerOperator(blocked, state);
+  return tekoBuildInverse(factoryBuild(strategy), blocked);
 }
 
 template<class Node, class BuildFactoryFn>

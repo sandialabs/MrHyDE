@@ -8,15 +8,18 @@ from mrhyde_test_support import *
 from trilinos_env import enable_trilinos_debug
 from parse_log import check, Results
 
-its = mrhyde_test_support('''Block-triangular: AMG pivot, RefMaxwell Schur block.''')
+its = mrhyde_test_support('''Schur operator identities under an AMG pivot and a RefMaxwell Schur block.''')
 its.opts.verbose = True
 
 #TESTING active
 #TESTING -n 4
-#TESTING -k maxwell,HCURL,blocktriangular,refmaxwell,parallel,regression
+#TESTING -k regression,maxwell,HCURL,HDIV,blocktriangular,schur,schur_hcurl,refmaxwell,algebra,routing
 
 IDENTITY_TOL = 1.0e-12
-IDENTITIES = ["round-trip", "J10*D0", "schur", "D0-scale"]
+IDENTITIES = {"round-trip": "blocked op round-trips",
+              "J10*D0":     "J10 annihilates D0",
+              "schur":      "S matches J11 - J10 Dinv J01",
+              "D0-scale":   "D0 scaling is consistent"}
 
 res = Results()
 status = enable_trilinos_debug()
@@ -28,14 +31,34 @@ for line in open("mrhyde.log"):
     if m:
         found.setdefault(m.group(1), []).append(float(m.group(2)))
 
-for name in IDENTITIES:
-    vals = found.get(name)
+for tag, label in IDENTITIES.items():
+    vals = found.get(tag)
     if not vals:
-        res.add(False, name, "no [BLOCK-VERIFY] line; is verbosity 5 or higher set?")
+        res.add(False, label, "no [BLOCK-VERIFY] line; is verbosity 5 or higher set?")
         continue
-    res.add(max(vals) <= IDENTITY_TOL, name,
+    res.add(max(vals) <= IDENTITY_TOL, label,
             "%d checks, worst %.3e, limit %.1e" % (len(vals), max(vals), IDENTITY_TOL))
 
 check(solves=10, mean=8.5, imax=9, res=res)
+
+
+def aborts_with(deck, log, want, label):
+    """Both decks are expected to abort, hence ignore_status."""
+    its.call('mpiexec -n 4 ../../../../mrhyde %s >& %s' % (deck, log), ignore_status=True)
+    hit = want in open(log, errors="replace").read()
+    res.add(hit, label, "" if hit else "did not report: " + want)
+
+
+aborts_with('input_badname.yaml', 'mrhyde_badname.log',
+            "names no variable in this set", "misspelled variable name is rejected")
+aborts_with('input_orphan_role.yaml', 'mrhyde_orphan.log',
+            "sublist for the role of that name",
+            "role with no settings sublist is rejected")
+
+# maxwell.cpp pushes E then B unconditionally; role indices depend on that order.
+order = [l for l in open('mrhyde.log', errors="replace") if '[BlockTri] variables:' in l]
+want = '0=E, 1=B'
+res.add(bool(order) and want in order[0], "variables declared in physics order",
+        "" if order and want in order[0] else (order[0].strip() if order else "no variables line"))
 
 sys.exit(status + res.write())

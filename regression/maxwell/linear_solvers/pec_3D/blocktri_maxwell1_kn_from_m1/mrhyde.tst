@@ -7,12 +7,12 @@ from mrhyde_test_support import *
 from trilinos_env import enable_trilinos_debug
 from parse_log import check
 
-its = mrhyde_test_support('''Block-triangular: AMG pivot, Maxwell1 Schur block.''')
+its = mrhyde_test_support('''Maxwell1 Schur block with 'use Kn from M1: true': Kn from the edge mass matrix.''')
 its.opts.verbose = True
 
 #TESTING active
 #TESTING -n 4
-#TESTING -k maxwell,HCURL,blocktriangular,maxwell1,regression
+#TESTING -k regression,maxwell,HCURL,HDIV,blocktriangular,schur,schur_hcurl,maxwell1,iters
 
 # TPETRA_DEBUG off: the KLU coarse solve hits Amesos2 reindex_impl, which
 # builds an overlapping column map with a non-overlapping global size.

@@ -1,6 +1,5 @@
 %YAML 1.1
 ---
-# Block-triangular with pivot block 0: the Schur complement forms on the HDIV block.
 ANONYMOUS:
   debug level: 0
   verbosity: 10
@@ -16,13 +15,17 @@ ANONYMOUS:
 
   Solver:
     preconditioner type: block triangular
-    Pivot Block Settings:
-      preconditioner type: Diagonal
-    Schur Block Settings:
-      pivot block: 0
+    Block Triangular Settings:
+      variable groups:
+        E: 'E'
+        B: 'B'
+      schur target: B
       approximation type: diag
       diag use lumped pivot diagonal: true
-      preconditioner type: AMG
-      AMG Settings:
-        xml param file: ../xml/cheb_1level.xml
+      E:
+        preconditioner: Diagonal
+      B:
+        preconditioner: AMG
+        AMG Settings:
+          xml param file: ../xml/cheb_1level.xml
 ...

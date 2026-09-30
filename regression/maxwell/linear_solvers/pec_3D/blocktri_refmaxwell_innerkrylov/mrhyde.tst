@@ -12,7 +12,7 @@ its.opts.verbose = True
 
 #TESTING active
 #TESTING -n 4
-#TESTING -k maxwell,HCURL,blocktriangular,refmaxwell,innerkrylov,regression
+#TESTING -k regression,maxwell,HCURL,HDIV,blocktriangular,schur,schur_hcurl,refmaxwell,crossrun,routing
 
 WRAP = "wrapping block preconditioner in inner Belos"
 

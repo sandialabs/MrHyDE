@@ -59,7 +59,7 @@ void assertStructuralSymmetry(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT
   }
 }
 
-// Check only the filter's change to SM*D0. The DIRK mass term makes SM*D0 nonzero.
+// |(SM-SM_f)*D0*1|_inf <= tol*|SM|_F*|D0*1|_inf; DIRK mass makes SM*D0 nonzero.
 template<class Node>
 void assertKernelBound(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & SM_filtered,
                        const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & SM_orig,
@@ -104,8 +104,6 @@ FilterResult<Node> filterM1Checked(
 template<class Node>
 void verifyMaxwellComplex(
     const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & D0,
-    const Teuchos::RCP<const Tpetra::MultiVector<
-      typename Teuchos::ScalarTraits<ScalarT>::coordinateType,LO,GO,Node>> & coords,
     const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & SM,
     const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & M1,
     const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & SM_f,
@@ -218,7 +216,7 @@ void verifyMaxwellComplex(
   sym_test(SM_f, "SM_f");
   sym_test(M1_f, "M1_f");
 
-  // Filtering should not change the small curl-curl residual on gradients.
+  // |(SM_f-M1_f)*D0v| / |(SM-M1)*D0v| in [0.5, 2] under filtering.
   if (!SM.is_null() && !M1.is_null()) {
     const auto nodalMap = D0->getDomainMap();
     LA_MultiVector v(nodalMap, 1);
@@ -246,7 +244,7 @@ void verifyMaxwellComplex(
     }
   }
 
-  // The filtered and original Rayleigh quotients should agree within the drop bound.
+  // xTA_f x / xTAx in 1 +/- max(1e-12, nDrop*tol).
   auto rayleigh = [&](const Teuchos::RCP<const LA_CrsMatrix> & A,
                       const Teuchos::RCP<const LA_CrsMatrix> & A_f,
                       const size_t nDrop,
@@ -282,8 +280,6 @@ void verifyMaxwellComplex(
 // Build-only: the kernel bound, the M1 filter, the complex checks.
 template<class Node>
 void finishMaxwellInputs(MaxwellInputs<Node> & in,
-                         const Teuchos::RCP<const Tpetra::MultiVector<
-                           typename Teuchos::ScalarTraits<ScalarT>::coordinateType,LO,GO,Node>> & coords,
                          const FilterOpts & opts, const std::string & label,
                          const int verbosity, const int rank) {
   if (opts.filterSM) {
@@ -293,7 +289,7 @@ void finishMaxwellInputs(MaxwellInputs<Node> & in,
     logFilterCounts<Node>(in.smFilter, in.m1Filter, opts, label, verbosity, rank);
   }
   if (opts.verifyComplex) {
-    verifyMaxwellComplex<Node>(in.D0, coords, in.SM_orig, in.M1_orig, in.SM, in.M1,
+    verifyMaxwellComplex<Node>(in.D0, in.SM_orig, in.M1_orig, in.SM, in.M1,
                                in.smFilter.dropped, in.m1Filter.dropped,
                                opts.tol, verbosity, rank, label);
   }
@@ -413,6 +409,10 @@ void verifyBlockSystem(const BlockSystem<Node> & blocks,
                        const bool schurIsDiag,
                        const int verbosity) {
   if (verbosity < 5) return;
+  // Every check below assumes the 2x2 role view.
+  if (blocks.numBlocks() != 2) {
+    return;
+  }
   using Types = BlockTypes<Node>;
   using LA_Vector = typename Types::Vector;
   using LA_CrsMatrix = typename Types::CrsMatrix;

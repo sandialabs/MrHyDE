@@ -1,7 +1,5 @@
 %YAML 1.1
 ---
-# One mesh of the RefMaxwell h-independence sequence. The gate is in mrhyde.tst:
-# iteration counts must stay nearly flat as the mesh refines.
 ANONYMOUS:
   debug level: 0
   verbosity: 10
@@ -22,17 +20,21 @@ ANONYMOUS:
 
   Solver:
     preconditioner type: block triangular
-    Pivot Block Settings:
-      preconditioner type: AMG
-      AMG Settings:
-        xml param file: ../xml/amg_pivot.xml
-    Schur Block Settings:
-      pivot block: 1
+    Block Triangular Settings:
+      variable groups:
+        B: 'B'
+        E: 'E'
+      schur target: E
       approximation type: diag
       diag use lumped pivot diagonal: true
-      preconditioner type: RefMaxwell
-      hgrad basis name: phi_aux
-      hcurl basis name: E
-      RefMaxwell Settings:
-        xml param file: ../xml/refmaxwell_p2v3.xml
+      B:
+        preconditioner: AMG
+        AMG Settings:
+          xml param file: ../xml/amg_pivot.xml
+      E:
+        preconditioner: RefMaxwell
+        hgrad basis name: phi_aux
+        hcurl basis name: E
+        RefMaxwell Settings:
+          xml param file: ../xml/refmaxwell_p2v3.xml
 ...

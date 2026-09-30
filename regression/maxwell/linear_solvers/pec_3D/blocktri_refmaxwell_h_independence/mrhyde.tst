@@ -13,7 +13,7 @@ its.opts.verbose = True
 
 #TESTING active
 #TESTING -n 4
-#TESTING -k maxwell,HCURL,blocktriangular,refmaxwell,parallel,regression
+#TESTING -k regression,maxwell,HCURL,HDIV,blocktriangular,schur,schur_hcurl,refmaxwell,crossrun
 
 MESHES = ["N8x8x4", "N16x8x4", "N24x12x6"]
 NXNYNZ = {"N8x8x4": (8, 8, 4), "N16x8x4": (16, 8, 4), "N24x12x6": (24, 12, 6)}

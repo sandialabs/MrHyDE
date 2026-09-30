@@ -33,21 +33,26 @@ ANONYMOUS:
     use direct solver: false
     use preconditioner: true
     preconditioner type: block diagonal
-    Block 0 Settings:
-      preconditioner variant: RELAXATION
-      'relaxation: type': Jacobi
-      'relaxation: sweeps': 1
-      'relaxation: damping factor': 0.66
-    Block 1 Settings:
-      preconditioner variant: RELAXATION
-      'relaxation: type': Jacobi
-      'relaxation: sweeps': 1
-      'relaxation: damping factor': 0.66
-    Block 2 Settings:
-      preconditioner variant: RELAXATION
-      'relaxation: type': Jacobi
-      'relaxation: sweeps': 1
-      'relaxation: damping factor': 0.66
+    Block Diagonal Settings:
+      variable groups:
+        ux: 'ux'
+        pr: 'pr'
+        uy: 'uy'
+      ux:
+        preconditioner: RELAXATION
+        'relaxation: type': Jacobi
+        'relaxation: sweeps': 1
+        'relaxation: damping factor': 0.66
+      pr:
+        preconditioner: RELAXATION
+        'relaxation: type': Jacobi
+        'relaxation: sweeps': 1
+        'relaxation: damping factor': 0.66
+      uy:
+        preconditioner: RELAXATION
+        'relaxation: type': Jacobi
+        'relaxation: sweeps': 1
+        'relaxation: damping factor': 0.66
   Discretization:
     order:
       ux: 1

@@ -16,14 +16,21 @@ ANONYMOUS:
   Solver:
     preconditioner type: block triangular
     Block Triangular Settings:
+      # Role 'E' is declared here with no sublist of that name; setup must abort.
       variable groups:
-        E: 'E'
         B: 'B'
-      schur target: B
+        E: 'E'
+      schur target: E
       approximation type: diag
       diag use lumped pivot diagonal: true
-      E:
-        preconditioner: Direct
       B:
-        preconditioner: Direct
+        preconditioner: AMG
+        AMG Settings:
+          xml param file: ../xml/amg_pivot.xml
+      Efield:
+        preconditioner: RefMaxwell
+        hgrad basis name: phi_aux
+        hcurl basis name: E
+        RefMaxwell Settings:
+          xml param file: ../xml/refmaxwell_p2v3.xml
 ...

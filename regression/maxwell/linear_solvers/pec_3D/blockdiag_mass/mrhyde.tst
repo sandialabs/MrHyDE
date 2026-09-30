@@ -7,12 +7,12 @@ from mrhyde_test_support import *
 from trilinos_env import enable_trilinos_debug
 from parse_log import check
 
-its = mrhyde_test_support('''Block-diagonal with AMG on the mass matrices.''')
+its = mrhyde_test_support('''Block diagonal 'use mass matrix': AMG on M1 and M2, not the Jacobian blocks.''')
 its.opts.verbose = True
 
 #TESTING active
 #TESTING -n 4
-#TESTING -k maxwell,HCURL,blockdiagonal,mass,regression
+#TESTING -k regression,maxwell,HCURL,HDIV,blockdiagonal,amg,mass,iters
 
 status = enable_trilinos_debug()
 status += its.call('mpiexec -n 4 ../../../../mrhyde >& mrhyde.log')

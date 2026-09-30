@@ -1,7 +1,5 @@
 %YAML 1.1
 ---
-# AMG on both blocks, several Newton steps per time step, so every solve rebuilds
-# the sub-block preconditioners. Covers the reuse path for the MueLu sub-blocks.
 ANONYMOUS:
   debug level: 0
   verbosity: 10
@@ -20,15 +18,19 @@ ANONYMOUS:
     preconditioner reuse type: update
     reuse Jacobian: false   # else the block operator is cached whole and reuse never runs
     preconditioner type: block triangular
-    Pivot Block Settings:
-      preconditioner type: AMG
-      AMG Settings:
-        xml param file: ../xml/amg_reuse.xml
-    Schur Block Settings:
-      pivot block: 1
+    Block Triangular Settings:
+      variable groups:
+        B: 'B'
+        E: 'E'
+      schur target: E
       approximation type: diag
       diag use lumped pivot diagonal: true
-      preconditioner type: AMG
-      AMG Settings:
-        xml param file: ../xml/amg_reuse.xml
+      B:
+        preconditioner: AMG
+        AMG Settings:
+          xml param file: ../xml/amg_reuse.xml
+      E:
+        preconditioner: AMG
+        AMG Settings:
+          xml param file: ../xml/amg_reuse.xml
 ...

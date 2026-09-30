@@ -452,7 +452,7 @@ LinearAlgebraInterface<Node>::buildRefMaxwellPreconditioner(
                                                   forSchur, verbosity, rank);
   }
   block_prec::detail::finishMaxwellInputs<Node>(
-    in, cntxt->refMaxwell.nodal_coords, filterOpts, "RefMaxwell", verbosity, rank);
+    in, filterOpts, "RefMaxwell", verbosity, rank);
   matrix_RCP SM_for_setup = in.SM, M1_for_setup = in.M1;
 
   block_prec::detail::RefMaxwellXpetraInputs<Node> xpetraInputs = block_prec::detail::buildRefMaxwellXpetraInputs<Node>(
@@ -594,7 +594,7 @@ LinearAlgebraInterface<Node>::buildMaxwell1Preconditioner(
                                                   forSchur, verbosity, rank);
   }
   block_prec::detail::finishMaxwellInputs<Node>(
-    in, cntxt->refMaxwell.nodal_coords, filterOpts, "Maxwell1", verbosity, rank);
+    in, filterOpts, "Maxwell1", verbosity, rank);
   matrix_RCP SM_for_setup = in.SM, M1_for_setup = in.M1;
 
   block_prec::detail::RefMaxwellXpetraInputs<Node> xpetraInputs = block_prec::detail::buildRefMaxwellXpetraInputs<Node>(

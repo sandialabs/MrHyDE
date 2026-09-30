@@ -8,12 +8,12 @@ from mrhyde_test_support import *
 from trilinos_env import enable_trilinos_debug
 from parse_log import check, Results
 
-its = mrhyde_test_support('''Block-triangular with the lower triangle.''')
+its = mrhyde_test_support('''Explicit 'triangle: lower' overrides the auto upper choice.''')
 its.opts.verbose = True
 
 #TESTING active
 #TESTING -n 4
-#TESTING -k maxwell,HCURL,blocktriangular,schur,regression
+#TESTING -k regression,maxwell,HCURL,HDIV,blocktriangular,schur,schur_hcurl,onelevel,routing
 
 res = Results()
 status = enable_trilinos_debug()

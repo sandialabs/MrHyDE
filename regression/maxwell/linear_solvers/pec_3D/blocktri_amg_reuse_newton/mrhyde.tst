@@ -13,7 +13,7 @@ its.opts.verbose = True
 
 #TESTING active
 #TESTING -n 4
-#TESTING -k maxwell,HCURL,blocktriangular,amg,parallel,regression
+#TESTING -k regression,maxwell,HCURL,HDIV,blocktriangular,schur,schur_hcurl,amg,reuse
 
 LABELS = ["BlockTri pivot MueLu", "BlockTri Schur MueLu"]
 MODES = ["none", "update"]

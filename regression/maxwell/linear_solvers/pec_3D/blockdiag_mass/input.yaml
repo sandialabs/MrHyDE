@@ -1,6 +1,5 @@
 %YAML 1.1
 ---
-# Block-diagonal with AMG on the mass matrices M1 and M2 rather than the Jacobian blocks.
 ANONYMOUS:
   debug level: 0
   verbosity: 10
@@ -16,12 +15,16 @@ ANONYMOUS:
 
   Solver:
     final time: 0.5  # mass-AMG runs past 500 iters by dt 0.2; 0.05 keeps margin
-    preconditioner reuse type: none  # only test here that rebuilds every solve
+    preconditioner reuse type: none  # the only deck here that rebuilds every solve
     preconditioner type: block diagonal
-    Block 0 Settings:
-      preconditioner variant: AMG
-      use mass matrix: true
-    Block 1 Settings:
-      preconditioner variant: AMG
-      use mass matrix: true
+    Block Diagonal Settings:
+      variable groups:
+        E: 'E'
+        B: 'B'
+      E:
+        preconditioner: AMG
+        use mass matrix: true
+      B:
+        preconditioner: AMG
+        use mass matrix: true
 ...

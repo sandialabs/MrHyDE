@@ -1,7 +1,6 @@
 %YAML 1.1
 ---
-# Hiptmair Schur with an AMG pivot that has no 'AMG Settings': the pivot must
-# not inherit the Schur list, whose D0/NodeMatrix live on the E-block maps.
+# The pivot must not inherit the Schur list, whose D0/NodeMatrix live on the E-block maps.
 ANONYMOUS:
   debug level: 0
   verbosity: 10
@@ -17,15 +16,19 @@ ANONYMOUS:
 
   Solver:
     preconditioner type: block triangular
-    Pivot Block Settings:
-      preconditioner type: AMG
-    Schur Block Settings:
-      pivot block: 1
+    Block Triangular Settings:
+      variable groups:
+        B: 'B'
+        E: 'E'
+      schur target: E
       approximation type: diag
       diag use lumped pivot diagonal: true
-      preconditioner type: AMG
-      hgrad basis name: phi_aux
-      hcurl basis name: E
-      AMG Settings:
-        xml param file: ../xml/amg_hiptmair.xml
+      B:
+        preconditioner: AMG
+      E:
+        preconditioner: AMG
+        hgrad basis name: phi_aux
+        hcurl basis name: E
+        AMG Settings:
+          xml param file: ../xml/amg_hiptmair.xml
 ...

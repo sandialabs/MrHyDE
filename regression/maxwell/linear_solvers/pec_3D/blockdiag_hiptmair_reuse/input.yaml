@@ -18,12 +18,16 @@ ANONYMOUS:
     preconditioner reuse type: update
     reuse Jacobian: false
     preconditioner type: block diagonal
-    Block 0 Settings:
-      preconditioner variant: AMG
-      hgrad basis name: phi_aux
-      hcurl basis name: E
-      xml param file: ../xml/amg_hiptmair.xml
-    Block 1 Settings:
-      preconditioner variant: AMG
-      xml param file: ../xml/amg_reuse.xml
+    Block Diagonal Settings:
+      variable groups:
+        E: 'E'
+        B: 'B'
+      E:
+        preconditioner: AMG
+        hgrad basis name: phi_aux
+        hcurl basis name: E
+        xml param file: ../xml/amg_hiptmair.xml
+      B:
+        preconditioner: AMG
+        xml param file: ../xml/amg_reuse.xml
 ...

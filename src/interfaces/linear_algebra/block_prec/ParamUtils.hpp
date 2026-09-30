@@ -182,9 +182,15 @@ inline Teuchos::ParameterList validSchurBlockParams() {
   v.setName("Schur Block Settings");
   v.set("approximation type", "base");
   v.set("pivot block", 0);
+  v.set("pivot variable", "");
   v.set("triangle", "auto");
   v.set("damping", 1.0);
   v.set("diag use lumped pivot diagonal", false);
+  v.set("merge pivot variables", true);
+  v.set("variable groups", "");
+  v.set("mass scale", 1.0);
+  v.set("target block", -1);
+  v.set("target variable", "");
   return v;
 }
 
@@ -237,11 +243,15 @@ inline void promoteSublistToTopLevel(Teuchos::ParameterList & list, const std::s
 // Keys parsed by MrHyDE before dispatching to MueLu/Ifpack2.
 inline const std::vector<std::string> & mrhydeOwnedKeys() {
   static const std::vector<std::string> keys = {
-    "preconditioner type", "preconditioner variant", "use mass matrix", "xml param file",
+    "preconditioner type", "preconditioner variant", "preconditioner",
+    "use mass matrix", "xml param file",
     "hgrad basis name", "hcurl basis name",
     "hgrad basis order", "hcurl basis order",
     "inner krylov solver", "inner krylov max iters", "inner krylov tol",
-    "approximation type", "pivot block", "triangle", "damping",
+    "approximation type", "pivot block", "pivot variable",
+    "target block", "target variable", "merge pivot variables", "variable groups",
+    "mass scale",
+    "triangle", "damping",
     "diag use lumped diagonal", "diag use lumped pivot diagonal",
     "filter SM", "filter threshold", "verify complex", "verify Kn consistency",
     "use Kn from M1"

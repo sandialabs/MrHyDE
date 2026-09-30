@@ -35,25 +35,20 @@ struct BlockTypes {
   using MapRCP = Teuchos::RCP<const Map>;
   using Vector = Tpetra::Vector<ScalarT,LO,GO,Node>;
   using IntVector = Tpetra::Vector<int,LO,GO,Node>;
-  using IntVectorRCP = Teuchos::RCP<IntVector>;
   using MultiVector = Tpetra::MultiVector<ScalarT,LO,GO,Node>;
-  using MultiVecRCP = Teuchos::RCP<MultiVector>;
   using CrsMatrix = Tpetra::CrsMatrix<ScalarT,LO,GO,Node>;
   using CrsMatrixRCP = Teuchos::RCP<CrsMatrix>;
-  using Operator = Tpetra::Operator<ScalarT,LO,GO,Node>;
   using Import = Tpetra::Import<LO,GO,Node>;
-  using Export = Tpetra::Export<LO,GO,Node>;
-  using ImportRCP = Teuchos::RCP<Import>;
-  using ExportRCP = Teuchos::RCP<Export>;
   using HostInds = typename CrsMatrix::nonconst_local_inds_host_view_type;
   using HostVals = typename CrsMatrix::nonconst_values_host_view_type;
 };
 
-enum class SchurVariant { Base, Diag };
+enum class SchurVariant { Base, Diag, Mass };
 
 inline std::string schurVariantName(const SchurVariant variant) {
   if (variant == SchurVariant::Base) return "base";
   if (variant == SchurVariant::Diag) return "diag";
+  if (variant == SchurVariant::Mass) return "mass";
   return "base";
 }
 
@@ -72,9 +67,10 @@ inline SchurVariant parseSchurVariant(const std::string & canonical) {
   const std::string up = toUpperAsciiCopy(canonical);
   if (up == "BASE") return SchurVariant::Base;
   if (up == "DIAG") return SchurVariant::Diag;
+  if (up == "MASS") return SchurVariant::Mass;
   TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error,
     "Unsupported Schur approximation type '" << canonical
-    << "'. Supported canonical values are: base, diag.");
+    << "'. Supported canonical values are: base, diag, mass.");
   return SchurVariant::Base;
 }
 

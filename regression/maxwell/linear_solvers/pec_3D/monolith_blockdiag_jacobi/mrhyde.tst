@@ -12,7 +12,7 @@ its.opts.verbose = True
 
 #TESTING active
 #TESTING -n 4
-#TESTING -k maxwell,blockdiagonal,equivalence,regression
+#TESTING -k regression,maxwell,HCURL,HDIV,blockdiagonal,onelevel,crossrun
 
 KEEP = re.compile(r'(Iteration:|Norm of nonlinear residual|Scaled Norm of nonlinear residual|'
                   r'Belos Iterative Solver|^Iter\s+\d+,|Beginning Time Step|Current time is|'

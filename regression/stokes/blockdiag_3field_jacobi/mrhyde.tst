@@ -14,7 +14,7 @@ its.opts.verbose = True
 
 #TESTING active
 #TESTING -n 1
-#TESTING -k Stokes,blockdiagonal,equivalence,regression
+#TESTING -k regression,Stokes,blockdiagonal,crossrun
 
 KEEP = re.compile(r'(Iteration:|Norm of nonlinear residual|Belos Iterative Solver|'
                   r'^Iter\s+\d+,|L2 norm of the error)')

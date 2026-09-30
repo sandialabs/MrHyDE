@@ -18,9 +18,6 @@
 namespace MrHyDE {
 namespace block_prec {
 
-// =============================================================================
-// Helpers
-// =============================================================================
 
 // S = base + scale * left * inv(diag(weight)) * right. buildSchurApproximation below
 // fills these from the BlockSystem for whichever variant the deck asked for.
@@ -36,9 +33,6 @@ struct SchurAssemblyInputs {
 };
 
 
-// =============================================================================
-// Schur builders
-// =============================================================================
 
 // beta = alpha_u^2 * (v'*corr*v) / (w'*diag(M_pivot)^-1*w), w = J01*v.
 template<class Node>
@@ -140,14 +134,14 @@ typename block_prec::BlockTypes<Node>::CrsMatrixRCP buildCorrectionMatrix(
   return corr;
 }
 
-// S = base + corr. corr has fill-in outside base's graph, so this returns a new
-// matrix rather than summing into a copy of base.
+// S = base + scale * corr; corr has fill-in outside base's graph, so this returns a new matrix.
 template<class Node>
 typename block_prec::BlockTypes<Node>::CrsMatrixRCP addCorrection(
     const typename block_prec::BlockTypes<Node>::CrsMatrixRCP & base,
-    const typename block_prec::BlockTypes<Node>::CrsMatrixRCP & corr) {
+    const typename block_prec::BlockTypes<Node>::CrsMatrixRCP & corr,
+    const ScalarT scale = Teuchos::ScalarTraits<ScalarT>::one()) {
   const ScalarT one = Teuchos::ScalarTraits<ScalarT>::one();
-  return Tpetra::MatrixMatrix::add(one, false, *corr, one, false, *base,
+  return Tpetra::MatrixMatrix::add(scale, false, *corr, one, false, *base,
                                    base->getDomainMap(), base->getRowMap());
 }
 
@@ -162,6 +156,18 @@ typename block_prec::BlockTypes<Node>::CrsMatrixRCP buildSchurApproximation(cons
   if (variant == SchurVariant::Base) {
     // MueLu treats the system matrix as read-only, so S can alias J11.
     return blocks.J11;
+  }
+  if (variant == SchurVariant::Mass) {
+    // S = J11 + scale * M_p; scale is 1/nu for constant viscosity.
+    const size_t target = blocks.targetBlock;
+    TEUCHOS_TEST_FOR_EXCEPTION(target >= cntxt.block.mass_matrices.size() ||
+                               cntxt.block.mass_matrices[target].is_null(), std::runtime_error,
+      "Schur 'approximation type: mass' needs the block mass matrix for variable " << target
+      << ", which was not assembled.");
+    const matrix_rcp massP = cntxt.block.mass_matrices[target];
+    TEUCHOS_TEST_FOR_EXCEPTION(!massP->getRowMap()->isSameAs(*blocks.J11->getRowMap()),
+      std::runtime_error, "Schur 'mass': M_p row map does not match the target block.");
+    return addCorrection<Node>(blocks.J11, massP, cntxt.schur.mass_scale);
   }
   TEUCHOS_TEST_FOR_EXCEPTION(variant != SchurVariant::Diag, std::runtime_error,
     "buildSchurApproximation: unsupported Schur variant.");
