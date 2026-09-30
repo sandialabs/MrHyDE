@@ -9,7 +9,7 @@ from mrhyde_test_support import *
 from trilinos_env import enable_trilinos_debug
 from parse_log import iterations, stats, Results
 
-its = mrhyde_test_support('''Block-triangular 'variable groups': ux+uy fuse into one pivot role, pressure-mass Schur.''')
+its = mrhyde_test_support('''Block-triangular 'variable groups': ux+uy fuse into one pivot split, pressure-mass Schur.''')
 its.opts.verbose = True
 
 #TESTING active
@@ -54,11 +54,11 @@ if os.path.exists('input.yaml'):
 res.add(sorted(runs) == RANKS, "converged at np=1,2,4",
         "" if sorted(runs) == RANKS else "converged only at %s" % sorted(runs))
 
-roles = [l.strip() for l in open('mrhyde_blocktri_np1.log')
+splits = [l.strip() for l in open('mrhyde_blocktri_np1.log')
          if '[BlockTri]' in l and 'variable blocks' in l]
-want = '3 variable blocks, 2 roles (from variable groups); target variable 1 (from groups)'
-res.add(bool(roles) and want in roles[0], "ux+uy fuse into one pivot role",
-        "" if roles and want in roles[0] else (roles[0] if roles else "N-block path never ran"))
+want = "3 variable blocks, 2 splits (from variable groups); schur target 'pressure'"
+res.add(bool(splits) and want in splits[0], "ux+uy fuse into one pivot split",
+        "" if splits and want in splits[0] else (splits[0] if splits else "N-block path never ran"))
 
 tri, tri4 = l2('mrhyde_blocktri_np1.log'), l2('mrhyde_blocktri_np4.log')
 worst = max(tri.values()) if tri else 1.0
@@ -78,8 +78,8 @@ under = bool(worst_it) and all(v <= ITER_CAP for v in worst_it.values())
 res.add(under, "iterations under %d" % ITER_CAP, "max %s" % sorted(worst_it.items()))
 
 status += its.call('../../mrhyde input_blocktri_seq3.yaml >& mrhyde_seq3.log')
-seq_roles = [l for l in open('mrhyde_seq3.log') if '[BlockTri]' in l and '3 roles' in l]
-res.add(bool(seq_roles), "3-role sequential path runs",
-        "" if seq_roles else "no [BlockTri] line reporting 3 roles")
+seq_splits = [l for l in open('mrhyde_seq3.log') if '[BlockTri]' in l and '3 splits' in l]
+res.add(bool(seq_splits), "3-split sequential path runs",
+        "" if seq_splits else "no [BlockTri] line reporting 3 splits")
 
 sys.exit(status + res.write())

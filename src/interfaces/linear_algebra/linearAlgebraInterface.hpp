@@ -43,11 +43,6 @@
 
 namespace MrHyDE {
 
-namespace block_prec {
-template<class Node>
-struct BlockSystem;
-}
-
 /** \class LinearAlgebraInterface
  *  \brief Interface wrapper to Tpetra, Belos, MueLu, and Amesos2.
  *
@@ -617,39 +612,15 @@ public:
    */
   Teuchos::RCP<MueLu::TpetraOperator<ScalarT,LO,GO,Node> > buildAMGPreconditioner(const matrix_RCP & J,
                                                                                   const Teuchos::RCP<LinearSolverContext<Node> > & cntxt);
-  /** @brief Build RefMaxwell auxiliary-space preconditioner for an HCURL block.
-   *  @param blockSublist  The role sublist from which "RefMaxwell Settings" is read.
-   *  @param forSchur      If true, store in schur_refmaxwell_prec and use it for reuse; else refmaxwell_prec.
-   */
-  Teuchos::RCP<MueLu::TpetraOperator<ScalarT,LO,GO,Node> > buildRefMaxwellPreconditioner(const matrix_RCP & J,
-                                                                                          const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
-                                                                                          const Teuchos::ParameterList & blockSublist,
-                                                                                          const bool forSchur = false);
-  /** @brief Build MueLu::Maxwell1 (Reitzinger-Schoberl / energy-min) preconditioner for an HCURL block. */
-  Teuchos::RCP<MueLu::TpetraOperator<ScalarT,LO,GO,Node> > buildMaxwell1Preconditioner(const matrix_RCP & J,
-                                                                                        const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
-                                                                                        const Teuchos::ParameterList & blockSublist,
-                                                                                        const bool forSchur = false);
-  /** @brief Validate A-block + auxiliary context inputs before RefMaxwell build/reuse. */
-  void validateRefMaxwellBlockInputs(const matrix_RCP & A00,
-                                     const Teuchos::RCP<LinearSolverContext<Node> > & cntxt) const;
-
   /** @brief Build per-variable block maps from disc offsets for a set. */
   std::vector<Teuchos::RCP<const LA_Map> > buildBlockMaps(const size_t & set);
   /** @brief Extract diagonal block submatrix for given row/column map. */
   matrix_RCP extractDiagonalBlock(const matrix_RCP & J,
                                   const Teuchos::RCP<const LA_Map> & blockMap);
-  /** @brief Build block-diagonal preconditioner; per-role smoother, default RELAXATION/Jacobi. */
+  /** @brief Build block-diagonal preconditioner; per-split smoother, default RELAXATION/Jacobi. */
   Teuchos::RCP<LA_Operator> buildBlockDiagonalPreconditioner(const matrix_RCP & J,
                                                              const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
                                                              const size_t & set);
-  /** @brief Assemble Schur approximation from extracted 2x2 block system. */
-  matrix_RCP buildBlockTriangularSchurApproximation(const block_prec::BlockSystem<Node> & blocks,
-                                                    const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
-                                                    matrix_RCP * diagTermOut = nullptr);
-  /** @brief Build filtered MueLu parameters shared by block-triangular build/reuse paths. */
-  Teuchos::ParameterList getBlockTriangularMueLuParams(const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
-                                                      const matrix_RCP & SchurApprox);
   /** @brief Build or refresh block-triangular preconditioner from current Jacobian and reuse policy. */
   Teuchos::RCP<LA_Operator> setupBlockTriangularPreconditioner(
       const matrix_RCP & J,

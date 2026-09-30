@@ -38,19 +38,11 @@ namespace MrHyDE {
 // Schur and block-triangular options.
 // Ooverview at the top of linearAlgebraInterface_blockprec.hpp.
 struct SchurConfig {
-  std::string approximation_type;   // base or diag
-  int pivot_block;                  // variable index taking the pivot role
+  std::string approximation_type;   // base, diag or mass
   ScalarT damping;                  // gamma in the diag Schur correction
-  bool diag_use_lumped_pivot_diagonal;
+  bool correction_use_lumped_weight;   // 'diag use lumped pivot diagonal'
   std::string triangle;             // auto, upper, lower
-  std::string pivot_block_preconditioner_type;
-  bool pivot_block_diag_use_lumped_diagonal;
-  std::string schur_block_preconditioner_type;
-  bool merge_pivot_variables;       // group every non-target variable into the pivot role
-  int target_block;                 // variable index taking the Schur role; -1 infers it
-  std::string pivot_variable;       // names the pivot instead of indexing it
-  std::string target_variable;      // names the Schur target instead of indexing it
-  std::string variable_groups;      // 'ux,uy; pr' spells the partition; last role is target
+  bool diagonal_prec_use_lumped;    // 'diag use lumped diagonal', the Diagonal split inverse
   ScalarT mass_scale;               // multiplies M_p in the 'mass' Schur variant
 };
 
@@ -72,10 +64,6 @@ struct RefMaxwellData {
   ScalarT schur_addon_beta = 0.0;
   bool schur_addon_beta_valid = false;
   ScalarT schur_addon_beta_alpha_u = 0.0;
-  ScalarT schur_addon_beta_built = 0.0;
-
-  std::string xml_param_file_pivot = "";
-  std::string xml_param_file_schur = "";
 };
 
 // Per-variable-block data, indexed the way block_prec::buildBlockMaps orders variables.
@@ -92,9 +80,23 @@ struct BlockData {
 template<class Node>
 struct Maxwell1Data {
   typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node> LA_CrsMatrix;
-  std::string xml_param_file_pivot = "";
-  std::string xml_param_file_schur = "";
   Teuchos::RCP<LA_CrsMatrix> D0_normalized;
+};
+
+// One named group of variables receiving a single approximate inverse, PETSc's PCFIELDSPLIT
+// idea. Each split keeps its own preconditioner hierarchy so reuse never crosses splits.
+template<class Node>
+struct FieldSplit {
+  std::string name;                   // key from 'variable groups'
+  std::string variables;              // that key's comma-separated variable list
+  Teuchos::ParameterList settings;    // the split sublist
+  // AMG, RefMaxwell, Maxwell1, Direct or Diagonal; the block-diagonal path also accepts
+  // an Ifpack2 smoother name here.
+  std::string prec_type;
+  Teuchos::RCP<Teuchos::ParameterList> refmaxwell_xml, maxwell1_xml;
+  Teuchos::RCP<MueLu::RefMaxwell<ScalarT,LO,GO,Node> > refmaxwell_prec;
+  Teuchos::RCP<MueLu::Maxwell1<ScalarT,LO,GO,Node> > maxwell1_prec;
+  ScalarT addon_beta_built = 0.0;     // beta baked into refmaxwell_prec
 };
 
 // Monolithic AMG only.
@@ -122,34 +124,41 @@ public:
     validateSublists();
     parseGeneralSettings(settings);
     parsePreconditionerSublist();
-    parsePivotBlockSublist();
-    parseSchurBlockSublist();
+    parseSplitSublists();
+    parseSchemeSettings();
     initializeRuntimeState();
   }
 
-  const Teuchos::ParameterList & pivotSettings() const {
-    return role_sublists.empty() ? pivot_block_sublist : role_sublists.front();
+  size_t numSplits() const { return splits.size(); }
+
+  const FieldSplit<Node> & split(const size_t r) const {
+    TEUCHOS_TEST_FOR_EXCEPTION(r >= splits.size(), std::runtime_error,
+      "Block preconditioner split " << r << " is not defined; this deck has "
+      << splits.size() << " splits.");
+    return splits[r];
   }
 
-  const Teuchos::ParameterList & targetSettings() const {
-    return role_sublists.empty() ? schur_block_sublist : role_sublists.back();
+  const Teuchos::ParameterList & splitSettings(const size_t r) const { return split(r).settings; }
+
+  std::string splitPrecType(const size_t r) const { return split(r).prec_type; }
+
+  // Elimination weights run inside a group only, so a split with no group-mate before it
+  // is inverted as given rather than on a Schur approximation.
+  size_t splitGroupOf(const size_t r) const {
+    return split_group_of.empty() ? 0 : split_group_of[r];
   }
 
-  const Teuchos::ParameterList & roleSettings(const size_t role) const {
-    if (!role_sublists.empty()) return role_sublists[role];
-    return (role == 0) ? pivot_block_sublist : schur_block_sublist;
+  // A block-diagonal group ignores the coupling between its own splits, so its members get
+  // no Schur correction from each other either.
+  bool splitGroupIsJacobi(const size_t g) const {
+    return g < split_group_jacobi.size() && split_group_jacobi[g];
   }
 
-  std::string rolePrecType(const size_t role) const {
-    if (!role_sublists.empty()) {
-      const Teuchos::ParameterList & list = role_sublists[role];
-      if (list.isParameter("preconditioner")) {
-        return list.template get<std::string>("preconditioner");
-      }
-      return "AMG";
-    }
-    return (role == 0) ? schur.pivot_block_preconditioner_type
-                       : schur.schur_block_preconditioner_type;
+  // Split order, for block_prec::resolveVariableGroups.
+  std::vector<std::string> splitVariableSpecs() const {
+    std::vector<std::string> out;
+    for (size_t r = 0; r < splits.size(); ++r) out.push_back(splits[r].variables);
+    return out;
   }
 
   void reset() {
@@ -159,10 +168,10 @@ public:
     prec = Teuchos::null;
     prec_dd = Teuchos::null;
     prec_block = Teuchos::null;
-    refmaxwell_prec = Teuchos::null;
-    schur_refmaxwell_prec = Teuchos::null;
-    maxwell1_prec = Teuchos::null;
-    schur_maxwell1_prec = Teuchos::null;
+    for (size_t r = 0; r < splits.size(); ++r) {
+      splits[r].refmaxwell_prec = Teuchos::null;
+      splits[r].maxwell1_prec = Teuchos::null;
+    }
     belos_solver_mgr = Teuchos::null;
     belos_problem = Teuchos::null;
     inverse_library = Teuchos::null;
@@ -194,17 +203,22 @@ public:
   Maxwell1Data<Node> maxwell1;
 
   Teuchos::ParameterList prec_sublist, belos_sublist;
-  Teuchos::ParameterList pivot_block_sublist, schur_block_sublist;
-  // Named-role layout: one container, one sublist per group, target role last.
+  // One container per scheme, one sublist per split, Schur target last.
   Teuchos::ParameterList scheme_sublist;
   std::string scheme_sublist_name;
   std::string monolithic_sublist_name;
-  bool flat_prec_sublist_used = false;
-  std::string deprecated_prec_sublist_message;
-  std::string schur_target_role;
-  std::vector<std::string> role_names;      // role order, target last
-  std::vector<std::string> role_variables;  // parallel: 'ux, uy' per role
-  std::vector<Teuchos::ParameterList> role_sublists;
+  std::string schur_target_split;
+  std::vector<FieldSplit<Node> > splits;      // split order, Schur target last in its group
+  // Optional 'split groups': Gauss-Seidel over groups, each composed internally by 'group
+  // composition'. Empty means the flat sweep BlockTriangularFactory does.
+  std::vector<std::string> split_group_names;
+  std::vector<std::vector<size_t> > split_groups;
+  std::vector<size_t> split_group_of;        // group id per split, empty without groups
+  // Per group: block diagonal over its splits, or a pivot/target chain through them.
+  std::vector<bool> split_group_jacobi;
+  // The Schur target is the last split of its group, so without groups it is the last
+  // split overall. Only this split takes the 'mass' term and the RefMaxwell addon.
+  size_t schur_target_index = 0;
 
   // Cached across solves so GCRODR's recycled subspace and RCG's conjugate
   // vectors survive.
@@ -223,34 +237,33 @@ public:
 
   matrix_RCP matrix;
 
-  // RefMaxwell and Maxwell1 are cached per block role, one hierarchy each, and reused
-  // through resetMatrix.
-  Teuchos::RCP<MueLu::RefMaxwell<ScalarT, LO, GO, Node> > refmaxwell_prec;
-  Teuchos::RCP<MueLu::RefMaxwell<ScalarT, LO, GO, Node> > schur_refmaxwell_prec;
-  Teuchos::RCP<MueLu::Maxwell1<ScalarT, LO, GO, Node> > maxwell1_prec;
-  Teuchos::RCP<MueLu::Maxwell1<ScalarT, LO, GO, Node> > schur_maxwell1_prec;
-
   size_t equation_set_index;   // set index when linearSolver(set,...) is used
 
-  // RefMaxwell XML for one block role, parsed once. Callers that modify it must copy!
-  const Teuchos::ParameterList & refMaxwellParams(const bool forSchur,
+  // One split's XML, parsed once. Callers that modify it must copy!
+  const Teuchos::ParameterList & refMaxwellParams(const size_t r,
                                                   const Teuchos::Comm<int> & comm) {
-    Teuchos::RCP<Teuchos::ParameterList> & cached = forSchur ? refmaxwell_xml_schur
-                                                             : refmaxwell_xml_pivot;
-    if (cached.is_null()) {
-      cached = Teuchos::rcp(new Teuchos::ParameterList());
-      const string & file = forSchur ? refMaxwell.xml_param_file_schur
-                                     : refMaxwell.xml_param_file_pivot;
-      if (!file.empty()) block_prec::loadXmlBroadcast(file, *cached, comm, "RefMaxwell");
-    }
-    return *cached;
+    return splitXml(splits[r].refmaxwell_xml, splits[r].settings, "RefMaxwell Settings", comm);
+  }
+
+  const Teuchos::ParameterList & maxwell1Params(const size_t r,
+                                                const Teuchos::Comm<int> & comm) {
+    return splitXml(splits[r].maxwell1_xml, splits[r].settings, "Maxwell1 Settings", comm);
   }
 
   bool schurAddonWanted(const Teuchos::Comm<int> & comm) {
-    if (block_prec::parseBlockPrecType(schur.schur_block_preconditioner_type) != block_prec::BlockPrecType::RefMaxwell) {
+    const size_t target = schur_target_index;
+    if (block_prec::parseBlockPrecType(split(target).prec_type) !=
+        block_prec::BlockPrecType::RefMaxwell) {
       return false;
     }
-    return block_prec::refMaxwellAddonEnabled(refMaxwellParams(true, comm));
+    return block_prec::refMaxwellAddonEnabled(refMaxwellParams(target, comm));
+  }
+
+  static std::string splitXmlFile(const Teuchos::ParameterList & split, const char * sublistName) {
+    if (!split.isSublist(sublistName)) return "";
+    const Teuchos::ParameterList & sub = split.sublist(sublistName);
+    return sub.isParameter("xml param file") ? sub.template get<std::string>("xml param file")
+                                             : std::string("");
   }
 
   block_prec::InverseLibraryCache<Node> & inverseLibrary(const int verbosity, const int rank) {
@@ -263,7 +276,20 @@ public:
 
 private:
   Teuchos::RCP<block_prec::InverseLibraryCache<Node> > inverse_library;
-  Teuchos::RCP<Teuchos::ParameterList> refmaxwell_xml_pivot, refmaxwell_xml_schur;
+
+  const Teuchos::ParameterList & splitXml(Teuchos::RCP<Teuchos::ParameterList> & cached,
+                                         const Teuchos::ParameterList & settings,
+                                         const char * sublistName,
+                                         const Teuchos::Comm<int> & comm) {
+    if (cached.is_null()) {
+      cached = Teuchos::rcp(new Teuchos::ParameterList());
+      const std::string file = splitXmlFile(settings, sublistName);
+      if (!file.empty()) {
+        block_prec::loadXmlBroadcast(file, *cached, comm, sublistName);
+      }
+    }
+    return *cached;
+  }
 
   void parseBelosAndAmesosSettings(Teuchos::ParameterList & settings) {
     amesos_type = settings.get<string>("Amesos solver","KLU2");
@@ -294,18 +320,11 @@ private:
     }
     if (monolithic_sublist_name.empty() && settings.isSublist("Preconditioner Settings")) {
       prec_sublist = settings.sublist("Preconditioner Settings");
-      flat_prec_sublist_used = true;
     }
-    pivot_block_sublist = settings.isSublist("Pivot Block Settings")
-      ? settings.sublist("Pivot Block Settings")
-      : Teuchos::ParameterList("empty");
-    schur_block_sublist = settings.isSublist("Schur Block Settings")
-      ? settings.sublist("Schur Block Settings")
-      : Teuchos::ParameterList("empty");
     parseSchemeContainer(settings);
   }
 
-  // One container per scheme, holding the grouping and one sublist per role. Named roles
+  // One container per scheme, holding the grouping and one sublist per split. Named splits
   void parseSchemeContainer(Teuchos::ParameterList & settings) {
     static const char * names[] = {"Block Triangular Settings", "Block Diagonal Settings"};
     scheme_sublist = Teuchos::ParameterList("empty");
@@ -319,90 +338,184 @@ private:
     }
     if (scheme_sublist_name.empty()) return;
 
-    // 'variable groups' is an ordered name -> variable-list map; input order is role order.
+    // 'variable groups' is an ordered name -> variable-list map; input order is split order.
     TEUCHOS_TEST_FOR_EXCEPTION(!scheme_sublist.isSublist("variable groups"), std::runtime_error,
-      scheme_sublist_name << " requires a 'variable groups' sublist naming each role.");
+      scheme_sublist_name << " requires a 'variable groups' sublist naming each split.");
     const Teuchos::ParameterList & groups = scheme_sublist.sublist("variable groups");
     for (Teuchos::ParameterList::ConstIterator it = groups.begin(); it != groups.end(); ++it) {
-      role_names.push_back(groups.name(it));
-      role_variables.push_back(groups.get<std::string>(groups.name(it)));
+      FieldSplit<Node> split;
+      split.name = groups.name(it);
+      split.variables = groups.get<std::string>(split.name);
+      splits.push_back(split);
     }
-    TEUCHOS_TEST_FOR_EXCEPTION(role_names.size() < 2, std::runtime_error,
-      scheme_sublist_name << " 'variable groups' needs at least two roles, got "
-      << role_names.size() << ".");
+    TEUCHOS_TEST_FOR_EXCEPTION(splits.size() < 2, std::runtime_error,
+      scheme_sublist_name << " 'variable groups' needs at least two splits, got "
+      << splits.size() << ".");
 
     if (scheme_sublist.isParameter("schur target")) {
-      schur_target_role = scheme_sublist.get<std::string>("schur target");
+      schur_target_split = scheme_sublist.get<std::string>("schur target");
     }
-    orderRolesTargetLast();
-    collectRoleSublists();
+    orderSplits();
+    collectSplitSublists();
   }
 
-  // Only the last role escapes being used as an elimination weight, so the target goes
+  // Split order is the concatenation of the declared groups, each in its listed order.
+  // Without the key every split is its own group.
+  void orderSplits() {
+    if (!scheme_sublist.isSublist("split groups")) {
+      orderSplitsTargetLast();
+      schur_target_index = splits.size() - 1;
+      return;
+    }
+    // Both paths default the target to the last split, so adding 'split groups' to a deck
+    // that names no 'schur target' does not move it.
+    const Teuchos::ParameterList & groups = scheme_sublist.sublist("split groups");
+    std::vector<FieldSplit<Node> > ordered;
+    std::vector<bool> seen(splits.size(), false);
+    for (Teuchos::ParameterList::ConstIterator it = groups.begin(); it != groups.end(); ++it) {
+      const std::string name = groups.name(it);
+      // A group is either 'name: a, b' or a sublist with 'splits' and 'composition'.
+      std::string spec;
+      bool jacobi = false;
+      if (groups.isSublist(name)) {
+        const Teuchos::ParameterList & entry = groups.sublist(name);
+        TEUCHOS_TEST_FOR_EXCEPTION(!entry.isParameter("splits"), std::runtime_error,
+          "'split groups' entry '" << name << "' is a sublist, so it needs a 'splits' key "
+          "naming the splits it holds.");
+        spec = entry.get<std::string>("splits");
+        if (entry.isParameter("composition")) {
+          const std::string how =
+            block_prec::toUpperAsciiCopy(entry.get<std::string>("composition"));
+          TEUCHOS_TEST_FOR_EXCEPTION(how != "JACOBI" && how != "GAUSS-SEIDEL",
+            std::runtime_error,
+            "'split groups' entry '" << name << "' has composition '"
+            << entry.get<std::string>("composition")
+            << "'. Supported: gauss-seidel for a pivot/target chain through the group's "
+            "splits, jacobi for a block-diagonal inverse over them.");
+          jacobi = (how == "JACOBI");
+        }
+      }
+      else {
+        spec = groups.get<std::string>(name);
+      }
+      std::vector<size_t> members;
+      for (const std::string & member : block_prec::splitCommaList(spec)) {
+        const size_t at = splitIndexByName(member);
+        TEUCHOS_TEST_FOR_EXCEPTION(at == splits.size(), std::runtime_error,
+          "'split groups' entry '" << name << "' names '" << member
+          << "', which is not a group in 'variable groups'. Declared: "
+          << declaredSplitNames() << ".");
+        TEUCHOS_TEST_FOR_EXCEPTION(seen[at], std::runtime_error,
+          "'split groups' names '" << member << "' more than once.");
+        seen[at] = true;
+        members.push_back(at);
+      }
+      TEUCHOS_TEST_FOR_EXCEPTION(members.empty(), std::runtime_error,
+        "'split groups' entry '" << name << "' names no splits.");
+      // The target is only ever the last of its group: it is the one split in the group
+      // that is never inverted as an elimination weight.
+      for (size_t m = 0; m + 1 < members.size(); ++m) {
+        if (splits[members[m]].name != schur_target_split) continue;
+        members.push_back(members[m]);
+        members.erase(members.begin() + m);
+        break;
+      }
+      std::vector<size_t> indices;
+      for (size_t m = 0; m < members.size(); ++m) {
+        indices.push_back(ordered.size());
+        ordered.push_back(splits[members[m]]);
+        split_group_of.push_back(split_groups.size());
+      }
+      split_group_names.push_back(name);
+      split_groups.push_back(indices);
+      split_group_jacobi.push_back(jacobi);
+    }
+    for (size_t r = 0; r < splits.size(); ++r) {
+      TEUCHOS_TEST_FOR_EXCEPTION(!seen[r], std::runtime_error,
+        "'split groups' leaves split '" << splits[r].name
+        << "' out; every split must appear exactly once.");
+    }
+    splits = ordered;
+    schur_target_index = splits.size() - 1;
+    if (!schur_target_split.empty()) {
+      schur_target_index = splitIndexByName(schur_target_split);
+      TEUCHOS_TEST_FOR_EXCEPTION(schur_target_index == splits.size(), std::runtime_error,
+        "'schur target: " << schur_target_split << "' names no group in 'variable groups'.");
+    }
+  }
+
+  // A deck may write 'damping: 2' rather than '2.0', and Teuchos stores that as an int.
+  static ScalarT scalarParam(const Teuchos::ParameterList & pl, const char * key,
+                             const ScalarT fallback) {
+    if (!pl.isParameter(key)) return fallback;
+    if (pl.getEntry(key).isType<int>()) return static_cast<ScalarT>(pl.get<int>(key));
+    return pl.get<ScalarT>(key);
+  }
+
+  // splits.size() is 2 to 5, so a scan beats keeping an index in step with the reorder.
+  size_t splitIndexByName(const std::string & name) const {
+    for (size_t r = 0; r < splits.size(); ++r) {
+      if (splits[r].name == name) return r;
+    }
+    return splits.size();
+  }
+
+  std::string declaredSplitNames() const {
+    std::string out;
+    for (size_t r = 0; r < splits.size(); ++r) {
+      if (r) out += ", ";
+      out += "'" + splits[r].name + "'";
+    }
+    return out;
+  }
+
+  // Only the last split escapes being used as an elimination weight, so the target goes
   // there regardless of the order the groups were listed in.
-  void orderRolesTargetLast() {
-    if (schur_target_role.empty()) return;
-    size_t at = role_names.size();
-    for (size_t r = 0; r < role_names.size(); ++r) {
-      if (role_names[r] == schur_target_role) at = r;
-    }
-    TEUCHOS_TEST_FOR_EXCEPTION(at == role_names.size(), std::runtime_error,
-      "'schur target: " << schur_target_role << "' names no group in 'variable groups'.");
-    role_names.push_back(role_names[at]);
-    role_variables.push_back(role_variables[at]);
-    role_names.erase(role_names.begin() + at);
-    role_variables.erase(role_variables.begin() + at);
+  void orderSplitsTargetLast() {
+    if (schur_target_split.empty()) return;
+    const size_t at = splitIndexByName(schur_target_split);
+    TEUCHOS_TEST_FOR_EXCEPTION(at == splits.size(), std::runtime_error,
+      "'schur target: " << schur_target_split << "' names no group in 'variable groups'.");
+    splits.push_back(splits[at]);
+    splits.erase(splits.begin() + at);
   }
 
-  void collectRoleSublists() {
-    role_sublists.clear();
-    for (size_t r = 0; r < role_names.size(); ++r) {
-      TEUCHOS_TEST_FOR_EXCEPTION(!scheme_sublist.isSublist(role_names[r]), std::runtime_error,
-        scheme_sublist_name << " has no '" << role_names[r]
-        << "' sublist for the role of that name.");
-      role_sublists.push_back(scheme_sublist.sublist(role_names[r]));
+  void collectSplitSublists() {
+    for (size_t r = 0; r < splits.size(); ++r) {
+      TEUCHOS_TEST_FOR_EXCEPTION(!scheme_sublist.isSublist(splits[r].name), std::runtime_error,
+        scheme_sublist_name << " has no '" << splits[r].name
+        << "' sublist for the split of that name.");
+      splits[r].settings = scheme_sublist.sublist(splits[r].name);
+      splits[r].prec_type = splits[r].settings.isParameter("preconditioner")
+        ? splits[r].settings.template get<std::string>("preconditioner")
+        : std::string("AMG");
     }
     // Anything else that is a sublist is a typo, not an ignorable extra.
     for (Teuchos::ParameterList::ConstIterator it = scheme_sublist.begin();
          it != scheme_sublist.end(); ++it) {
       const std::string key = scheme_sublist.name(it);
-      if (!scheme_sublist.isSublist(key) || key == "variable groups") continue;
+      if (!scheme_sublist.isSublist(key) || key == "variable groups" ||
+          key == "split groups") continue;
       bool known = false;
-      for (size_t r = 0; r < role_names.size(); ++r) known = known || role_names[r] == key;
+      for (size_t r = 0; r < splits.size(); ++r) known = known || splits[r].name == key;
       TEUCHOS_TEST_FOR_EXCEPTION(!known, std::runtime_error,
         scheme_sublist_name << " sublist '" << key
         << "' names no group in 'variable groups'.");
     }
   }
 
+  // Split sublists themselves carry arbitrary MueLu/Ifpack2 keys, so only the nested
+  // RefMaxwell/Maxwell1 lists can be checked against a fixed key set.
   void validateSublists() {
-    if (pivot_block_sublist.name() != "empty") {
-      block_prec::validatePivotBlockSettingsSection(pivot_block_sublist, "Pivot Block Settings");
-    }
-    if (schur_block_sublist.name() != "empty") {
-      block_prec::validateSchurBlockSettingsSection(schur_block_sublist, "Schur Block Settings");
+    for (size_t r = 0; r < splits.size(); ++r) {
+      block_prec::validateNestedBlockSublists(splits[r].settings,
+                                              scheme_sublist_name + "." + splits[r].name);
     }
   }
 
   void parseGeneralSettings(Teuchos::ParameterList & settings) {
     use_direct = settings.get<bool>("use direct solver",false);
     prec_type = block_prec::canonicalPreconditionerType(settings.get<string>("preconditioner type","AMG"));
-    if (flat_prec_sublist_used) {
-      const std::string want = (prec_type == "Ifpack2") ? "Ifpack2 Settings"
-                             : (prec_type == "AMG") ? "MueLu Settings"
-                             : "Domain Decomposition Settings";
-      // 'AMG' maps to 'MueLu Settings' rather than 'AMG Settings', because the latter
-      // already names the nested MueLu list inside a role.
-      deprecated_prec_sublist_message =
-        "WARNING: 'Preconditioner Settings' is deprecated and will be removed.\n"
-        "         This deck has 'preconditioner type: " + prec_type + "', so rename it to '"
-        + want + "'.\n"
-        "         The full mapping:\n"
-        "           preconditioner type: Ifpack2               ->  Ifpack2 Settings\n"
-        "           preconditioner type: AMG                   ->  MueLu Settings\n"
-        "           preconditioner type: domain decomposition  ->  Domain Decomposition Settings\n"
-        "         Keys inside the sublist do not change.";
-    }
     // A scheme container that does not match the selected scheme is a silent no-op
     if (!scheme_sublist_name.empty()) {
       const std::string want = (scheme_sublist_name == "Block Triangular Settings")
@@ -410,6 +523,14 @@ private:
       TEUCHOS_TEST_FOR_EXCEPTION(prec_type != want, std::runtime_error,
         "'" << scheme_sublist_name << "' is present but 'preconditioner type' is '"
         << prec_type << "'; it must be '" << want << "'.");
+    }
+    else {
+      TEUCHOS_TEST_FOR_EXCEPTION(prec_type == "block triangular" || prec_type == "block diagonal",
+        std::runtime_error,
+        "'preconditioner type: " << prec_type << "' requires a '"
+        << (prec_type == "block triangular" ? "Block Triangular Settings"
+                                            : "Block Diagonal Settings")
+        << "' sublist naming the splits in 'variable groups'.");
     }
     use_preconditioner = settings.get<bool>("use preconditioner",true);
     preconditioner_reuse_type = block_prec::canonicalReuseType(settings.get<string>("preconditioner reuse type","update"));
@@ -420,19 +541,11 @@ private:
     right_preconditioner = settings.get<bool>("right preconditioner",false);
     reuse_matrix = settings.get<bool>("reuse Jacobian",false);
     schur.approximation_type = "base";
-    schur.merge_pivot_variables = true;
-    schur.target_block = -1;
-    schur.pivot_variable = "";
-    schur.target_variable = "";
-    schur.variable_groups = "";
     schur.mass_scale = 1.0;
-    schur.pivot_block = 0;
     schur.damping = Teuchos::ScalarTraits<ScalarT>::one();
-    schur.diag_use_lumped_pivot_diagonal = false;
+    schur.correction_use_lumped_weight = false;
     schur.triangle = "auto";
-    schur.pivot_block_preconditioner_type = "AMG";
-    schur.pivot_block_diag_use_lumped_diagonal = false;
-    schur.schur_block_preconditioner_type = "AMG";
+    schur.diagonal_prec_use_lumped = false;
   }
 
   void parsePreconditionerSublist() {
@@ -446,107 +559,30 @@ private:
     }
   }
 
-  void parsePivotBlockSublist() {
-    if (role_sublists.empty() && pivot_block_sublist.name() == "empty") return;
-    if (pivotSettings().isParameter("preconditioner type")) {
-      schur.pivot_block_preconditioner_type =
-        block_prec::canonicalBlockPrecType(pivotSettings().template get<string>("preconditioner type"));
-    }
-    if (pivotSettings().isParameter("diag use lumped diagonal")) {
-      schur.pivot_block_diag_use_lumped_diagonal =
-        pivotSettings().template get<bool>("diag use lumped diagonal");
-    }
-    if (pivotSettings().isSublist("RefMaxwell Settings")) {
-      Teuchos::ParameterList & refmaxwellSettings = pivotSettingsMutable().sublist("RefMaxwell Settings");
-      if (refmaxwellSettings.isParameter("xml param file")) {
-        refMaxwell.xml_param_file_pivot = refmaxwellSettings.get<string>("xml param file");
-      }
-    }
-    if (pivotSettings().isSublist("Maxwell1 Settings")) {
-      Teuchos::ParameterList & maxwell1Settings = pivotSettingsMutable().sublist("Maxwell1 Settings");
-      if (maxwell1Settings.isParameter("xml param file")) {
-        maxwell1.xml_param_file_pivot = maxwell1Settings.get<string>("xml param file");
-      }
+  void parseSplitSublists() {
+    if (splits.empty()) return;
+    const Teuchos::ParameterList & pivot = splits.front().settings;
+    if (pivot.isParameter("diag use lumped diagonal")) {
+      schur.diagonal_prec_use_lumped =
+        pivot.template get<bool>("diag use lumped diagonal");
     }
   }
 
-  const Teuchos::ParameterList & schemeSettings() const {
-    return scheme_sublist_name.empty() ? schur_block_sublist : scheme_sublist;
-  }
-
-  // Nested RefMaxwell/Maxwell1 Settings live in a role sublist, not the container.
-  Teuchos::ParameterList & pivotSettingsMutable() {
-    return role_sublists.empty() ? pivot_block_sublist : role_sublists.front();
-  }
-
-  Teuchos::ParameterList & targetSettingsMutable() {
-    return role_sublists.empty() ? schur_block_sublist : role_sublists.back();
-  }
-
-  void parseSchurBlockSublist() {
-    if (scheme_sublist_name.empty() && schur_block_sublist.name() == "empty") return;
-    if (schemeSettings().isParameter("preconditioner type")) {
-      schur.schur_block_preconditioner_type =
-        block_prec::canonicalBlockPrecType(schemeSettings().template get<string>("preconditioner type"));
-    }
-    if (schemeSettings().isParameter("approximation type")) {
+  void parseSchemeSettings() {
+    if (scheme_sublist_name.empty()) return;
+    if (scheme_sublist.isParameter("approximation type")) {
       schur.approximation_type =
-        block_prec::canonicalSchurApproximationType(schemeSettings().template get<string>("approximation type"));
+        block_prec::canonicalSchurApproximationType(scheme_sublist.get<string>("approximation type"));
     }
-    if (schemeSettings().isParameter("pivot block")) {
-      schur.pivot_block = schemeSettings().template get<int>("pivot block");
+    schur.mass_scale = scalarParam(scheme_sublist, "mass scale", schur.mass_scale);
+    if (scheme_sublist.isParameter("diag use lumped pivot diagonal")) {
+      schur.correction_use_lumped_weight =
+        scheme_sublist.get<bool>("diag use lumped pivot diagonal");
     }
-    if (schemeSettings().isParameter("mass scale")) {
-      schur.mass_scale = schemeSettings().template get<ScalarT>("mass scale");
+    if (scheme_sublist.isParameter("triangle")) {
+      schur.triangle = block_prec::canonicalSchurTriangle(scheme_sublist.get<string>("triangle"));
     }
-    if (schemeSettings().isParameter("target block")) {
-      schur.target_block = schemeSettings().template get<int>("target block");
-    }
-    if (schemeSettings().isParameter("pivot variable")) {
-      schur.pivot_variable = schemeSettings().template get<std::string>("pivot variable");
-    }
-    if (schemeSettings().isParameter("target variable")) {
-      schur.target_variable = schemeSettings().template get<std::string>("target variable");
-    }
-    // isParameter is true for sublists too, and the named layout spells this as one.
-    if (schemeSettings().isParameter("variable groups") &&
-        !schemeSettings().isSublist("variable groups")) {
-      schur.variable_groups = schemeSettings().template get<std::string>("variable groups");
-    }
-    if (schemeSettings().isParameter("merge pivot variables")) {
-      schur.merge_pivot_variables = schemeSettings().template get<bool>("merge pivot variables");
-    }
-    if (schemeSettings().isParameter("diag use lumped pivot diagonal")) {
-      schur.diag_use_lumped_pivot_diagonal =
-        schemeSettings().template get<bool>("diag use lumped pivot diagonal");
-    }
-    if (schemeSettings().isParameter("triangle")) {
-      schur.triangle = block_prec::canonicalSchurTriangle(schemeSettings().template get<string>("triangle"));
-    }
-    if (schemeSettings().isParameter("damping")) {
-      schur.damping = schemeSettings().template get<ScalarT>("damping");
-    }
-    if (targetSettings().isSublist("RefMaxwell Settings")) {
-      Teuchos::ParameterList & refmaxwellSettings = targetSettingsMutable().sublist("RefMaxwell Settings");
-      if (refmaxwellSettings.isParameter("xml param file")) {
-        refMaxwell.xml_param_file_schur = refmaxwellSettings.get<string>("xml param file");
-      }
-    }
-    if (targetSettings().isSublist("Maxwell1 Settings")) {
-      Teuchos::ParameterList & maxwell1Settings = targetSettingsMutable().sublist("Maxwell1 Settings");
-      if (maxwell1Settings.isParameter("xml param file")) {
-        maxwell1.xml_param_file_schur = maxwell1Settings.get<string>("xml param file");
-      }
-    }
-    // Mirror role 0 and the target into the flat fields the two-role path reads.
-    // Only the triangular container: block-diagonal roles name Ifpack2 smoothers such as
-    // RELAXATION, which are not block-preconditioner types.
-    if (!role_sublists.empty() && scheme_sublist_name == "Block Triangular Settings") {
-      schur.pivot_block_preconditioner_type =
-        block_prec::canonicalBlockPrecType(rolePrecType(0));
-      schur.schur_block_preconditioner_type =
-        block_prec::canonicalBlockPrecType(rolePrecType(role_sublists.size() - 1));
-    }
+    schur.damping = scalarParam(scheme_sublist, "damping", schur.damping);
   }
 
   void initializeRuntimeState() {

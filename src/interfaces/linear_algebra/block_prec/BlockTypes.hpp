@@ -63,6 +63,23 @@ inline std::string toUpperAsciiCopy(std::string value) {
   return value;
 }
 
+// Comma-separated YAML list to trimmed, non-empty entries.
+inline std::vector<std::string> splitCommaList(const std::string & spec) {
+  std::vector<std::string> out;
+  size_t pos = 0;
+  while (pos <= spec.size()) {
+    const size_t comma = spec.find(',', pos);
+    const std::string item = spec.substr(pos, comma == std::string::npos ? std::string::npos
+                                                                        : comma - pos);
+    const size_t b = item.find_first_not_of(" \t");
+    const size_t e = item.find_last_not_of(" \t");
+    if (b != std::string::npos) out.push_back(item.substr(b, e - b + 1));
+    if (comma == std::string::npos) break;
+    pos = comma + 1;
+  }
+  return out;
+}
+
 inline SchurVariant parseSchurVariant(const std::string & canonical) {
   const std::string up = toUpperAsciiCopy(canonical);
   if (up == "BASE") return SchurVariant::Base;
@@ -91,6 +108,12 @@ inline TriangleSide parseTriangleSide(const std::string & raw) {
   TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error,
     "Unsupported Schur triangle '" << raw << "'. Supported: auto, upper, lower.");
   return TriangleSide::Auto;
+}
+
+// 'auto' follows the Krylov side: a right preconditioner wants the upper triangle.
+inline bool resolveUpperTriangle(const std::string & triangle, const bool rightPreconditioner) {
+  const TriangleSide side = parseTriangleSide(triangle);
+  return (side == TriangleSide::Auto) ? rightPreconditioner : (side == TriangleSide::Upper);
 }
 
 enum class BlockPrecType { AMG, RefMaxwell, Maxwell1, Direct, Diagonal };

@@ -15,7 +15,7 @@ its.opts.verbose = True
 #TESTING -n 4
 #TESTING -k regression,maxwell,HCURL,HDIV,blocktriangular,schur,schur_hcurl,amg,reuse
 
-LABELS = ["BlockTri pivot MueLu", "BlockTri Schur MueLu"]
+LABELS = ["BlockTri split 0 MueLu", "BlockTri split 1 MueLu"]
 MODES = ["none", "update"]
 ENERGY = re.compile(r"electric_energy = ([-0-9.e+]+)\s+magnetic_energy = ([-0-9.e+]+)")
 

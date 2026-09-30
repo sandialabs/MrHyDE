@@ -8,7 +8,7 @@ from mrhyde_test_support import *
 from trilinos_env import enable_trilinos_debug
 from parse_log import check, stats, Results
 
-its = mrhyde_test_support('''Three-role block diagonal with 'use mass matrix' on the zero-diagonal pressure role.''')
+its = mrhyde_test_support('''Three-split block diagonal with 'use mass matrix' on the zero-diagonal pressure split.''')
 its.opts.verbose = True
 
 #TESTING active
@@ -24,8 +24,8 @@ status += its.call('mpiexec -n 4 ../../mrhyde >& mrhyde.log')
 text = open("mrhyde.log", errors="replace").read()
 
 three = all(("  %s -> " % v) in text for v in ("ux", "pr", "uy"))
-res.add(three, "per-role sublists applied",
-        "" if three else "log does not echo a ux, pr and uy role sublist")
+res.add(three, "per-split sublists applied",
+        "" if three else "log does not echo a ux, pr and uy split sublist")
 
 mass = "[BlockDiag] Block 1: substituting mass matrix" in text
 res.add(mass, "pressure block uses its mass matrix",

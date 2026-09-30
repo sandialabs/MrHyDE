@@ -35,7 +35,7 @@ ANONYMOUS:
     use direct solver: false
     use preconditioner: true
     preconditioner type: block diagonal
-    # usePSPG: false leaves the pressure diagonal exactly zero, so that role needs its mass matrix.
+    # usePSPG: false leaves the pressure diagonal exactly zero, so that split needs its mass matrix.
     Block Diagonal Settings:
       variable groups:
         ux: 'ux'

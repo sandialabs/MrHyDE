@@ -11,11 +11,11 @@ handed to MueLu or Ifpack2. No matrices are modified here.
 
 #include "block_prec/BlockTypes.hpp"
 
-#include <Teuchos_ParameterList.hpp>
 #include <Teuchos_Comm.hpp>
+#include <Teuchos_ParameterList.hpp>
 #include <Teuchos_TestForException.hpp>
+#include <Teuchos_XMLParameterListCoreHelpers.hpp>
 #include <iostream>
-#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -128,6 +128,17 @@ inline void normalizeMueLuVerbosity(Teuchos::ParameterList & mueluParams, const 
   }
 }
 
+// The monolithic default and the Schur-target default are deliberately different: the
+// target carries the curl-curl Schur complement, whose spectrum is much tighter.
+inline void setDefaultChebyshevSmoother(Teuchos::ParameterList & params,
+                                        const bool forSchurSplit) {
+  Teuchos::ParameterList & smoother = params.sublist("smoother: params");
+  smoother.set("chebyshev: degree", 2);
+  smoother.set("chebyshev: ratio eigenvalue", forSchurSplit ? 1.2 : 7.0);
+  smoother.set("chebyshev: min eigenvalue", forSchurSplit ? 0.1 : 1.0);
+  smoother.set("chebyshev: zero starting solution", true);
+}
+
 inline Teuchos::ParameterList defaultMueLuParams() {
   Teuchos::ParameterList mueluParams;
   mueluParams.set("verbosity", "none");
@@ -161,39 +172,6 @@ inline Teuchos::ParameterList validMaxwell1Params() {
   return v;
 }
 
-inline Teuchos::ParameterList validPivotBlockParams() {
-  Teuchos::ParameterList v("Pivot Block Settings");
-  v.set("preconditioner type", "AMG");
-  v.set("diag use lumped diagonal", false);
-  v.set("hgrad basis name", "");
-  v.set("hcurl basis name", "");
-  v.set("inner krylov solver", "");
-  v.set("inner krylov max iters", 5);
-  v.set("inner krylov tol", 1.0e-2);
-  // MueLu and the nested MrHyDE lists are validated on their own terms.
-  v.sublist("AMG Settings").disableRecursiveValidation();
-  v.sublist("RefMaxwell Settings").disableRecursiveValidation();
-  v.sublist("Maxwell1 Settings").disableRecursiveValidation();
-  return v;
-}
-
-inline Teuchos::ParameterList validSchurBlockParams() {
-  Teuchos::ParameterList v = validPivotBlockParams();
-  v.setName("Schur Block Settings");
-  v.set("approximation type", "base");
-  v.set("pivot block", 0);
-  v.set("pivot variable", "");
-  v.set("triangle", "auto");
-  v.set("damping", 1.0);
-  v.set("diag use lumped pivot diagonal", false);
-  v.set("merge pivot variables", true);
-  v.set("variable groups", "");
-  v.set("mass scale", 1.0);
-  v.set("target block", -1);
-  v.set("target variable", "");
-  return v;
-}
-
 inline void validateRefMaxwellSettingsSection(const Teuchos::ParameterList & list, const std::string &) {
   list.validateParameters(validRefMaxwellParams());
 }
@@ -211,28 +189,6 @@ inline void validateNestedBlockSublists(const Teuchos::ParameterList & list, con
   }
 }
 
-inline void validatePivotBlockSettingsSection(const Teuchos::ParameterList & list, const std::string & sectionName) {
-  list.validateParameters(validPivotBlockParams());
-  if (list.isParameter("preconditioner type")) {
-    canonicalBlockPrecType(list.get<std::string>("preconditioner type"));
-  }
-  validateNestedBlockSublists(list, sectionName);
-}
-
-inline void validateSchurBlockSettingsSection(const Teuchos::ParameterList & list, const std::string & sectionName) {
-  list.validateParameters(validSchurBlockParams());
-  if (list.isParameter("preconditioner type")) {
-    canonicalBlockPrecType(list.get<std::string>("preconditioner type"));
-  }
-  if (list.isParameter("approximation type")) {
-    canonicalSchurApproximationType(list.get<std::string>("approximation type"));
-  }
-  if (list.isParameter("triangle")) {
-    canonicalSchurTriangle(list.get<std::string>("triangle"));
-  }
-  validateNestedBlockSublists(list, sectionName);
-}
-
 inline void promoteSublistToTopLevel(Teuchos::ParameterList & list, const std::string & sublistName) {
   if (!list.isSublist(sublistName)) return;
   const Teuchos::ParameterList sub = list.sublist(sublistName);
@@ -248,9 +204,7 @@ inline const std::vector<std::string> & mrhydeOwnedKeys() {
     "hgrad basis name", "hcurl basis name",
     "hgrad basis order", "hcurl basis order",
     "inner krylov solver", "inner krylov max iters", "inner krylov tol",
-    "approximation type", "pivot block", "pivot variable",
-    "target block", "target variable", "merge pivot variables", "variable groups",
-    "mass scale",
+    "approximation type", "mass scale",
     "triangle", "damping",
     "diag use lumped diagonal", "diag use lumped pivot diagonal",
     "filter SM", "filter threshold", "verify complex", "verify Kn consistency",
@@ -305,15 +259,6 @@ inline bool mueluParamsWantHiptmair(const Teuchos::ParameterList & pl) {
     if (sub.isParameter("smoother: type") && isHiptmairSmoother(sub.get<std::string>("smoother: type"))) return true;
   }
   return false;
-}
-
-inline void sanitizeDirectCoarseParams(Teuchos::ParameterList & sublist) {
-  static const std::set<std::string> directCoarse = {
-    "DIRECTSOLVER", "KLU", "KLU2", "AMESOS2", "AMESOS-KLU", "AMESOS-KLU2",
-    "SUPERLU", "SUPERLU_DIST"};
-  if (!sublist.isParameter("coarse: type") || !sublist.isSublist("coarse: params")) return;
-  if (!directCoarse.count(toUpperAsciiCopy(sublist.get<std::string>("coarse: type")))) return;
-  removeIfpack2OnlyKeys(sublist.sublist("coarse: params"));
 }
 
 inline void warnNonStationarySmoother(const Teuchos::ParameterList & refmaxwellParams,

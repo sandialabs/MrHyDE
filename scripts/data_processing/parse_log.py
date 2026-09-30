@@ -107,8 +107,10 @@ def band(ref, iter_tol=None):
     return max(ITER_TOL_FLOOR, int(math.ceil(ITER_TOL_FRAC * ref)))
 
 
-def check(solves, mean, imax, log="mrhyde.log", iter_tol=None, res=None):
-    """Regression check against recorded counts. 0 on match, 1 with a reason printed."""
+def check(solves, mean, imax, log="mrhyde.log", iter_tol=None, res=None,
+          label="iteration counts"):
+    """Regression check against recorded counts. 0 on match, 1 with a reason printed.
+    'label' names the Results row, so one test can check several decks."""
     fail = []
     s = stats(log)
     if s is None:
@@ -129,7 +131,7 @@ def check(solves, mean, imax, log="mrhyde.log", iter_tol=None, res=None):
     detail = "; ".join(fail) if fail else ("%d solves, mean %.2f (+/- %d), max %d (+/- %d)"
                                            % (s["solves"], s["mean"], mean_tol, s["max"], max_tol))
     if res is not None:
-        res.add(not fail, "iteration counts", detail)
+        res.add(not fail, label, detail)
         return 0
     for reason in fail:
         print("Failure: " + reason)

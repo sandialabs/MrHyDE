@@ -51,11 +51,6 @@ comm(comm_), settings(settings_), disc(disc_), params(params_) {
       solvesettings = settings->sublist("Solver");
     }
     context.push_back(Teuchos::rcp( new LinearSolverContext<Node>(solvesettings) ));
-    // Deprecation notices are collected at parse time, where no communicator is in scope.
-    if (!context.back()->deprecated_prec_sublist_message.empty() && verbosity >= 1 &&
-        comm->getRank() == 0) {
-      std::cout << context.back()->deprecated_prec_sublist_message << std::endl;
-    }
   }
   
   // Create the solver Context for the state L2-projections

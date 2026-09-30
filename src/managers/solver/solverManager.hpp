@@ -19,6 +19,7 @@
 #include "postprocessManager.hpp"
 #include "solutionStorage.hpp"
 #include "linearAlgebraInterface.hpp"
+#include "block_prec/CrsFilter.hpp"
 #include "MrHyDE_Debugger.hpp"
 
 // For auxiliary-space setup on HCURL block.

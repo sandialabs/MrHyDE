@@ -8,7 +8,7 @@ from mrhyde_test_support import *
 from trilinos_env import enable_trilinos_debug
 from parse_log import stats, Results
 
-its = mrhyde_test_support('''Per-role reuse under 'update': the Hiptmair role rebuilds, the plain AMG role reuses.''')
+its = mrhyde_test_support('''Per-split reuse under 'update': the Hiptmair split rebuilds, the plain AMG split reuses.''')
 its.opts.verbose = True
 
 #TESTING active

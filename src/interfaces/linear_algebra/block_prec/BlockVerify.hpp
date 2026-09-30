@@ -407,9 +407,10 @@ void verifyBlockSystem(const BlockSystem<Node> & blocks,
                        const ScalarT damping,
                        const bool useLumpedWeightDiagonal,
                        const bool schurIsDiag,
+                       const bool requested,
                        const int verbosity) {
-  if (verbosity < 5) return;
-  // Every check below assumes the 2x2 role view.
+  if (!requested && verbosity < 5) return;
+  // Every check below assumes the 2x2 split view.
   if (blocks.numBlocks() != 2) {
     return;
   }
@@ -427,17 +428,17 @@ void verifyBlockSystem(const BlockSystem<Node> & blocks,
   detail::fillProbe<Node>(x);
   J->apply(x, Jx);
 
-  Import impP(fullMap, blocks.pivotMap), impT(fullMap, blocks.targetMap);
-  Export expP(blocks.pivotMap, fullMap), expT(blocks.targetMap, fullMap);
-  LA_Vector x0(blocks.pivotMap), x1(blocks.targetMap);
-  LA_Vector y0(blocks.pivotMap), y1(blocks.targetMap);
+  Import impP(fullMap, blocks.maps[0]), impT(fullMap, blocks.maps[1]);
+  Export expP(blocks.maps[0], fullMap), expT(blocks.maps[1], fullMap);
+  LA_Vector x0(blocks.maps[0]), x1(blocks.maps[1]);
+  LA_Vector y0(blocks.maps[0]), y1(blocks.maps[1]);
   x0.doImport(x, impP, Tpetra::REPLACE);
   x1.doImport(x, impT, Tpetra::REPLACE);
 
-  blocks.J00->apply(x0, y0);
-  blocks.J01->apply(x1, y0, Teuchos::NO_TRANS, one, one);
-  blocks.J11->apply(x1, y1);
-  blocks.J10->apply(x0, y1, Teuchos::NO_TRANS, one, one);
+  blocks.blocks[0][0]->apply(x0, y0);
+  blocks.blocks[0][1]->apply(x1, y0, Teuchos::NO_TRANS, one, one);
+  blocks.blocks[1][1]->apply(x1, y1);
+  blocks.blocks[1][0]->apply(x0, y1, Teuchos::NO_TRANS, one, one);
   y.putScalar(zero);
   y.doExport(y0, expP, Tpetra::REPLACE);
   y.doExport(y1, expT, Tpetra::REPLACE);
@@ -452,8 +453,12 @@ void verifyBlockSystem(const BlockSystem<Node> & blocks,
   // curl(grad) = 0, so the off-diagonal coupling annihilates range(D0).
   typename Types::CrsMatrixRCP curlBlock;
   if (!D0.is_null()) {
-    if (D0->getRangeMap()->isSameAs(*blocks.J10->getDomainMap()))      curlBlock = blocks.J10;
-    else if (D0->getRangeMap()->isSameAs(*blocks.J01->getDomainMap())) curlBlock = blocks.J01;
+    if (D0->getRangeMap()->isSameAs(*blocks.blocks[1][0]->getDomainMap())) {
+      curlBlock = blocks.blocks[1][0];
+    }
+    else if (D0->getRangeMap()->isSameAs(*blocks.blocks[0][1]->getDomainMap())) {
+      curlBlock = blocks.blocks[0][1];
+    }
   }
   if (!curlBlock.is_null()) {
     LA_Vector v(D0->getDomainMap()), D0v(D0->getRangeMap()), c(curlBlock->getRangeMap());
@@ -496,13 +501,14 @@ void verifyBlockSystem(const BlockSystem<Node> & blocks,
     detail::InverseDiagonalCounts w;
     Teuchos::RCP<LA_Vector> dinv =
       detail::buildInverseDiagonal<Node>(
-        Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(blocks.J00), useLumpedWeightDiagonal, w);
-    LA_Vector t(blocks.pivotMap), Sx(blocks.targetMap), mf(blocks.targetMap);
-    LA_Vector dt(blocks.pivotMap);
-    blocks.J01->apply(x1, t);
+        Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(blocks.blocks[0][0]),
+        useLumpedWeightDiagonal, w);
+    LA_Vector t(blocks.maps[0]), Sx(blocks.maps[1]), mf(blocks.maps[1]);
+    LA_Vector dt(blocks.maps[0]);
+    blocks.blocks[0][1]->apply(x1, t);
     dt.elementWiseMultiply(one, *dinv, t, zero);
-    blocks.J10->apply(dt, mf);
-    blocks.J11->apply(x1, Sx);
+    blocks.blocks[1][0]->apply(dt, mf);
+    blocks.blocks[1][1]->apply(x1, Sx);
     mf.update(one, Sx, -damping);
     SchurApprox->apply(x1, Sx);
     Sx.update(-one, mf, one);

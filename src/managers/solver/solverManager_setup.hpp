@@ -109,19 +109,9 @@ void SolverManager<Node>::completeSetup() {
     if (cntxt.is_null()) return false;
     const bool use_block_tri = (cntxt->prec_type == "block triangular");
     const bool use_block_diag = (cntxt->prec_type == "block diagonal");
-    std::string pivot_prec = cntxt->schur.pivot_block_preconditioner_type;
-    for (size_t i = 0; i < pivot_prec.size(); ++i)
-      pivot_prec[i] = static_cast<char>(std::toupper(static_cast<unsigned char>(pivot_prec[i])));
-    std::string schur_prec = cntxt->schur.schur_block_preconditioner_type;
-    for (size_t i = 0; i < schur_prec.size(); ++i)
-      schur_prec[i] = static_cast<char>(std::toupper(static_cast<unsigned char>(schur_prec[i])));
-    bool use_refmaxwell = (pivot_prec == "REFMAXWELL" || pivot_prec == "MAXWELL1");
-    bool use_refmaxwell_schur = (schur_prec == "REFMAXWELL" || schur_prec == "MAXWELL1");
-    // Named roles carry 'preconditioner' instead of the flat pivot/Schur type fields.
-    for (size_t r = 0; r < cntxt->role_sublists.size(); ++r) {
-      std::string t = cntxt->rolePrecType(r);
-      for (size_t i = 0; i < t.size(); ++i)
-        t[i] = static_cast<char>(std::toupper(static_cast<unsigned char>(t[i])));
+    bool use_refmaxwell = false, use_refmaxwell_schur = false;
+    for (size_t r = 0; r < cntxt->numSplits(); ++r) {
+      const std::string t = block_prec::toUpperAsciiCopy(cntxt->splitPrecType(r));
       const bool aux = (t == "REFMAXWELL" || t == "MAXWELL1");
       if (r == 0) use_refmaxwell = use_refmaxwell || aux;
       else use_refmaxwell_schur = use_refmaxwell_schur || aux;
@@ -137,16 +127,12 @@ void SolverManager<Node>::completeSetup() {
       return true;
     }
     if (use_block_tri || use_block_diag) {
-      if (declaresAuxiliaryBases(cntxt->pivot_block_sublist) ||
-          declaresAuxiliaryBases(cntxt->schur_block_sublist)) {
-        return true;
-      }
-      for (size_t r = 0; r < cntxt->role_sublists.size(); ++r) {
-        if (declaresAuxiliaryBases(cntxt->role_sublists[r])) return true;
+      for (size_t r = 0; r < cntxt->numSplits(); ++r) {
+        if (declaresAuxiliaryBases(cntxt->splitSettings(r))) return true;
         // 'use mass matrix' sits a level below the container, out of reach of the
         // "Block " prefix scan below.
-        const Teuchos::ParameterList & role = cntxt->role_sublists[r];
-        if (role.isParameter("use mass matrix") && role.get<bool>("use mass matrix")) return true;
+        const Teuchos::ParameterList & split = cntxt->splitSettings(r);
+        if (split.isParameter("use mass matrix") && split.get<bool>("use mass matrix")) return true;
       }
     }
     // Block-diagonal mass swaps and coordinate aggregation also need auxiliary data.
@@ -203,21 +189,9 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
     "Missing linear solver context for set " + std::to_string(set));
   debugger->print("**** setupBlockTriangularAuxiliary: begin set " + std::to_string(set));
 
-  // Unit-weight M1 for RefMaxwell/Maxwell1; otherwise physics weights.
-  const bool pivotHasRefMaxwell =
-    (cntxt->pivot_block_sublist.name() != "empty") &&
-    (cntxt->pivot_block_sublist.isSublist("RefMaxwell Settings") ||
-     cntxt->pivot_block_sublist.isSublist("Maxwell1 Settings"));
-  const bool schurHasRefMaxwell =
-    (cntxt->schur_block_sublist.name() != "empty") &&
-    (cntxt->schur_block_sublist.isSublist("RefMaxwell Settings") ||
-     cntxt->schur_block_sublist.isSublist("Maxwell1 Settings"));
-  const bool use_unit_mass = pivotHasRefMaxwell || schurHasRefMaxwell;
-
-  bool blockSublistWantsD0 = declaresAuxiliaryBases(cntxt->pivot_block_sublist) ||
-                             declaresAuxiliaryBases(cntxt->schur_block_sublist);
-  for (size_t r = 0; r < cntxt->role_sublists.size(); ++r) {
-    blockSublistWantsD0 = blockSublistWantsD0 || declaresAuxiliaryBases(cntxt->role_sublists[r]);
+  bool blockSublistWantsD0 = false;
+  for (size_t r = 0; r < cntxt->numSplits(); ++r) {
+    blockSublistWantsD0 = blockSublistWantsD0 || declaresAuxiliaryBases(cntxt->splitSettings(r));
   }
 
   // No per-variable assembly, so build the mass over the whole set and extract the
@@ -232,7 +206,7 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
                                solverList.get<bool>("matrix free", false), std::runtime_error,
       "Auxiliary setup needs an assembled M1: disable sparse mass, lumping, matrix-free.");
   }
-  assembler->getWeightedMass(set, M1_over, diagM1_over, use_unit_mass);
+  assembler->getWeightedMass(set, M1_over, diagM1_over);
 
   matrix_RCP assembled_mass_matrix = linalg->getNewMatrix(set);
   linalg->exportMatrixFromOverlapped(set, assembled_mass_matrix, M1_over);
@@ -242,7 +216,6 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
   std::vector<Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > > blockMaps = linalg->buildBlockMaps(set);
   TEUCHOS_TEST_FOR_EXCEPTION(blockMaps.empty(), std::runtime_error,
     "Block-triangular auxiliary setup requires at least one block map.");
-  const int pivotBlock = cntxt->schur.pivot_block;
 
   // Cache block mass matrices for optional substitution.
   cntxt->block.mass_matrices.assign(blockMaps.size(), Teuchos::null);
@@ -275,33 +248,20 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
   }
 
   // The mass-only path does not need D0 or coordinates.
-  if (!pivotHasRefMaxwell && !schurHasRefMaxwell && !needs_distance_laplacian_coords &&
-      !blockSublistWantsD0) {
+  if (!needs_distance_laplacian_coords && !blockSublistWantsD0) {
     debugger->print("**** setupBlockTriangularAuxiliary: done (mass-only, set " + std::to_string(set) + ")");
     return;
   }
 
-  TEUCHOS_TEST_FOR_EXCEPTION(pivotBlock < 0 || static_cast<size_t>(pivotBlock) >= blockMaps.size(),
-    std::runtime_error,
-    "Schur pivot block index " + std::to_string(pivotBlock) + " is out of range for set " +
-    std::to_string(set) + " with " + std::to_string(blockMaps.size()) + " blocks.");
-
-  // Basis settings live in a role sublist, or in Pivot/Schur Block Settings on the flat
-  // layout.
+  // Basis settings live in a split sublist, or in the monolithic settings.
   auto hasBasis = [](const Teuchos::ParameterList * p) {
     return p->name() != "empty" && p->isParameter("hgrad basis name");
   };
   const Teuchos::ParameterList * refmaxwellSetupListPtr = nullptr;
-  for (size_t r = 0; r < cntxt->role_sublists.size(); ++r) {
-    if (refmaxwellSetupListPtr == nullptr && hasBasis(&cntxt->role_sublists[r])) {
-      refmaxwellSetupListPtr = &cntxt->role_sublists[r];
+  for (size_t r = 0; r < cntxt->numSplits(); ++r) {
+    if (refmaxwellSetupListPtr == nullptr && hasBasis(&cntxt->splitSettings(r))) {
+      refmaxwellSetupListPtr = &cntxt->splitSettings(r);
     }
-  }
-  if (refmaxwellSetupListPtr == nullptr && hasBasis(&cntxt->pivot_block_sublist)) {
-    refmaxwellSetupListPtr = &cntxt->pivot_block_sublist;
-  }
-  if (refmaxwellSetupListPtr == nullptr && hasBasis(&cntxt->schur_block_sublist)) {
-    refmaxwellSetupListPtr = &cntxt->schur_block_sublist;
   }
   if (refmaxwellSetupListPtr == nullptr && hasBasis(&cntxt->prec_sublist)) {
     refmaxwellSetupListPtr = &cntxt->prec_sublist;
@@ -325,7 +285,7 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
     hcurl_order = dl_hcurl_order;
   } else {
     TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error,
-      "RefMaxwell auxiliary setup needs 'hgrad basis name' and 'hcurl basis name' in Pivot or Schur Block Settings.");
+      "RefMaxwell auxiliary setup needs 'hgrad basis name' and 'hcurl basis name' in a split sublist.");
   }
 
   if ((hgrad_order != 1 || hcurl_order != 1) && Comm->getRank() == 0) {
@@ -377,7 +337,7 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
 
   // identify edge block by basis type
   const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > aux_edge_map = cntxt->refMaxwell.D0_matrix->getRangeMap();
-  size_t edgeBlock = static_cast<size_t>(pivotBlock);
+  size_t edgeBlock = 0;
   const auto & setBasis = useBasis[set][0];
   for (size_t v = 0; v < setBasis.size() && v < blockMaps.size(); ++v) {
     const LO bind = setBasis[v];
@@ -398,8 +358,6 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
   cntxt->refMaxwell.M1_matrix = linalg->extractDiagonalBlock(assembled_mass_matrix, edge_block_map);
 
   // aux2prim: aux_gids[aux_off[j]] -> prim_gids[E_off[j]], not by local index.
-  typedef typename LA_CrsMatrix::nonconst_local_inds_host_view_type host_inds_type;
-  typedef typename LA_CrsMatrix::nonconst_values_host_view_type host_vals_type;
   const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > nodal_map = cntxt->refMaxwell.D0_matrix->getDomainMap();
   const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > d0_col_map = cntxt->refMaxwell.D0_matrix->getColMap();
   if (!aux_edge_map->isSameAs(*edge_block_map)) {
@@ -433,10 +391,10 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
       }
     }
 
-    Teuchos::RCP<LA_CrsMatrix> D0_remapped =
-      Teuchos::rcp(new LA_CrsMatrix(edge_block_map, std::max<size_t>(1, cntxt->refMaxwell.D0_matrix->getLocalMaxNumRowEntries())));
+    // Primary edge row -> auxiliary row, the inverse of aux2prim, for the filtered copy.
     const LO n_aux_rows = aux_edge_map->getLocalNumElements();
     GO unmappedGid = -1, nonOwnedGid = -1;
+    std::unordered_map<GO,LO> prim2aux_lid;
     for (LO lid = 0; lid < n_aux_rows; ++lid) {
       const GO aux_row_gid = aux_edge_map->getGlobalElement(lid);
       auto it = aux2prim.find(aux_row_gid);
@@ -444,27 +402,11 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
         if (unmappedGid < 0) unmappedGid = aux_row_gid;
         continue;
       }
-      const GO row_gid = it->second;
       // globalAssemble would absorb a non-owned row and hide an aux/primary ownership mismatch.
-      if (nonOwnedGid < 0 && !edge_block_map->isNodeGlobalElement(row_gid)) nonOwnedGid = row_gid;
-      size_t nent = cntxt->refMaxwell.D0_matrix->getNumEntriesInLocalRow(lid);
-      if (nent == 0) continue;
-      host_inds_type col_lids("d0_col_lids", nent);
-      host_vals_type row_vals("d0_row_vals", nent);
-      cntxt->refMaxwell.D0_matrix->getLocalRowCopy(lid, col_lids, row_vals, nent);
-      std::vector<GO> col_gids;
-      std::vector<ScalarT> vals;
-      col_gids.reserve(nent);
-      vals.reserve(nent);
-      for (size_t j = 0; j < nent; ++j) {
-        const GO col_gid = d0_col_map->getGlobalElement(col_lids(j));
-        if (col_gid == Teuchos::OrdinalTraits<GO>::invalid()) continue;
-        col_gids.push_back(col_gid);
-        vals.push_back(row_vals(j));
+      if (nonOwnedGid < 0 && !edge_block_map->isNodeGlobalElement(it->second)) {
+        nonOwnedGid = it->second;
       }
-      if (!col_gids.empty()) {
-        D0_remapped->insertGlobalValues(row_gid, col_gids, vals);
-      }
+      prim2aux_lid[it->second] = lid;
     }
     GO bad[3] = {conflictGid, unmappedGid, nonOwnedGid}, worst[3] = {-1, -1, -1};
     Teuchos::reduceAll<int, GO>(*(aux_edge_map->getComm()), Teuchos::REDUCE_MAX, 3, bad, worst);
@@ -475,8 +417,21 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
     TEUCHOS_TEST_FOR_EXCEPTION(worst[2] >= 0, std::runtime_error,
       "D0 remap: primary edge GID " << worst[2] << " is not owned by the rank that "
       "owns its auxiliary row.");
-    D0_remapped->fillComplete(nodal_map, edge_block_map);
-    cntxt->refMaxwell.D0_matrix = D0_remapped;
+
+    // Rows move to the primary numbering; the nodal columns are untouched.
+    const LO n_prim_rows = static_cast<LO>(edge_block_map->getLocalNumElements());
+    Kokkos::View<LO*, typename Node::device_type> srcRowLid("d0_remap_row", n_prim_rows);
+    auto srcRowLidHost = Kokkos::create_mirror_view(srcRowLid);
+    for (LO lid = 0; lid < n_prim_rows; ++lid) {
+      auto it = prim2aux_lid.find(edge_block_map->getGlobalElement(lid));
+      srcRowLidHost(lid) = (it == prim2aux_lid.end()) ? LO(-1) : it->second;
+    }
+    Kokkos::deep_copy(srcRowLid, srcRowLidHost);
+    block_prec::detail::RowsFromTable<Node> rows;
+    rows.srcRow = srcRowLid;
+    cntxt->refMaxwell.D0_matrix = block_prec::detail::filterCopyCrs<Node>(
+      *cntxt->refMaxwell.D0_matrix, edge_block_map, d0_col_map, nodal_map, edge_block_map,
+      rows, block_prec::detail::KeepAllEntries());
   }
 
   // Nodal coordinates on D0 domain (Hgrad) for RefMaxwell nullspace / mesh info.

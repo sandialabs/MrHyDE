@@ -62,21 +62,10 @@ tpetraToThyra(const Teuchos::RCP<Tpetra::Operator<ScalarT,LO,GO,Node> > & op,
   return Thyra::createLinearOp<ScalarT,LO,GO,Node>(op, range, domain);
 }
 
-template<class Node>
-inline Teko::BlockedLinearOp
-buildThyraBlockedDiagonal(const std::vector<typename BlockTypes<Node>::CrsMatrixRCP> & diagBlocks) {
-  const int nb = static_cast<int>(diagBlocks.size());
-  auto blo = Thyra::defaultBlockedLinearOp<ScalarT>();
-  blo->beginBlockFill(nb, nb);
-  for (int b = 0; b < nb; ++b) blo->setBlock(b, b, tpetraToThyraConst<Node>(diagBlocks[b]));
-  blo->endBlockFill();
-  return Teko::toBlockedLinearOp(Teko::LinearOp(blo));
-}
-
-// Role-ordered NxN assembly; unset blocks are zero to Thyra.
+// Split-ordered NxN assembly; unset blocks are zero to Thyra.
 template<class Node>
 Teko::BlockedLinearOp
-buildThyraBlockedFromRoles(
+buildThyraBlockedFromSplits(
     const std::vector<std::vector<typename BlockTypes<Node>::CrsMatrixRCP> > & blocks) {
   const int nb = static_cast<int>(blocks.size());
   auto blo = Thyra::defaultBlockedLinearOp<ScalarT>();
@@ -224,6 +213,11 @@ composeTekoBlockOp(Teko::BlockedLinearOp & blocked,
   return tekoBuildInverse(factoryBuild(strategy), blocked);
 }
 
+inline Teuchos::RCP<Teko::BlockPreconditionerFactory>
+makeJacobiFactory(const Teuchos::RCP<Teko::BlockInvDiagonalStrategy> & strategy) {
+  return Teuchos::rcp(new Teko::JacobiPreconditionerFactory(strategy));
+}
+
 template<class Node, class BuildFactoryFn>
 inline Teuchos::RCP<Tpetra::Operator<ScalarT,LO,GO,Node> >
 finalizeTekoNativeBlockOp(const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > & fullMap,
@@ -249,12 +243,13 @@ buildTekoNativeBlockDiagonal(const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > 
   TEUCHOS_TEST_FOR_EXCEPTION(blockMaps.size() != diagBlocks.size(), std::runtime_error,
     "buildTekoNativeBlockDiagonal: " << blockMaps.size() << " block maps for "
     << diagBlocks.size() << " diagonal blocks.");
-  Teko::BlockedLinearOp blocked = buildThyraBlockedDiagonal<Node>(diagBlocks);
-  return detail::finalizeTekoNativeBlockOp<Node>(
-    fullMap, blockMaps, blocked, invs,
-    [](const Teuchos::RCP<Teko::BlockInvDiagonalStrategy> & s) {
-      return Teuchos::rcp(new Teko::JacobiPreconditionerFactory(s));
-    });
+  std::vector<std::vector<typename BlockTypes<Node>::CrsMatrixRCP> > rows(
+    diagBlocks.size(),
+    std::vector<typename BlockTypes<Node>::CrsMatrixRCP>(diagBlocks.size(), Teuchos::null));
+  for (size_t b = 0; b < diagBlocks.size(); ++b) rows[b][b] = diagBlocks[b];
+  Teko::BlockedLinearOp blocked = buildThyraBlockedFromSplits<Node>(rows);
+  return detail::finalizeTekoNativeBlockOp<Node>(fullMap, blockMaps, blocked, invs,
+                                                detail::makeJacobiFactory);
 }
 
 } // namespace block_prec
