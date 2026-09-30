@@ -3,7 +3,7 @@
 
     ./sweep.py {gen|run|report} [h|cfl] [deck ...] [case ...] [all] [krylov]
 
-Arguments come in any order. See README.md.
+Arguments come in any order.
 """
 
 import shutil
@@ -24,11 +24,8 @@ NP = 4
 # (tag, NX, NY, NZ, final time). Every case runs 10 steps, so dt is a tenth of
 # the final time and each case costs the same 12 solves.
 #
-# CFL = dt / h_eff, where 1/h_eff^2 = 1/hx^2 + 1/hy^2 + 1/hz^2 and the wave
-# speed is 1 because the deck sets eps = mu = 1. DIRK is implicit so this is
-# not a stability limit; it measures how far the stage operator has moved from
-# mass-dominated toward curl-curl-dominated. The cfl* tags were named from
-# min(h) rather than h_eff, so each understates the real number by 1.22x.
+# CFL = dt / h_eff, 1/h_eff^2 = sum 1/h_i^2. The cfl* tags were named from
+# min(h), not h_eff, so each understates the real number by 1.22x.
 STUDIES = {
     "h": [
         ("N8x8x4", 8, 8, 4, 4.0),
@@ -49,7 +46,6 @@ STUDIES = {
     ],
 }
 
-# Belos solver name.
 KRYLOV = {
     "bicgstab": "BiCGStab",
     "gmres": "Block GMRES",
@@ -59,9 +55,9 @@ KRYLOV = {
 
 DIRECT_MAX_ELEMENTS = 24 * 12 * 6
 SLOW_DIRECT = {name for name, (body, _) in SOLVERS.items()
-               if "preconditioner type: Direct" in body}
+               if "preconditioner: Direct" in body}
 
-# Every cfl case is at the finest mesh, so only the h study has cases to trim.
+# Only the h study has cases worth trimming; cfl is all one mesh.
 DEFAULT_CASES = {"h": ["N8x8x4", "N16x8x4", "N24x12x6", "N32x16x8"],
                  "cfl": [c[0] for c in STUDIES["cfl"]]}
 
@@ -264,7 +260,6 @@ COMMANDS = {"gen": gen, "run": run, "report": report}
 
 
 def parse_args(argv):
-    """-> (command, deck names, cases, krylov key)."""
     if not argv or argv[0] not in COMMANDS:
         sys.exit(__doc__)
     cmd, rest = argv[0], argv[1:]

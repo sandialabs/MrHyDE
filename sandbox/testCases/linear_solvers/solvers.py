@@ -1,18 +1,14 @@
 """Deck catalog: name -> (Solver YAML block, XML files to copy).
 
-Three deck shapes, one builder each:
-
     ifpack2(...)         one preconditioner on the whole 2x2 system
     block_diagonal(...)  one per diagonal block, E-B coupling dropped
     blocktri(...)        pivot solve plus Schur complement
 
-blocktri takes a pivot body and a Schur body. Build those with diagonal(),
-direct(), amg(), or auxspace(). Bodies are written unindented and indented
-once on the way in, so nesting stays readable here.
+blocktri takes a pivot body and a Schur body, built with diagonal(), direct(),
+amg() or auxspace(). Bodies are written unindented and indented on the way in.
 
-Block 0 is E (HCURL, edges), block 1 is B (HDIV, faces). Every blocktri deck
-pivots on block 1, so the pivot is the HDIV mass matrix and the Schur
-complement lands on E.
+Every blocktri deck here pivots on B (HDIV, faces), so the pivot is the HDIV
+mass matrix and the Schur complement lands on E.
 """
 
 AMG_PIVOT = "amg_pivot.xml"
@@ -35,28 +31,26 @@ def _indent(body, n):
     return "".join(pad + line + "\n" for line in body.rstrip("\n").split("\n"))
 
 
-# --- block bodies ------------------------------------------------------------
-
 def diagonal(lumped=False):
     """Pivot only. Lumped is a signed row sum, not a sum of magnitudes."""
-    body = "preconditioner type: Diagonal\n"
+    body = "preconditioner: Diagonal\n"
     if lumped:
         body += "diag use lumped diagonal: true\n"
     return body
 
 
 def direct():
-    """Amesos2 KLU2. A reference ceiling, far too slow for production."""
-    return "preconditioner type: Direct\n"
+    """Amesos2 KLU2. A reference ceiling, not a candidate."""
+    return "preconditioner: Direct\n"
 
 
 def amg(xml):
-    return "preconditioner type: AMG\nAMG Settings:\n  xml param file: %s\n" % xml
+    return "preconditioner: AMG\nAMG Settings:\n  xml param file: %s\n" % xml
 
 
 def auxspace(kind, xml, extra=""):
     """RefMaxwell or Maxwell1 on the edge space."""
-    return ("preconditioner type: {k}\n"
+    return ("preconditioner: {k}\n"
             "hgrad basis name: phi_aux\n"
             "hcurl basis name: E\n"
             "{k} Settings:\n"
@@ -64,13 +58,10 @@ def auxspace(kind, xml, extra=""):
             "{e}").format(k=kind, x=xml, e=extra)
 
 
-# --- deck shapes -------------------------------------------------------------
-
 def blocktri(pivot, schur, iters=500, approx="diag", lumped_weight=True,
              damping=None, triangle=None):
     head = "    max linear iters: %d\n" % iters
-    opts = ("      pivot block: 1\n"
-            "      approximation type: %s\n"
+    opts = ("      approximation type: %s\n"
             "      diag use lumped pivot diagonal: %s\n"
             % (approx, "true" if lumped_weight else "false"))
     if damping is not None:
@@ -79,12 +70,16 @@ def blocktri(pivot, schur, iters=500, approx="diag", lumped_weight=True,
         opts += "      triangle: %s\n" % triangle
     return (head +
             "    preconditioner type: block triangular\n"
-            "    Pivot Block Settings:\n" + _indent(pivot, 6) +
-            "    Schur Block Settings:\n" + opts + _indent(schur, 6))
+            "    Block Triangular Settings:\n"
+            "      variable groups:\n"
+            "        B: 'B'\n"
+            "        E: 'E'\n"
+            "      schur target: E\n" + opts +
+            "      B:\n" + _indent(pivot, 8) +
+            "      E:\n" + _indent(schur, 8))
 
 
 def refmaxwell(xml, extra="", pivot=None, triangle=None):
-    """blocktri with RefMaxwell on the Schur block (addon disabled)."""
     return blocktri(amg(AMG_PIVOT) if pivot is None else pivot,
                     auxspace("RefMaxwell", xml,
                              extra),
@@ -92,8 +87,7 @@ def refmaxwell(xml, extra="", pivot=None, triangle=None):
 
 
 def ifpack2(variant, params):
-    """Monolithic. variant goes straight to Ifpack2::Factory, so any name it
-    knows works: RELAXATION, CHEBYSHEV, RILUK, ILUT, SCHWARZ, ..."""
+    """variant goes straight to Ifpack2::Factory: RELAXATION, CHEBYSHEV, RILUK, ..."""
     return ("    max linear iters: 500\n"
             "    preconditioner type: Ifpack2\n"
             "    preconditioner variant: %s\n"
@@ -101,24 +95,28 @@ def ifpack2(variant, params):
 
 
 def block_diagonal(variant, params=""):
-    """Same smoother on both diagonal blocks, E-B coupling dropped."""
-    body = "      preconditioner variant: %s\n" % variant + _indent(params, 6)
+    """E-B coupling dropped."""
+    body = "        preconditioner: %s\n" % variant + _indent(params, 8)
     return ("    max linear iters: 500\n"
             "    preconditioner type: block diagonal\n"
-            "    Block 0 Settings:\n" + body +
-            "    Block 1 Settings:\n" + body)
+            "    Block Diagonal Settings:\n"
+            "      variable groups:\n"
+            "        E: 'E'\n"
+            "        B: 'B'\n"
+            "      E:\n" + body +
+            "      B:\n" + body)
 
 
 SOLVERS = {
-    # --- baselines and the original ladder ---
+    # --- baselines ---
     "jacobi": (ifpack2("RELAXATION", DAMPED_JACOBI), []),
     "block_diag": (block_diagonal("RELAXATION", DAMPED_JACOBI), []),
     "blocktri_jac_jac": (blocktri(diagonal(), amg("jacobi_1level.xml")),
                          [AMG_PIVOT, "jacobi_1level.xml"]),
     "blocktri_cheb": (blocktri(diagonal(), amg(CHEB)), [AMG_PIVOT, CHEB]),
     "blocktri_amg": (blocktri(amg(AMG_PIVOT), amg(AMG_PIVOT)), [AMG_PIVOT]),
-    # blocktri_amg with Hiptmair on the fine level of the Schur hierarchy; the
-    # basis names are what let setupBlockTriangularAuxiliary build D0.
+    # Hiptmair on the fine level of the Schur hierarchy; the basis names are what
+    # let MrHyDE build D0.
     "blocktri_hiptmair": (blocktri(amg(AMG_PIVOT),
                                    "hgrad basis name: phi_aux\n"
                                    "hcurl basis name: E\n" + amg("amg_hiptmair.xml")),
@@ -180,7 +178,6 @@ SOLVERS = {
                                            lumped_weight=False),
                                   [AMG_PIVOT, CHEB]),
     "blocktri_directpivot": (blocktri(direct(), amg(CHEB)), [AMG_PIVOT, CHEB]),
-    # refmaxwell_p2v3 with a mass-tuned Chebyshev pivot instead of 10-level SA-AMG.
     "refmaxwell_p2v3_chebpivot": (
         refmaxwell("refmaxwell_p2v3.xml", pivot=amg(CHEB_MASS)),
         [AMG_PIVOT, "refmaxwell_p2v3.xml", CHEB_MASS]),
@@ -212,12 +209,10 @@ SOLVERS = {
                                      "'relaxation: damping factor': 1.0\n"
                                      "'relaxation: use l1': true\n"
                                      "'relaxation: l1 eta': 1.5\n"), []),
-    # jacobi's sweeps and damping, only the relaxation type changed.
     "sgs_damped": (ifpack2("RELAXATION",
                            "'relaxation: type': Symmetric Gauss-Seidel\n"
                            "'relaxation: sweeps': 2\n"
                            "'relaxation: damping factor': 0.5\n"), []),
-    # Ifpack2 defaults for the subdomain solves.
     "schwarz": ("    max linear iters: 500\n"
                 "    preconditioner type: domain decomposition\n", []),
 
