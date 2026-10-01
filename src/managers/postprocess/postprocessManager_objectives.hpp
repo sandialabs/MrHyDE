@@ -128,7 +128,17 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> &current_soln
   
   // Objective function values
   vector<ScalarT> totaldiff(objectives.size(), 0.0);
-  
+  const bool scan = magnitude_scan_active;
+  vector<ScalarT> unweighted_self;
+  vector<vector<ScalarT>> unweighted_regs;
+  if (scan) {
+    unweighted_self.assign(objectives.size(), 0.0);
+    unweighted_regs.resize(objectives.size());
+    for (size_t r = 0; r < objectives.size(); ++r) {
+      unweighted_regs[r].assign(objectives[r].regularizations.size(), 0.0);
+    }
+  }
+
   for (size_t r = 0; r < objectives.size(); ++r)
   {
     if (objectives[r].type == "integrated control")
@@ -173,6 +183,9 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> &current_soln
         
         // Update the objective function value
         totaldiff[r] += objectives[r].weight * objsum_host(0);
+        if (scan) {
+          unweighted_self[r] += objsum_host(0);
+        }
       }
     }
     else if (objectives[r].type == "discrete control")
@@ -196,6 +209,9 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> &current_soln
           if (Comm->getRank() == 0)
           {
             totaldiff[r] += objectives[r].weight * obj[0] * obj[0];
+            if (scan) {
+              unweighted_self[r] += obj[0] * obj[0];
+            }
           }
         }
         else
@@ -252,7 +268,10 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> &current_soln
       }
       
       totaldiff[r] += intresp;
-      
+      if (scan) {
+        unweighted_self[r] += intresp; // weight applied later in reportObjective
+      }
+
       if (compute_response)
       {
         if (objectives[r].save_data)
@@ -432,6 +451,9 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> &current_soln
               ScalarT diff = rdata(0, 0) - objectives[r].sensor_data(pt, tindex);
               ScalarT sdiff = objectives[r].weight * diff * diff;
               totaldiff[r] += sdiff;
+              if (scan) {
+                unweighted_self[r] += diff * diff;
+              }
             }
             assembler->wkset[block]->isOnPoint = false;
             
@@ -489,6 +511,9 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> &current_soln
               for (size_type pt = 0; pt < regvals_sc_host.extent(1); ++pt)
               {
                 totaldiff[r] += regwt * regvals_sc_host(elem, pt);
+                if (scan) {
+                  unweighted_regs[r][reg] += regvals_sc_host(elem, pt);
+                }
               }
             }
           }
@@ -531,11 +556,14 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> &current_soln
                 for (size_type pt = 0; pt < regvals_sc_host.extent(1); ++pt)
                 {
                   totaldiff[r] += regwt * regvals_sc_host(elem, pt);
+                  if (scan) {
+                    unweighted_regs[r][reg] += regvals_sc_host(elem, pt);
+                  }
                 }
               }
             }
           }
-          
+
           assembler->wkset[block]->isOnSide = false;
         }
       }
@@ -558,6 +586,9 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> &current_soln
           for(int k = 0; k < param_dim; k++)
           {
             totaldiff[r] += regwt * param_vec[k] * param_vec[k];
+            if (scan) {
+              unweighted_regs[r][reg] += param_vec[k] * param_vec[k];
+            }
           }
         }
         Comm->barrier();
@@ -569,6 +600,16 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> &current_soln
   {
     objectives[r].objective_values.push_back(totaldiff[r]);
     objectives[r].objective_times.push_back(current_time);
+    if (scan) {
+      objectives[r].objective_unweighted_self.push_back(unweighted_self[r]);
+      if (objectives[r].regularization_unweighted.size() != objectives[r].regularizations.size()) {
+        objectives[r].regularization_unweighted.assign(objectives[r].regularizations.size(),
+                                                      vector<ScalarT>{});
+      }
+      for (size_t reg = 0; reg < objectives[r].regularizations.size(); ++reg) {
+        objectives[r].regularization_unweighted[reg].push_back(unweighted_regs[r][reg]);
+      }
+    }
   }
   
   debugger->print(1, "******** Finished PostprocessManager::computeObjective ...");
@@ -647,7 +688,107 @@ void PostprocessManager<Node>::reportObjective(ScalarT &objectiveval)
   debugger->print(1, "******** Finished PostprocessManager::reportObjective ...");
 }
 
+// ========================================================================================
+// ========================================================================================
 
+template <class Node>
+void PostprocessManager<Node>::reportUnweightedMagnitudes()
+{
+  if (!magnitude_scan_active) {
+    return;
+  }
+
+  // Same time integration as reportObjective (skip t=0, weight by dt).
+  auto integrate = [&](const vector<ScalarT> & per_step_local, size_t r) -> ScalarT {
+    if (objectives[r].objective_times.size() == 1) {
+      ScalarT g = 0.0;
+      ScalarT l = per_step_local.empty() ? 0.0 : per_step_local[0];
+      Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, 1, &l, &g);
+      return g;
+    }
+    ScalarT total = 0.0;
+    for (size_t t = 1; t < objectives[r].objective_times.size(); ++t) {
+      ScalarT g = 0.0;
+      ScalarT l = (t < per_step_local.size()) ? per_step_local[t] : 0.0;
+      Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, 1, &l, &g);
+      ScalarT dt = objectives[r].objective_times[t] - objectives[r].objective_times[t - 1];
+      if (objectives[r].type != "sensors") {
+        g *= dt;
+      }
+      total += g;
+    }
+    return total;
+  };
+
+  // Sum duplicate block instances of the same named term; keep first-seen weight.
+  struct Row { string name; ScalarT unweighted; ScalarT weight; };
+  auto add_to = [](vector<Row> & rows, const string & name, ScalarT v, ScalarT w) {
+    for (auto & row : rows) {
+      if (row.name == name) { row.unweighted += v; return; }
+    }
+    rows.push_back({name, v, w});
+  };
+
+  vector<Row> obj_rows, reg_rows;
+  for (size_t r = 0; r < objectives.size(); ++r) {
+    ScalarT g = integrate(objectives[r].objective_unweighted_self, r);
+    if (objectives[r].type == "integrated response") {
+      ScalarT diff = g - objectives[r].target;
+      g = diff * diff;
+    }
+    add_to(obj_rows, objectives[r].name, g, objectives[r].weight);
+    for (size_t reg = 0; reg < objectives[r].regularizations.size(); ++reg) {
+      const vector<ScalarT> & series = (reg < objectives[r].regularization_unweighted.size())
+        ? objectives[r].regularization_unweighted[reg] : vector<ScalarT>{};
+      add_to(reg_rows,
+             objectives[r].name + "/" + objectives[r].regularizations[reg].name,
+             integrate(series, r),
+             objectives[r].regularizations[reg].weight);
+    }
+  }
+
+  if (Comm->getRank() == 0) {
+    cout << "  Per-term contributions at the probe point (ROL iter-0 may differ if\n"
+         << "  the initial iterate is initialized differently):\n";
+    cout << "  " << std::left << std::setw(32) << "term"
+         << std::setw(6) << "type"
+         << std::right << std::setw(14) << "unweighted"
+         << std::setw(14) << "weight"
+         << std::setw(14) << "weighted"
+         << "\n";
+    cout << "  " << std::string(32, '-') << std::string(6, '-')
+         << std::string(14, '-') << std::string(14, '-') << std::string(14, '-') << "\n";
+    cout << std::scientific << std::setprecision(3);
+    auto emit = [](const Row & row, const char * type) {
+      cout << "  " << std::left << std::setw(32) << row.name
+           << std::setw(6) << type
+           << std::right << std::setw(14) << row.unweighted
+           << std::setw(14) << row.weight
+           << std::setw(14) << (row.unweighted * row.weight)
+           << "\n";
+    };
+    ScalarT total_unweighted = 0.0, total_weighted = 0.0;
+    for (const auto & row : obj_rows) {
+      emit(row, "obj");
+      total_unweighted += row.unweighted;
+      total_weighted   += row.unweighted * row.weight;
+    }
+    for (const auto & row : reg_rows) {
+      emit(row, "reg");
+      total_unweighted += row.unweighted;
+      total_weighted   += row.unweighted * row.weight;
+    }
+    cout << "  " << std::string(32, '-') << std::string(6, '-')
+         << std::string(14, '-') << std::string(14, '-') << std::string(14, '-') << "\n";
+    cout << "  " << std::left << std::setw(32) << "TOTAL"
+         << std::setw(6) << ""
+         << std::right << std::setw(14) << total_unweighted
+         << std::setw(14) << ""
+         << std::setw(14) << total_weighted
+         << "\n";
+    cout << std::endl;
+  }
+}
 
 // ========================================================================================
 // ========================================================================================
@@ -677,5 +818,17 @@ void PostprocessManager<Node>::resetObjectives()
     objectives[r].scalar_response_data.clear();
     objectives[r].objective_times.clear();
     objectives[r].objective_values.clear();
+    objectives[r].objective_unweighted_self.clear();
+    for (auto & v : objectives[r].regularization_unweighted) {
+      v.clear();
+    }
   }
+}
+
+template <class Node>
+void PostprocessManager<Node>::resetErrors()
+{
+  error_times.clear();
+  errors.clear();
+  subgrid_errors.clear();
 }
