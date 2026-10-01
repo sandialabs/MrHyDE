@@ -8,6 +8,8 @@
 
 #include "solverManager.hpp"
 
+#include <unordered_map>
+
 using namespace MrHyDE;
 
 #include "solverManager_construct.hpp"

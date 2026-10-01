@@ -12,7 +12,8 @@
 template<class Node>
 void AssemblyManager<Node>::getWeightedMass(const size_t & set,
                                             matrix_RCP & mass,
-                                            vector_RCP & diagMass) {
+                                            vector_RCP & diagMass,
+                                            const bool use_unit_weights) {
   
   Teuchos::TimeMonitor localtimer(*set_init_timer);
   
@@ -55,6 +56,9 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
     auto offsets = wkset[block]->offsets;
     auto numDOF = groupData[block]->num_dof;
     bool sparse_mass = groupData[block]->use_sparse_mass;
+
+    // Unit weights give the unweighted basis mass matrix.
+    vector<ScalarT> unit_wts(numDOF.extent(0), Teuchos::ScalarTraits<ScalarT>::one());
 
     // Create mirrors on LA_Device
     // This might be unnecessary, but it only happens once per block
@@ -116,7 +120,8 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
         });
       }
       else {
-        auto localmass = this->getWeightedMass(block, grp, physics->mass_wts[set][block]);
+        auto & wts = use_unit_weights ? unit_wts : physics->mass_wts[set][block];
+        auto localmass = this->getWeightedMass(block, grp, wts);
       
         if (data_avail) {
         

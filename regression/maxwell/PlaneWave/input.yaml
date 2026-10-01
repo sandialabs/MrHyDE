@@ -33,7 +33,6 @@ ANONYMOUS:
     number of steps: 10
     Initial type: none
     use preconditioner: true
-    reuse preconditioner: true
     preconditioner type: domain decomposition
     preconditioner reuse type: full
     use direct solver: false

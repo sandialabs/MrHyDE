@@ -34,7 +34,6 @@ ANONYMOUS:
     number of steps: 1
     initial type: 'L2-projection'
     use preconditioner: true
-    reuse preconditioner: true
     preconditioner type: domain decomposition
     preconditioner reuse type: full
     use direct solver: false

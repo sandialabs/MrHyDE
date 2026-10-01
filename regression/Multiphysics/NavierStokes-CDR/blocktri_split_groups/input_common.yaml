@@ -1,0 +1,58 @@
+%YAML 1.1
+---
+#           ux    uy     c     pr
+#     ux [ Axx   Axy     0    Bx  ]
+#     uy [ Ayx   Ayy    Ayc   By  ]
+#      c [ Ccx   Ccy    Dcc    0  ]
+#     pr [ Bx'   By'     0     P  ]
+#
+#   S_k = J_kk - sum over j before k in the same group of J_kj d(J_jj)^-1 J_jk
+ANONYMOUS:
+  verbosity: 10
+  debug level: 0
+  disable timers: true
+  Mesh:
+    dimension: 2
+    element type: quad
+    xmin: 0.0
+    xmax: 5.0
+    ymin: 0.0
+    ymax: 1.0
+    NX: 25
+    NY: 5
+  Physics:
+    modules: 'navier stokes, cdr'
+    usePSPG: true
+    Dirichlet conditions:
+      ux:
+        bottom: '0.0'
+        top: '0.0'
+      uy:
+        bottom: '0.0'
+        top: '0.0'
+      c:
+        bottom: '0.0'
+        top: '0.0'
+  Discretization:
+    order:
+      ux: 1
+      uy: 1
+      pr: 1
+      c: 1
+    quadrature: 2
+  Analysis:
+    analysis type: forward
+  Postprocess:
+    write solution: false
+    compute errors: false
+  Functions:
+    source ux: '1.0'
+    source uy: '0.1*c^2'
+    source: 'exp(bubble)'
+    diffusion: '0.0005'
+    xvel: 'ux'
+    yvel: 'uy'
+    reaction: '0.0'
+    SUPG tau: '0.0'
+    bubble: '-10.0*(x-2)*(x-2) - 10.0*(y-0.5)*(y-0.5)'
+...

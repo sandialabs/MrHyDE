@@ -1,0 +1,287 @@
+/***********************************************************************
+MrHyDE - Parameter canonicalization, validation, and filtering for the block
+preconditioners. Normalizes keys and strips MrHyDE-owned ones before a list is
+handed to MueLu or Ifpack2. No matrices are modified here.
+
+ Questions? Contact Alexey Voronin (abvoron@sandia.gov)
+ ************************************************************************/
+
+#ifndef MRHYDE_BLOCK_PREC_PARAM_UTILS_HPP
+#define MRHYDE_BLOCK_PREC_PARAM_UTILS_HPP
+
+#include "block_prec/BlockTypes.hpp"
+
+#include <Teuchos_Comm.hpp>
+#include <Teuchos_ParameterList.hpp>
+#include <Teuchos_TestForException.hpp>
+#include <Teuchos_XMLParameterListCoreHelpers.hpp>
+#include <iostream>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
+#include <fstream>
+
+namespace MrHyDE {
+namespace block_prec {
+
+// Teuchos::updateParametersFromXmlFileAndBroadcast opens the file on rank 0 before its
+// first broadcast, so a bad path hangs every other rank.
+inline void loadXmlBroadcast(const std::string & file,
+                             Teuchos::ParameterList & out,
+                             const Teuchos::Comm<int> & comm,
+                             const std::string & context) {
+  std::string text;
+  int len = -1;
+  if (comm.getRank() == 0) {
+    std::ifstream in(file.c_str());
+    if (in) {
+      std::ostringstream ss;
+      ss << in.rdbuf();
+      text = ss.str();
+      len = static_cast<int>(text.size());
+    }
+  }
+  Teuchos::broadcast<int,int>(comm, 0, 1, &len);
+  TEUCHOS_TEST_FOR_EXCEPTION(len < 0, std::runtime_error,
+    "Cannot open XML file '" << file << "' for " << context << ".");
+  text.resize(len);
+  if (len > 0) Teuchos::broadcast<int,char>(comm, 0, len, &text[0]);
+  Teuchos::updateParametersFromXmlString(text, Teuchos::ptr(&out));
+}
+
+inline std::string canonicalPreconditionerType(const std::string & raw) {
+  const std::string u = toUpperAsciiCopy(raw);
+  if (u == "AMG" || u == "MUELU") return "AMG";
+  if (u == "IFPACK2") return "Ifpack2";
+  if (u == "DOMAIN DECOMPOSITION") return "domain decomposition";
+  if (u == "BLOCK DIAGONAL") return "block diagonal";
+  if (u == "BLOCK TRIANGULAR") return "block triangular";
+  TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error,
+    "Unsupported preconditioner type '" << raw
+    << "'. Supported values: AMG, Ifpack2, domain decomposition, block diagonal, block triangular.");
+  return "AMG";
+}
+
+inline std::string canonicalSchurApproximationType(const std::string & raw) {
+  return schurVariantName(parseSchurVariant(raw));
+}
+
+inline std::string canonicalSchurTriangle(const std::string & raw) {
+  return triangleSideName(parseTriangleSide(raw));
+}
+
+inline bool reuseKeepsHierarchy(const std::string & t) {
+  return t == "update" || t == "full";
+}
+
+inline bool reuseKeepsOperator(const std::string & t, const bool jacobianRebuilt) {
+  return t == "full" || (t == "update" && !jacobianRebuilt);
+}
+
+inline std::string canonicalReuseType(const std::string & raw) {
+  const std::string u = toUpperAsciiCopy(raw);
+  if (u == "NONE") return "none";
+  if (u == "UPDATE") return "update";
+  if (u == "FULL") return "full";
+  TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error,
+    "Unsupported preconditioner reuse type '" << raw
+    << "'. Supported values: none, update, full.");
+  return "update";
+}
+
+// MueLu defaults 'disable addon' to true. No key means no addon.
+inline bool refMaxwellAddonEnabled(const Teuchos::ParameterList & refmaxwellParams) {
+  return refmaxwellParams.isParameter("refmaxwell: disable addon") &&
+         !refmaxwellParams.get<bool>("refmaxwell: disable addon");
+}
+
+// Load a complete MueLu parameter list from XML.
+inline bool loadMueLuXmlIfPresent(const Teuchos::ParameterList & amgSublist,
+                                  Teuchos::ParameterList & outParams,
+                                  const std::string & context,
+                                  const Teuchos::RCP<const Teuchos::Comm<int> > & comm) {
+  if (!amgSublist.isParameter("xml param file")) return false;
+  const std::string xmlFile = amgSublist.get<std::string>("xml param file");
+  if (xmlFile.empty()) return false;
+  loadXmlBroadcast(xmlFile, outParams, *comm, context);
+  return true;
+}
+
+inline void normalizeMueLuVerbosity(Teuchos::ParameterList & mueluParams, const int verbosity) {
+  if (mueluParams.isParameter("verbosity") && mueluParams.getEntry("verbosity").isType<int>()) {
+    const int v = mueluParams.get<int>("verbosity");
+    mueluParams.set("verbosity", std::string(v <= 0 ? "none" : v <= 1 ? "low" : v <= 2 ? "medium" : "high"));
+  }
+  if (verbosity >= 20) {
+    mueluParams.set("verbosity", "high");
+  }
+}
+
+// The Schur-target defaults are tuned on the Maxwell H(curl) target; a deck overrides
+// them through 'AMG Settings'.
+inline void setDefaultChebyshevSmoother(Teuchos::ParameterList & params,
+                                        const bool forSchurSplit) {
+  Teuchos::ParameterList & smoother = params.sublist("smoother: params");
+  smoother.set("chebyshev: degree", 2);
+  smoother.set("chebyshev: ratio eigenvalue", forSchurSplit ? 1.2 : 7.0);
+  smoother.set("chebyshev: min eigenvalue", forSchurSplit ? 0.1 : 1.0);
+  smoother.set("chebyshev: zero starting solution", true);
+}
+
+inline Teuchos::ParameterList defaultMueLuParams() {
+  Teuchos::ParameterList mueluParams;
+  mueluParams.set("verbosity", "none");
+  mueluParams.set("coarse: max size", 500);
+  mueluParams.set("coarse: type", "KLU");
+  mueluParams.set("multigrid algorithm", "sa");
+  mueluParams.set("aggregation: type", "uncoupled");
+  mueluParams.set("aggregation: drop scheme", "classical");
+  mueluParams.set("smoother: type", "CHEBYSHEV");
+  mueluParams.set("repartition: enable", false);
+  mueluParams.set("reuse: type", "none");
+  mueluParams.setName("MueLu");
+  return mueluParams;
+}
+
+inline Teuchos::ParameterList validRefMaxwellParams() {
+  Teuchos::ParameterList v("RefMaxwell Settings");
+  v.set("xml param file", "");
+  v.set("filter SM", false);
+  v.set("filter threshold", 1.0e-14);
+  v.set("verify", false);
+  v.set("verify complex", false);
+  return v;
+}
+
+inline Teuchos::ParameterList validMaxwell1Params() {
+  Teuchos::ParameterList v = validRefMaxwellParams();
+  v.setName("Maxwell1 Settings");
+  v.set("verify Kn consistency", false);
+  v.set("use Kn from M1", true);
+  return v;
+}
+
+inline void validateRefMaxwellSettingsSection(const Teuchos::ParameterList & list, const std::string &) {
+  list.validateParameters(validRefMaxwellParams());
+}
+
+inline void validateMaxwell1SettingsSection(const Teuchos::ParameterList & list, const std::string &) {
+  list.validateParameters(validMaxwell1Params());
+}
+
+inline void validateNestedBlockSublists(const Teuchos::ParameterList & list, const std::string & sectionName) {
+  if (list.isSublist("RefMaxwell Settings")) {
+    validateRefMaxwellSettingsSection(list.sublist("RefMaxwell Settings"), sectionName + ".RefMaxwell Settings");
+  }
+  if (list.isSublist("Maxwell1 Settings")) {
+    validateMaxwell1SettingsSection(list.sublist("Maxwell1 Settings"), sectionName + ".Maxwell1 Settings");
+  }
+}
+
+inline void promoteSublistToTopLevel(Teuchos::ParameterList & list, const std::string & sublistName) {
+  if (!list.isSublist(sublistName)) return;
+  const Teuchos::ParameterList sub = list.sublist(sublistName);
+  list.setParameters(sub);
+  list.remove(sublistName, false);
+}
+
+// Keys parsed by MrHyDE before dispatching to MueLu/Ifpack2.
+inline const std::vector<std::string> & mrhydeOwnedKeys() {
+  static const std::vector<std::string> keys = {
+    "preconditioner type", "preconditioner variant", "preconditioner",
+    "use mass matrix", "xml param file",
+    "hgrad basis name", "hcurl basis name",
+    "hgrad basis order", "hcurl basis order",
+    "inner krylov solver", "inner krylov max iters", "inner krylov tol",
+    "approximation type", "mass scale",
+    "triangle", "damping",
+    "diag use lumped diagonal", "diag use lumped pivot diagonal",
+    "filter SM", "filter threshold", "verify complex", "verify Kn consistency",
+    "use Kn from M1"
+  };
+  return keys;
+}
+
+inline const std::vector<std::string> & mrhydeOwnedSublists() {
+  static const std::vector<std::string> keys = {
+    "AMG Settings", "RefMaxwell Settings", "Maxwell1 Settings"
+  };
+  return keys;
+}
+
+inline void removeMrHyDEOwnedKeys(Teuchos::ParameterList & list) {
+  for (const auto & k : mrhydeOwnedKeys()) list.remove(k, false);
+  for (const auto & k : mrhydeOwnedSublists()) list.remove(k, false);
+}
+
+inline void removeIfpack2OnlyKeys(Teuchos::ParameterList & list) {
+  static const char * prefixes[] = {
+    "relaxation: ", "chebyshev: ", "partitioner: ", "fact: ", "schwarz: "
+  };
+  std::vector<std::string> removeKeys;
+  for (Teuchos::ParameterList::ConstIterator it = list.begin(); it != list.end(); ++it) {
+    const std::string key = list.name(it);
+    if (list.isSublist(key)) continue;
+    for (size_t p = 0; p < sizeof(prefixes) / sizeof(prefixes[0]); ++p) {
+      if (key.rfind(prefixes[p], 0) == 0) {
+        removeKeys.push_back(key);
+        break;
+      }
+    }
+  }
+  for (size_t i = 0; i < removeKeys.size(); ++i) {
+    list.remove(removeKeys[i], false);
+  }
+}
+
+// Deck keys on top of the MueLu defaults. MrHyDE's own keys and the Ifpack2-only
+// smoother keys go first, since MueLu rejects an unrecognized top-level key.
+inline void applyDeckMueLuOverrides(Teuchos::ParameterList & mueluParams,
+                                    const Teuchos::ParameterList & deckList) {
+  Teuchos::ParameterList filtered(deckList);
+  removeMrHyDEOwnedKeys(filtered);
+  removeIfpack2OnlyKeys(filtered);
+  mueluParams.setParameters(filtered);
+}
+
+inline bool isHiptmairSmoother(const std::string & type) {
+  return toUpperAsciiCopy(type).find("HIPTMAIR") != std::string::npos;
+}
+
+// Check top-level and per-level smoother settings.
+inline bool mueluParamsWantHiptmair(const Teuchos::ParameterList & pl) {
+  if (pl.isParameter("smoother: type") && isHiptmairSmoother(pl.get<std::string>("smoother: type"))) return true;
+  for (Teuchos::ParameterList::ConstIterator it = pl.begin(); it != pl.end(); ++it) {
+    const std::string & key = pl.name(it);
+    if (key.rfind("level ", 0) != 0 || !pl.isSublist(key)) continue;
+    const auto & sub = pl.sublist(key);
+    if (sub.isParameter("smoother: type") && isHiptmairSmoother(sub.get<std::string>("smoother: type"))) return true;
+  }
+  return false;
+}
+
+inline void warnNonStationarySmoother(const Teuchos::ParameterList & refmaxwellParams,
+                                      const std::string & listName,
+                                      const Teuchos::RCP<const Teuchos::Comm<int> > & comm) {
+  if (!refmaxwellParams.isSublist(listName)) return;
+  const auto & sub = refmaxwellParams.sublist(listName);
+  if (!sub.isParameter("smoother: type")) return;
+  std::string stype = sub.get<std::string>("smoother: type");
+  toUpperAscii(stype);
+  if (stype == "CG" || stype == "GMRES" || stype == "BICGSTAB" ||
+      stype == "BLOCK CG" || stype == "BLOCK GMRES") {
+    if (comm != Teuchos::null && comm->getRank() == 0) {
+      std::cout << "WARNING: RefMaxwell " << listName
+                << " smoother type '" << stype
+                << "' is a Krylov solver. This makes the preconditioner "
+                << "non-stationary and can cause outer GMRES stagnation."
+                << std::endl;
+    }
+  }
+}
+
+} // namespace block_prec
+} // namespace MrHyDE
+#endif

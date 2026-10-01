@@ -198,7 +198,10 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
           ++prog;
         }
       }
-      overlapped_map.push_back(Teuchos::rcp(new LA_Map(globalNumUnknowns, total_os_dof, 0, comm)));
+      // Let Tpetra compute the global size because shared DOFs appear on multiple ranks.
+      overlapped_map.push_back(Teuchos::rcp(new LA_Map(
+        Teuchos::OrdinalTraits<Tpetra::global_size_t>::invalid(),
+        total_os_dof, 0, comm)));
       if (!allocate_matrices) {
         disc->dof_owned_and_shared[set] = Kokkos::View<GO*>("empty dof",1);
       }
@@ -304,7 +307,10 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
     Teuchos::reduceAll<LO,GO>(*comm,Teuchos::REDUCE_SUM,1,&localNumUnknowns,&globalNumUnknowns);
     
     param_owned_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, param_owned, 0, comm));
-    param_overlapped_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, param_ownedAndShared, 0, comm));
+    // Let Tpetra compute the global size because shared DOFs appear on multiple ranks.
+    param_overlapped_map = Teuchos::rcp(new LA_Map(
+      Teuchos::OrdinalTraits<Tpetra::global_size_t>::invalid(),
+      param_ownedAndShared, 0, comm));
     
     param_exporter = Teuchos::rcp(new LA_Export(param_overlapped_map, param_owned_map));
     param_importer = Teuchos::rcp(new LA_Import(param_owned_map, param_overlapped_map));
