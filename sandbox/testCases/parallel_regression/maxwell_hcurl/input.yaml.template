@@ -56,7 +56,6 @@ ANONYMOUS:
     preconditioner type: Ifpack2
     preconditioner variant: RELAXATION
     right preconditioner: true
-    reuse preconditioner: true
     reuse Jacobian: true
     preconditioner reuse type: full
     Belos implicit residual scaling: Norm of Initial Residual
