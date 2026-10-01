@@ -275,16 +275,13 @@ Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > LinearAlgebraInterfa
 
   Teuchos::ParameterList mueluParams;
 
-  // Check if XML parameter file is specified (optional)
   if (!cntxt->amg.xml_param_file.empty()) {
-    // Load parameters from XML file
     block_prec::loadXmlBroadcast(cntxt->amg.xml_param_file, mueluParams, *J->getComm(), "AMG");
     if (verbosity >= 6 && J->getComm()->getRank() == 0) {
       std::cout << "[AMG] Loaded parameters from XML file: "
                 << cntxt->amg.xml_param_file << std::endl;
     }
   } else {
-    // Use YAML-based parameters with defaults
     mueluParams = block_prec::defaultMueLuParams();
 
     if (cntxt->prec_sublist.name() != "empty" ) {

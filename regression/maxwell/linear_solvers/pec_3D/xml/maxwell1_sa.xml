@@ -1,5 +1,4 @@
 <ParameterList name="MueLu">
-  <!-- sa, not emin reitzinger: that needs a local MueLu patch. -->
   <Parameter name="verbosity" type="string" value="none"/>
   <Parameter name="parameterlist: syntax" type="string" value="muelu"/>
   <Parameter name="maxwell1: mode" type="string" value="standard"/>

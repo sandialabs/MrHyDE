@@ -220,7 +220,6 @@ buildRefMaxwellPreconditioner(const typename BlockTypes<Node>::CrsMatrixRCP & J,
   using XpetraMatrix = Xpetra::Matrix<ScalarT, LO, GO, Node>;
   using XpetraOperator = Xpetra::Operator<ScalarT, LO, GO, Node>;
 
-  // D0/M1/coords and their maps are checked by validateRefMaxwellBlockInputs.
   const int rank = J->getComm()->getRank();
   const GO D0_global_rows = cntxt->refMaxwell.D0_matrix->getGlobalNumRows();
   const GO D0_global_cols = cntxt->refMaxwell.D0_matrix->getGlobalNumCols();
@@ -228,7 +227,6 @@ buildRefMaxwellPreconditioner(const typename BlockTypes<Node>::CrsMatrixRCP & J,
   const Teuchos::ParameterList rmSettings = splitState.settings.isSublist("RefMaxwell Settings")
     ? splitState.settings.sublist("RefMaxwell Settings") : Teuchos::ParameterList();
 
-  // Filtering and operator checks are disabled by default.
   const block_prec::detail::FilterOpts filterOpts = block_prec::detail::readFilterOpts(rmSettings);
 
   // MueLu bakes beta into the hierarchy, and only the Schur one has an addon.
@@ -284,7 +282,6 @@ buildRefMaxwellPreconditioner(const typename BlockTypes<Node>::CrsMatrixRCP & J,
     "RefMaxwell requires 'xml param file' in the '" << splitState.name
     << "' split's 'RefMaxwell Settings'.");
 
-  // Copy: the list is cached on the context and everything below mutates it.
   Teuchos::ParameterList refmaxwellParams = cntxt->refMaxwellParams(split, *J->getComm());
   if (verbosity >= 6 && J->getComm()->getRank() == 0) {
     std::cout << "[RefMaxwell] Loaded parameters from XML file: " << refmaxwellXmlFile << std::endl;
@@ -315,8 +312,8 @@ buildRefMaxwellPreconditioner(const typename BlockTypes<Node>::CrsMatrixRCP & J,
     }
     refmaxwellParams.set("refmaxwell: disable addon", true);
   }
-  // resetMatrix is a no-op unless the hierarchy was built with reuse enabled.
-  // MueLu then defaults the sublists to "full", which freezes their smoothers.
+  // 'enable reuse' is what lets the 11/22 sub-hierarchies keep R and P across resetMatrix.
+  // MueLu defaults their 'reuse: type' to "full", which also freezes their smoothers.
   if (cntxt->preconditioner_reuse_type != "none") {
     refmaxwellParams.set("refmaxwell: enable reuse", true);
     for (const char * sub : {"refmaxwell: 11list", "refmaxwell: 22list"}) {
@@ -365,7 +362,6 @@ buildMaxwell1Preconditioner(const typename BlockTypes<Node>::CrsMatrixRCP & J,
   using XpetraMatrix = Xpetra::Matrix<ScalarT, LO, GO, Node>;
   using XpetraOperator = Xpetra::Operator<ScalarT, LO, GO, Node>;
 
-  // D0/M1/coords are checked by validateRefMaxwellBlockInputs.
   matrix_RCP M1_use = cntxt->refMaxwell.M1_matrix;
 
   const int rank = J->getComm()->getRank();
@@ -375,7 +371,6 @@ buildMaxwell1Preconditioner(const typename BlockTypes<Node>::CrsMatrixRCP & J,
       cntxt->refMaxwell.D0_matrix);
   }
 
-  // Filtering and operator checks are disabled by default.
   const Teuchos::ParameterList m1Settings = splitState.settings.isSublist("Maxwell1 Settings")
     ? splitState.settings.sublist("Maxwell1 Settings") : Teuchos::ParameterList();
   const block_prec::detail::FilterOpts filterOpts = block_prec::detail::readFilterOpts(m1Settings);
@@ -405,7 +400,6 @@ buildMaxwell1Preconditioner(const typename BlockTypes<Node>::CrsMatrixRCP & J,
   TEUCHOS_TEST_FOR_EXCEPTION(maxwell1XmlFile.empty(), std::runtime_error,
     "Maxwell1 requires 'xml param file' in the '" << splitState.name
     << "' split's 'Maxwell1 Settings'.");
-  // Copy: the list is cached on the context and everything below mutates it.
   Teuchos::ParameterList maxwell1Params = cntxt->maxwell1Params(split, *J->getComm());
   if (verbosity >= 6 && rank == 0) {
     std::cout << "[Maxwell1] Loaded parameters from XML file: " << maxwell1XmlFile << std::endl;
@@ -459,7 +453,7 @@ buildMaxwell1Preconditioner(const typename BlockTypes<Node>::CrsMatrixRCP & J,
     Teuchos::rcp_const_cast<Xpetra::CrsGraph<LO, GO, Node> >(
         Kn_from_M1->getCrsGraph())->computeGlobalConstants();
 
-    // Already pinned above. MueLu would overwrite it with a fixed 1.0.
+    // The BC branch above pins the diagonal; MueLu would overwrite it with a fixed 1.0.
     maxwell1Params.set("rap: fix zero diagonals", false);
 
     if (filterOpts.verifyKnConsistency) {
@@ -512,8 +506,7 @@ Teuchos::ParameterList splitMueLuParams(const Teuchos::RCP<LinearSolverContext<N
       !loadMueLuXmlIfPresent(splitList.sublist("AMG Settings"), mueluParams,
                                          label, mat->getComm())) {
     mueluParams = defaultMueLuParams();
-    // A deck tuning the monolithic list means the Schur target, the block the outer
-    // solver actually sees.
+    // A monolithic preconditioner sublist applies to the Schur target only.
     const bool useMonolithic = !hasAmgSublist && isTarget &&
                                cntxt->prec_sublist.name() != "empty";
     if (hasAmgSublist || useMonolithic) {

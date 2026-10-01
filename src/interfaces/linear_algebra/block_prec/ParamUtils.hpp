@@ -26,8 +26,8 @@ handed to MueLu or Ifpack2. No matrices are modified here.
 namespace MrHyDE {
 namespace block_prec {
 
-// not using Teuchos::updateParametersFromXmlFileAndBroadcast here, as it
-// opens the file on rank 0 before its first broadcast, so a bad path hangs the other ranks.
+// Teuchos::updateParametersFromXmlFileAndBroadcast opens the file on rank 0 before its
+// first broadcast, so a bad path hangs every other rank.
 inline void loadXmlBroadcast(const std::string & file,
                              Teuchos::ParameterList & out,
                              const Teuchos::Comm<int> & comm,
@@ -91,7 +91,7 @@ inline std::string canonicalReuseType(const std::string & raw) {
   return "update";
 }
 
-// MueLu defaults 'disable addon' to true. no key = no addon.
+// MueLu defaults 'disable addon' to true. No key means no addon.
 inline bool refMaxwellAddonEnabled(const Teuchos::ParameterList & refmaxwellParams) {
   return refmaxwellParams.isParameter("refmaxwell: disable addon") &&
          !refmaxwellParams.get<bool>("refmaxwell: disable addon");
@@ -119,8 +119,8 @@ inline void normalizeMueLuVerbosity(Teuchos::ParameterList & mueluParams, const 
   }
 }
 
-// The monolithic default and the Schur-target default are deliberately different: the
-// target carries the curl-curl Schur complement, whose spectrum is much tighter.
+// The Schur-target defaults are tuned on the Maxwell H(curl) target; a deck overrides
+// them through 'AMG Settings'.
 inline void setDefaultChebyshevSmoother(Teuchos::ParameterList & params,
                                         const bool forSchurSplit) {
   Teuchos::ParameterList & smoother = params.sublist("smoother: params");

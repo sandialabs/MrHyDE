@@ -15,12 +15,11 @@ its.opts.verbose = True
 #TESTING -n 4
 #TESTING -k regression,maxwell,HCURL,HDIV,blocktriangular,schur,schur_hcurl,schur_hdiv,onelevel,refmaxwell,iters,routing
 
-# name, then the solves/mean/max each variant was recorded at.
 CASES = [
-    ("schur_base",          10, 38.5, 43),   # S = J11
-    ("schur_diag",          10, 14.5, 15),   # S = J11 - J10 lumpdiag(J00)^-1 J01
-    ("triangle_lower",      10, 14.9, 16),   # same as schur_diag, lower triangle
-    ("refmaxwell_on_pivot", 10, 39.0, 45),   # RefMaxwell on split 0, HDIV target
+    ("schur_base",          10, 38.5, 43),
+    ("schur_diag",          10, 14.5, 15),
+    ("triangle_lower",      10, 14.9, 16),
+    ("refmaxwell_on_pivot", 10, 39.0, 45),
 ]
 
 res = Results()
@@ -36,7 +35,6 @@ picked = re.findall(r"\[BlockTri\] triangle = (\w+)", logs["triangle_lower"])
 res.add(bool(picked) and all(p == "lower" for p in picked), "lower triangle selected",
         "picked %s" % (picked or "no [BlockTri] triangle line at verbosity >= 5"))
 
-# RefMaxwell has to attach to the split the deck names, not to the Schur target.
 built = re.findall(r"\[RefMaxwell\] Built new preconditioner hierarchy \(split (\d+)\)",
                    logs["refmaxwell_on_pivot"])
 res.add(bool(built) and all(r == "0" for r in built), "RefMaxwell built on the pivot split",

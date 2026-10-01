@@ -55,7 +55,6 @@ aborts_with('input_orphan_split.yaml', 'mrhyde_orphan.log',
             "sublist for the split of that name",
             "split with no settings sublist is rejected")
 
-# maxwell.cpp pushes E then B unconditionally; split indices depend on that order.
 order = [l for l in open('mrhyde_identities.log', errors="replace")
          if '[BlockTri] variables:' in l]
 want = '0=E, 1=B'

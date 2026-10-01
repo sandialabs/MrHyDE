@@ -154,8 +154,8 @@ public:
         TEUCHOS_TEST_FOR_EXCEPTION(!fnmast.good(),std::runtime_error,"Error: MrHyDE could not find the main input file: " + filename);
       }
       
-      // An imported file is applied whole and clobbers sublists the main deck set;
-      // re-applied below once every import has run.
+      // An imported key overwrites the same-named main-deck key, so the deck's own
+      // sublists are re-applied below once every import has run.
       Teuchos::ParameterList local_sublists;
       for (Teuchos::ParameterList::ConstIterator it = settings->begin(); it != settings->end(); ++it) {
         if (!settings->entry(it).isList()) continue;

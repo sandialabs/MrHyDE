@@ -2,16 +2,16 @@
  MrHyDE - Gauss-Seidel over groups of field splits instead of over single splits.
 
  The flat BlockTriangularFactory sweeps every split in sequence, so split k is
- corrected by all of 0..k-1. Grouping lets a set of splits be applied together as
- a block-diagonal sub-problem, with the sweep running between groups:
+ corrected by all of 0..k-1. Grouping lets a set of splits be applied together as one
+ sub-problem, with the sweep running between groups:
 
    split groups:
      bulk: 'v1, v2'          lower triangle
      target: 'p'               z_bulk = M_bulk^-1 r_bulk, block Jacobi over v1, v2
                                z_p    = S_p^-1 (r_p - A_p,bulk z_bulk)
 
- Teko::NestedBlockGS does the sweep. It takes one inverse per group, which is why
- the split inverses SchurInvDiagStrategy already builds can be reused unchanged.
+ Teko::NestedBlockGS sweeps between groups; within a group the splits are applied by
+ Jacobi or by Gauss-Seidel.
 
  Questions? Contact Alexey Voronin (abvoron@sandia.gov)
  ************************************************************************/

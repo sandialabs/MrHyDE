@@ -7,9 +7,6 @@ from mrhyde_test_support import *
 from trilinos_env import enable_trilinos_debug
 from parse_log import check
 
-# 44 is expected: S lands on H(div) and one-level Chebyshev cannot resolve
-# its near-kernel. The test pins the path, not a good count.
-
 its = mrhyde_test_support('''Schur target on the HDIV variable: the diag Schur complement forms on B, not E.''')
 its.opts.verbose = True
 

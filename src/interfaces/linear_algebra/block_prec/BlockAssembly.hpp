@@ -74,7 +74,7 @@ buildRefMaxwellM0inv(const Teuchos::RCP<typename BlockTypes<Node>::MultiVector> 
   return Xpetra::MatrixFactory<ScalarT,LO,GO,Node>::Build(xinv);
 }
 
-// Deterministic: randomize() would perturb MueLu's Chebyshev eigenvalue estimates.
+// Deterministic so beta and the verify checks are reproducible.
 // Seeds must differ where two probes have to be linearly independent.
 template<class Node>
 void fillProbe(typename BlockTypes<Node>::MultiVector & v, const int seed = 0) {
@@ -105,7 +105,7 @@ wrapAsXpetraMatrix(const ConstMatrixRCP<Node> & A) {
       Teuchos::rcp(new XpetraCrs(Teuchos::rcp_const_cast<TpetraCrs>(A))))));
 }
 
-// Rows with no diagonal get one
+// Zero or missing diagonals are replaced with max|diag|.
 template<class Node>
 void repairNodalDiagonal(Teuchos::RCP<Xpetra::Matrix<ScalarT,LO,GO,Node> > & Kn,
                          const int verbosity) {
@@ -334,12 +334,11 @@ void reportInverseDiagonal(const InverseDiagonalCounts & result,
 template<class Node>
 struct FilterResult {
   Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> matrix;
-  std::vector<std::pair<GO,GO>> dropped;  // populated only when captureDropped=true
+  std::vector<std::pair<GO,GO>> dropped;
   size_t nnzIn = 0;   // global, before filtering
   size_t nnzOut = 0;  // global, after
 };
 
-// Disabled by default to preserve the unfiltered setup.
 struct FilterOpts {
   bool   filterSM           = false;
   bool   verifyComplex      = false;
@@ -702,7 +701,6 @@ BlockSystem<Node> buildBlockSystemForSet(const typename BlockTypes<Node>::CrsMat
 
   const bool wantMass =
     parseSchurVariant(cntxt->schur.approximation_type) == SchurVariant::Mass;
-  // getInvD only implements the diag correction, so mass would silently give S_k = J_kk.
   TEUCHOS_TEST_FOR_EXCEPTION(splitMaps.size() > 2 && wantMass, std::runtime_error,
     "Schur 'approximation type: mass' supports two splits, but this set has " << splitMaps.size()
     << "; use 'approximation type: diag'.");

@@ -47,10 +47,11 @@ namespace MrHyDE {
 // Schur variants:
 //   (all variants approximate the exact Schur complement above)
 //   base:  S = J11
-//   diag:  S = J11 - gamma * J10 * diag(J00)^{-1} * J01
+//   diag:  S = J11 - damping * J10 * diag(J00)^{-1} * J01
+//   mass:  S = J11 + mass scale * M11, on the Schur target only
 //
 // RefMaxwell addon (off by default, MueLu's default too):
-//   addon11 = M1 * D0 * M0(1/beta)^-1 * D0^T * M1, a Hodge-Laplacian term.
+//   addon11 = M1 * D0 * (beta * M0^-1) * D0^T * M1, a Hodge-Laplacian term.
 //   beta = alpha_u^2 * gamma / (alpha_t * mu), the curl-curl coefficient of S.
 //   m_n = integral(N_n), the lumped nodal mass, built in the auxiliary setup.
 //   gamma/(alpha_t*mu) is read off the assembled Schur correction; alpha_u
@@ -176,7 +177,6 @@ LinearAlgebraInterface<Node>::buildBlockDiagonalPreconditioner(const matrix_RCP 
   const std::vector<std::vector<matrix_RCP> > remappedBlocks =
     block_prec::detail::extractBlocks<Node>(J, blockMaps, true);
 
-  // Build one diagonal-block preconditioner per block map.
   vector<Teko::LinearOp> blockPrecs(blockMaps.size());
   vector<matrix_RCP> diagBlocks(blockMaps.size());
   for (size_t b = 0; b < blockMaps.size(); ++b) {

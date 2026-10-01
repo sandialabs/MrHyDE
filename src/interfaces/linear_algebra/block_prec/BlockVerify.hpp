@@ -25,7 +25,6 @@ namespace block_prec {
 namespace detail {
 
 // Require every nonzero (i,j) to have a matching (j,i).
-// TODO: might be expensive for high-order stencils.
 template<class Node>
 void assertStructuralSymmetry(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & A,
                               const std::string & label) {
@@ -68,6 +67,7 @@ void assertKernelBound(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,
                        const std::string & label) {
   using LA_MultiVector = Tpetra::MultiVector<ScalarT,LO,GO,Node>;
   using MagT = typename Teuchos::ScalarTraits<ScalarT>::magnitudeType;
+  // Probes with D0*1, which is zero on any edge whose two node columns both survive.
   Teuchos::RCP<LA_MultiVector> x = Teuchos::rcp(new LA_MultiVector(D0->getDomainMap(), 1));
   x->putScalar(Teuchos::ScalarTraits<ScalarT>::one());
   Teuchos::RCP<LA_MultiVector> Dx = Teuchos::rcp(new LA_MultiVector(D0->getRangeMap(), 1));
@@ -88,7 +88,6 @@ void assertKernelBound(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,
     << " (measured=" << pert_nrm[0] << ", limit=" << bound << ", tol=" << tol << ").");
 }
 
-// The kernel bound rides with the SM filter in finishMaxwellInputs instead.
 template<class Node>
 FilterResult<Node> filterM1Checked(
     const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & M1,
@@ -99,8 +98,8 @@ FilterResult<Node> filterM1Checked(
   return out;
 }
 
-// De Rham sanity checks. D0 row structure throws; symmetry, curl(grad)=0 and
-// the Rayleigh quotient only warn.
+// De Rham sanity checks. D0 row structure throws; symmetry, the filtered (SM-M1)*D0v
+// ratio and the Rayleigh quotient only warn.
 template<class Node>
 void verifyMaxwellComplex(
     const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & D0,
@@ -177,7 +176,6 @@ void verifyMaxwellComplex(
   // Symmetry: |xTAy - yTAx| / (|x||y||A|_inf) on two independent probes.
   auto sym_test = [&](const Teuchos::RCP<const LA_CrsMatrix> & A, const std::string & name) {
     const auto rowMap = A->getRowMap();
-    // Estimate |A|_inf with the maximum absolute row sum.
     MagT Ainf = MagT(0);
     {
       const LO nr = static_cast<LO>(rowMap->getLocalNumElements());
@@ -465,7 +463,7 @@ void verifyBlockSystem(const BlockSystem<Node> & blocks,
     detail::fillProbe<Node>(v);
     D0->apply(v, D0v);
     curlBlock->apply(D0v, c);
-    // divide by |J| as well otherwise this tracks element-size spread
+    // Scale by |J10|_F too, otherwise this tracks element-size spread.
     const auto nD0v = D0v.norm2() * curlBlock->getFrobeniusNorm();
     const auto nc = c.norm2();
     if (rank == 0) {

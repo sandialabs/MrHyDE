@@ -15,8 +15,6 @@ its.opts.verbose = True
 #TESTING -n 4
 #TESTING -k regression,maxwell,HCURL,HDIV,blocktriangular,schur,schur_hcurl,refmaxwell,reuse,crossrun
 
-# J is identical at every solve, so this catches reuse not happening and reset
-# disagreeing with rebuild, not a reset carrying a stale copy of that matrix.
 FREEZE_TOL = 1
 BUILD = re.compile(r"\[RefMaxwell\] Built new preconditioner hierarchy")
 RESET = re.compile(r"\[RefMaxwell\] Reusing existing hierarchy")

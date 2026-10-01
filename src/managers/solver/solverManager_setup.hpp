@@ -16,7 +16,6 @@ inline bool declaresAuxiliaryBases(const Teuchos::ParameterList & p) {
                              && p.isParameter("hcurl basis name");
 }
 
-// Detect block settings that require mass matrices or distance-laplacian coordinates.
 inline bool anyBlockSettingsRequestsAuxiliary(const Teuchos::ParameterList & solverList) {
   for (Teuchos::ParameterList::ConstIterator it = solverList.begin(); it != solverList.end(); ++it) {
     const std::string key = solverList.name(it);
@@ -250,7 +249,7 @@ void SolverManager<Node>::assembleAuxiliaryMass(const size_t & set,
   linalg->exportMatrixFromOverlapped(set, assembled_mass_matrix, M1_over);
   linalg->fillComplete(assembled_mass_matrix);
 
-  // One map per variable block (same as block_prec). Identifies which block is edge (HCURL) for M1/D0.
+  // One map per variable block (same as block_prec).
   blockMaps = linalg->buildBlockMaps(set);
   TEUCHOS_TEST_FOR_EXCEPTION(blockMaps.empty(), std::runtime_error,
     "Block-triangular auxiliary setup requires at least one block map.");
@@ -275,7 +274,6 @@ bool SolverManager<Node>::resolveAuxiliaryBases(const Teuchos::RCP<LinearSolverC
     blockSublistWantsD0 = blockSublistWantsD0 || declaresAuxiliaryBases(cntxt->splitSettings(r));
   }
 
-  // Complete HGRAD and HCURL settings request distance-laplacian coordinates.
   bool needs_distance_laplacian_coords = false;
   std::string dl_hgrad_basis, dl_hcurl_basis;
   int dl_hgrad_order = 1, dl_hcurl_order = 1;
@@ -399,8 +397,7 @@ void SolverManager<Node>::buildAuxiliaryGradient(const size_t & set,
   hcurl_dof->buildGlobalUnknowns();
 
   // D0 = gradient: nodal (Hgrad) -> edge (Hcurl), used for RefMaxwell's auxiliary space.
-  // Entries are +-0.5, not the +-1 of an incidence matrix: the Intrepid2 HCURL_HEX_I1
-  // edge DOF is a tangential integral over a reference edge of length 2.
+  // Panzer's buildInterpolation emits +-0.5, not the +-1 of an incidence matrix.
   Teuchos::RCP<Thyra::LinearOpBase<ScalarT> > D0_thyra =
     panzer::buildInterpolation(conn, hgrad_dof, hcurl_dof,
                                hgrad_basis, hcurl_basis,
@@ -409,7 +406,7 @@ void SolverManager<Node>::buildAuxiliaryGradient(const size_t & set,
   auto D0_tpetra = Thyra::TpetraOperatorVectorExtraction<ScalarT,LO,GO,Node>::getTpetraOperator(D0_thyra);
   cntxt->refMaxwell.D0_matrix = Teuchos::rcp_dynamic_cast<LA_CrsMatrix>(D0_tpetra, true);
 
-  // identify edge block by basis type
+  // Identify the edge block by basis type, reading element block 0's bases.
   const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > aux_edge_map = cntxt->refMaxwell.D0_matrix->getRangeMap();
   edgeBlock = 0;
   const auto & setBasis = useBasis[set][0];
@@ -476,7 +473,6 @@ void SolverManager<Node>::buildAuxiliaryGradient(const size_t & set,
         if (unmappedGid < 0) unmappedGid = aux_row_gid;
         continue;
       }
-      // globalAssemble would absorb a non-owned row and hide an aux/primary ownership mismatch.
       if (nonOwnedGid < 0 && !edge_block_map->isNodeGlobalElement(it->second)) {
         nonOwnedGid = it->second;
       }

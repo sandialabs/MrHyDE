@@ -57,7 +57,7 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
     auto numDOF = groupData[block]->num_dof;
     bool sparse_mass = groupData[block]->use_sparse_mass;
 
-    // When requested, assemble the mass with unit weights (used by RefMaxwell auxiliary spaces).
+    // Unit weights give the unweighted basis mass matrix.
     vector<ScalarT> unit_wts(numDOF.extent(0), Teuchos::ScalarTraits<ScalarT>::one());
 
     // Create mirrors on LA_Device
@@ -120,7 +120,6 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
         });
       }
       else {
-        // Select between physics-defined mass weights and unit weights for auxiliary-space mass matrices.
         auto & wts = use_unit_weights ? unit_wts : physics->mass_wts[set][block];
         auto localmass = this->getWeightedMass(block, grp, wts);
       

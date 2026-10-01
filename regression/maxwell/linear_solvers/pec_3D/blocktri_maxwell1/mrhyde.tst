@@ -20,9 +20,6 @@ CASES = [
 ]
 
 res = Results()
-# TPETRA_DEBUG off: the KLU coarse solve hits Amesos2 reindex_impl, which builds an
-# overlapping column map with a non-overlapping global size, and MueLu::Maxwell1::compute
-# aborts on an edge-sized map in Tpetra_Map_def.hpp. Both are upstream issues.
 status = enable_trilinos_debug(tpetra=False)
 for name, solves, mean, imax in CASES:
     log = "mrhyde_%s.log" % name

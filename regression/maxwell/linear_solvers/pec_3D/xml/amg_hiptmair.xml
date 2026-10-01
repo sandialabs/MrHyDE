@@ -4,8 +4,7 @@
   <Parameter name="verbosity" type="string" value="none"/>
   <Parameter name="multigrid algorithm" type="string" value="unsmoothed"/>
   <Parameter name="max levels" type="int" value="4"/>
-  <!-- Must coarsen: at one level MueLu runs the coarse solver on the
-       non-contiguous fine map instead of the smoother. -->
+  <!-- Must coarsen: at one level MueLu runs the coarse solver instead of the smoother. -->
   <Parameter name="coarse: max size" type="int" value="200"/>
   <Parameter name="coarse: type" type="string" value="CHEBYSHEV"/>
   <Parameter name="smoother: type" type="string" value="CHEBYSHEV"/>

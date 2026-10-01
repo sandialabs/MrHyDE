@@ -23,8 +23,7 @@
 namespace MrHyDE {
 namespace block_prec {
 
-// Applies diag(M)^-1. Thyra::diagonal would do the same through RTOps, which zero-fill
-// Y and drop to a serial loop; elementWiseMultiply is one fused kernel.
+// Applies diag(M)^-1 with one elementWiseMultiply.
 template<class Node>
 class DiagonalInverseOperator : public Tpetra::Operator<ScalarT,LO,GO,Node> {
 public:
@@ -151,7 +150,6 @@ buildBlockOperator(const typename BlockTypes<Node>::CrsMatrixRCP & mat,
       innerPrec = buildDirectBlockInverse<Node>(cntxt, mat, label, verbosity);
       break;
     case BlockPrecType::Diagonal:
-      // S is formed from J00, so inverting its diagonal is not an approximation of it.
       TEUCHOS_TEST_FOR_EXCEPTION(split != 0, std::runtime_error,
         "Only the leading field split supports Diagonal.");
       innerPrec = buildDiagonalBlockInverse<Node>(

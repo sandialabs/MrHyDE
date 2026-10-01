@@ -46,7 +46,6 @@ ScalarT addonBeta(const BlockSystem<Node> & blocks,
   const ScalarT one = Teuchos::ScalarTraits<ScalarT>::one();
   const ScalarT zero = Teuchos::ScalarTraits<ScalarT>::zero();
 
-  // J10 has its Dirichlet rows zeroed, so v = J10*z vanishes there; J01 does not.
   LA_Vector z(blocks.maps[0]), v(blocks.maps[1]), cv(blocks.maps[1]);
   LA_Vector w(blocks.maps[0]), dw(blocks.maps[0]);
   detail::fillProbe<Node>(z);
@@ -70,7 +69,6 @@ ScalarT addonBeta(const BlockSystem<Node> & blocks,
     }
     return zero;
   }
-  // Both off-diagonal blocks carry the DIRK spatial scaling, which cancels in r.
   const ScalarT beta = alphaU * alphaU * (num / den);
 
   if (verbosity >= 5 && blocks.maps[1]->getComm()->getRank() == 0) {

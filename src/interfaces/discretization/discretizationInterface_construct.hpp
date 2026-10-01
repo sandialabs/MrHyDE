@@ -216,8 +216,7 @@ settings(settings_), comm(Comm_), mesh(mesh_), physics(physics_) {
     // Store locally
     ///////////////////////////////////////////////////////////////////////////
     
-    // Every block shares the phase discretization built above, but Vlasov-type solves may
-    // eventually want one per block, so these stay block-indexed.
+    // Block-indexed to match the other per-block containers.
     for (size_t block=0; block<physics->block_names.size(); ++block) {
       phase_basis_types.push_back(doneptypes);
       phase_cards.push_back(pcards);

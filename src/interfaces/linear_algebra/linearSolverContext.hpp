@@ -39,7 +39,7 @@ namespace MrHyDE {
 // Overview at the top of linearAlgebraInterface_blockprec.hpp.
 struct SchurConfig {
   std::string approximation_type;   // base, diag or mass
-  ScalarT damping;                  // gamma in the diag Schur correction
+  ScalarT damping;                  // scales the diag Schur correction
   bool correction_use_lumped_weight;   // 'diag use lumped pivot diagonal'
   std::string triangle;             // auto, upper, lower
   bool diagonal_prec_use_lumped;    // 'diag use lumped diagonal', the Diagonal split inverse
@@ -324,7 +324,7 @@ private:
     parseSchemeContainer(settings);
   }
 
-  // One container per scheme, holding the grouping and one sublist per split. Named splits
+  // One container per scheme, holding the grouping and one sublist per split.
   void parseSchemeContainer(Teuchos::ParameterList & settings) {
     static const char * names[] = {"Block Triangular Settings", "Block Diagonal Settings"};
     scheme_sublist = Teuchos::ParameterList("empty");
@@ -367,8 +367,6 @@ private:
       schur_target_index = splits.size() - 1;
       return;
     }
-    // Both paths default the target to the last split, so adding 'split groups' to a deck
-    // that names no 'schur target' does not move it.
     const Teuchos::ParameterList & groups = scheme_sublist.sublist("split groups");
     std::vector<FieldSplit<Node> > ordered;
     std::vector<bool> seen(splits.size(), false);
@@ -452,7 +450,6 @@ private:
     return pl.get<ScalarT>(key);
   }
 
-  // splits.size() is 2 to 5, so a scan beats keeping an index in step with the reorder.
   size_t splitIndexByName(const std::string & name) const {
     for (size_t r = 0; r < splits.size(); ++r) {
       if (splits[r].name == name) return r;

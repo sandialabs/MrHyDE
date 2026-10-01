@@ -74,8 +74,7 @@ filterCopyCrs(const typename BlockTypes<Node>::CrsMatrix & src,
         values(at) = value;
         ++at;
       }
-      // Tpetra's constructor below needs sorted columns; rows are short and nearly always
-      // already sorted, so insertion sort is the cheap way to absorb a permuting entryMap.
+      // Tpetra's constructor below needs sorted columns, and entryMap may permute them.
       for (size_type p = rowptr(i) + 1; p < at; ++p) {
         const LO col = entries(p);
         const ScalarT val = values(p);

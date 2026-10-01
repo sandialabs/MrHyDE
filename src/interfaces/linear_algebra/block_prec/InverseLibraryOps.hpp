@@ -77,7 +77,8 @@ private:
     return lib_->getInverseFactory(label);
   }
 
-  // Anything derived from J goes stale on reuse, except for coordinates.
+  // Any 'user data' other than Coordinates may change between solves, so a list
+  // carrying it is rebuilt rather than reused.
   static bool carriesStaleUserData(const Teuchos::ParameterList & params) {
     if (!params.isSublist("user data")) return false;
     const Teuchos::ParameterList & data = params.sublist("user data");

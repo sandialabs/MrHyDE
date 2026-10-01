@@ -14,8 +14,6 @@ its.opts.verbose = True
 #TESTING -n 4
 #TESTING -k regression,maxwell,HCURL,HDIV,blocktriangular,schur,schur_hcurl,hiptmair,iters,routing
 
-# 'bare_pivot' leaves split 0 without an 'AMG Settings', so it must not inherit the
-# Hiptmair list the target carries.
 CASES = [
     ("hiptmair",   10,  7.2,  8),
     ("bare_pivot", 10, 19.6, 22),

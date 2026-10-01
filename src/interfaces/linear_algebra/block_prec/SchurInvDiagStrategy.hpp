@@ -128,8 +128,7 @@ private:
     return dinv;
   }
 
-  // S = J_kk + scale * M_k; scale is 1/nu for constant viscosity. A fused target has no
-  // single variable index, so the mass is found by map.
+  // S = J_kk + scale * M_k; scale is 1/nu for constant viscosity.
   matrix_rcp targetMassMatrix() const {
     const matrix_rcp mass =
       massMatrixOnMap<Node>(cntxt_->block.mass_matrices,
@@ -156,7 +155,6 @@ private:
 
   void recordSchurAddonBeta(const matrix_rcp & schurCorr) const {
     RefMaxwellData<Node> & refMaxwell = cntxt_->refMaxwell;
-    // By map, not variable index: a fused or renamed split has no single index.
     const bool wanted = cntxt_->schurAddonWanted(*J_->getComm());
     const matrix_rcp pivotMass = wanted
       ? massMatrixOnMap<Node>(cntxt_->block.mass_matrices, blocks_.maps[0]) : Teuchos::null;
@@ -167,7 +165,7 @@ private:
       refMaxwell.schur_addon_beta_valid = false;
       return;
     }
-    // beta depends on the DIRK stage scaling, not on J.
+    // Cached per stage_alpha_u and recomputed only when it changes.
     if (refMaxwell.schur_addon_beta_valid &&
         refMaxwell.schur_addon_beta_alpha_u == cntxt_->stage_alpha_u) {
       return;

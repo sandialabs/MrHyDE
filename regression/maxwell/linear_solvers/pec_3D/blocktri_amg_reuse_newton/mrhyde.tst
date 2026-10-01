@@ -49,7 +49,6 @@ if len(runs) == len(MODES):
         res.add(rebuilt["none"][L] == 0 and built["none"][L] > 1, "none rebuilds %s" % L,
                 "none: %d built, %d in place" % (built["none"][L], rebuilt["none"][L]))
 
-    # The linear solves run to 1e-8, so reuse must not move the answer.
     if energy["none"] is None or energy["update"] is None:
         res.add(False, "energies reported", "no integrated quantities in one of the logs")
     else:
@@ -58,7 +57,6 @@ if len(runs) == len(MODES):
         res.add(off < 1.0e-5, "none vs update energy",
                 "worst relative difference %.2e" % off)
 
-    # 'reuse: type: RP' keeps R and P, so the hierarchy is not bit-identical.
     if len(runs["none"]) != len(runs["update"]):
         res.add(False, "none vs update iters", "none ran %d solves, update ran %d"
                 % (len(runs["none"]), len(runs["update"])))
