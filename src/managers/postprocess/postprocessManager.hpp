@@ -128,6 +128,11 @@ public:
    * @brief Resets objective accumulators
    */
   void resetObjectives();
+
+  /**
+   * @brief Resets error accumulators
+   */
+  void resetErrors();
   
   // ========================================================================================
   // ========================================================================================

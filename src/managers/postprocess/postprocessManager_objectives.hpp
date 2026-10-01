@@ -679,3 +679,11 @@ void PostprocessManager<Node>::resetObjectives()
     objectives[r].objective_values.clear();
   }
 }
+
+template <class Node>
+void PostprocessManager<Node>::resetErrors()
+{
+  error_times.clear();
+  errors.clear();
+  subgrid_errors.clear();
+}
