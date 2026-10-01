@@ -197,9 +197,6 @@ settings(settings_), comm(Comm_), mesh(mesh_), physics(physics_) {
         }
       }
     }
-    phase_basis_types.push_back(doneptypes);
-    phase_cards.push_back(pcards);
-    
     ///////////////////////////////////////////////////////////////////////////
     // Quadrature
     ///////////////////////////////////////////////////////////////////////////
@@ -219,19 +216,22 @@ settings(settings_), comm(Comm_), mesh(mesh_), physics(physics_) {
     // Store locally
     ///////////////////////////////////////////////////////////////////////////
     
-    phase_basis_pointers.push_back(pbasis);
-    ref_phase_ip.push_back(qpts);
-    ref_phase_wts.push_back(qwts);
-    
-    phase_numip.push_back(qpts.extent(0));
+    // Every block shares the phase discretization built above, but Vlasov-type solves may
+    // eventually want one per block, so these stay block-indexed.
+    for (size_t block=0; block<physics->block_names.size(); ++block) {
+      phase_basis_types.push_back(doneptypes);
+      phase_cards.push_back(pcards);
+      phase_basis_pointers.push_back(pbasis);
+      ref_phase_ip.push_back(qpts);
+      ref_phase_wts.push_back(qwts);
+      phase_numip.push_back(qpts.extent(0));
+    }
   }
   else {
-    phase_numip.push_back(0);
     for (size_t block=0; block<physics->block_names.size(); ++block) {
-      vector<basis_RCP> pbasis;
-      vector<string> doneptypes;
-      phase_basis_types.push_back(doneptypes);
-      phase_basis_pointers.push_back(pbasis);
+      phase_numip.push_back(0);
+      phase_basis_types.push_back(vector<string>());
+      phase_basis_pointers.push_back(vector<basis_RCP>());
     }
   }
   
