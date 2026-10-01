@@ -14,6 +14,14 @@ build*
 MILO.profile
 *.sh
 *.slurm
+*.dat
 *.out
 *.err
 mrhyde
+
+# regression/sandbox specific
+!regression/**/*.xml
+!sandbox/**/*.xml
+regression/**/mrhyde.results
+regression/**/*filtered
+regression/TEST-package.xml

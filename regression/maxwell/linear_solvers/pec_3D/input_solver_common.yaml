@@ -1,0 +1,36 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Solver:
+    solver: "transient"
+    transient BDF order: 1
+    transient Butcher tableau: DIRK-1,2
+    number of steps: 10
+    final time: 4.0
+    assembly partitioning: sequential
+    use basis database: false
+    use mass database: false
+    database TOL: 1.0e-13
+    linear TOL: 1.0e-8
+    strict linear solve: true
+    max linear iters: 500
+    nonlinear TOL: 1.0e-07
+    max nonlinear iters: 1
+    reuse Jacobian: true
+    use direct solver: false
+    Belos solver: "BiCGStab"
+    Belos implicit residual scaling: Norm of Initial Residual
+    storage proportion: 1.0
+    enable autotune: false
+    use preconditioner: true
+    preconditioner reuse type: full
+    right preconditioner: true
+    # Initial-condition L2 projections solve a mass matrix; without this they
+    # inherit the block-triangular settings meant for the Maxwell system.
+    State L2 linear solver:
+      Belos solver: "Pseudo Block CG"
+      linear TOL: 1.0e-10
+      max linear iters: 500
+      use preconditioner: true
+      preconditioner type: domain decomposition
+...
