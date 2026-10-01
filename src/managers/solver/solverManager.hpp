@@ -115,10 +115,10 @@ public:
   /** @brief Executes adjoint solve for gradient computation */
   void adjointModel(MrHyDE_OptVector & gradient);
   
-  /** @brief Incremental forward solve (for Hessian-vector products) */
-  void incrementalForwardModel(ScalarT & objective);
+  /** @brief Tangent sweep for hessVec (c_y w = -c_u v) */
+  void incrementalForwardModel(MrHyDE_OptVector & v);
   
-  /** @brief Incremental adjoint solve (for Hessian-vector products) */
+  /** @brief Second-order adjoint for hessVec; assembles Hv */
   void incrementalAdjointModel(MrHyDE_OptVector & hessvec);
   
   /** @brief Solve steady-state PDE */
