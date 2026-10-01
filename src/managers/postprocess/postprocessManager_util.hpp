@@ -27,15 +27,15 @@ void PostprocessManager<Node>::record(vector<vector_RCP> &current_soln, const Sc
     write_exodus_this_step = true;
   }
 
-  // Write to exodus if requested and within user-defined time window for output
-  if (write_exodus_this_step && current_time + 1.0e-100 >= exodus_record_start && current_time - 1.0e-100 <= exodus_record_stop) {
+  // Suppress exodus output during incremental (tangent) sweeps.
+  if (!is_incremental && write_exodus_this_step && current_time + 1.0e-100 >= exodus_record_start && current_time - 1.0e-100 <= exodus_record_stop) {
     if (write_solution) {
       this->writeSolution(current_soln, current_time);
     }
   }
 
-  // Write all other output if requested and within user-defined time window for output
-  if (write_this_step && current_time + 1.0e-100 >= record_start && current_time - 1.0e-100 <= record_stop) {
+  // Objective / error / response accumulators must not be perturbed by the tangent trajectory.
+  if (!is_incremental && write_this_step && current_time + 1.0e-100 >= record_start && current_time - 1.0e-100 <= record_stop) {
 
     if (compute_error) {
       this->computeError(current_soln, current_time);
@@ -57,14 +57,15 @@ void PostprocessManager<Node>::record(vector<vector_RCP> &current_soln, const Sc
     }
   }
 
-  // We only store the full forward state if running optimization, or if user requested it
+  // Route storage: forward sweep -> soln, incremental forward sweep -> incr_soln.
   if (save_solution) {
-    for (size_t set = 0; set < soln.size(); ++set) {
-      soln[set]->store(current_soln[set], current_time, 0);
+    auto & target = is_incremental ? incr_soln : soln;
+    for (size_t set = 0; set < target.size(); ++set) {
+      target[set]->store(current_soln[set], current_time, 0);
     }
   }
-  
-  if (write_solution_to_file) {
+
+  if (!is_incremental && write_solution_to_file) {
     linalg->writeStateToFile(current_soln, solution_storage_file, stepnum);
   }
 }
