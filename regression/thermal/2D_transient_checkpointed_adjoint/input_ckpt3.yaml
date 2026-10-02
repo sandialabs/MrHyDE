@@ -1,0 +1,59 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 1
+  Mesh:
+    dimension: 2
+    element type: quad
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    NX: 20
+    NY: 20
+  Physics:
+    modules: thermal
+    Dirichlet conditions:
+      T:
+        all boundaries: '0.0'
+    Initial conditions:
+      T: '0.0'
+  Parameters:
+    thermal_diff:
+      type: scalar
+      value: 1.0
+      usage: active
+  Discretization:
+    order:
+      T: 1
+    quadrature: 2
+  Solver:
+    solver: transient
+    workset size: 1
+    nonlinear TOL: 1.0e-14
+    linear TOL: 1.0e-13
+    max nonlinear iters: 4
+    final time: 5.0e-01
+    number of steps: 20
+  Analysis:
+    analysis type: forward+adjoint
+    forward state recovery type: checkpointing
+    number of checkpoints: 3
+    write gradient to file: true
+    gradient storage file: grad_ckpt3
+  Postprocess:
+    response type: global
+    compute errors: false
+    write solution: false
+    compute objective: true
+    Objective functions:
+      obj0:
+        type: integrated control
+        function: '1.0*(T-targ)^2'
+        weight: 0.0625
+  Functions:
+    tcoeff: 8*pi*pi*sin(2*pi*t)+2*pi*cos(2*pi*t)
+    thermal source: tcoeff*sin(2*pi*x)*sin(2*pi*y)
+    thermal diffusion: thermal_diff
+    targ: '0.0'
+...

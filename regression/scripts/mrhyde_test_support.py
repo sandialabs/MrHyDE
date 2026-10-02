@@ -186,6 +186,10 @@ class mrhyde_test_support:
 
     # IOSS may provide garbage to stdout which will interfere with logfile validation
     status += os.system('sed -i \'/IOSS/d\' ' + logfile)
+
+    # panzer-stk prints this while building the mesh in some Trilinos versions
+    # and not in others; the tests should not care which one is installed
+    status += os.system('sed -i \'/CubeHexMesh: Building sub cells/d\' ' + logfile)
     
     # return the sum of the exit codes from the shell commands
     return status
