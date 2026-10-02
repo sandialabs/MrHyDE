@@ -1,0 +1,29 @@
+cmake \
+    -G Ninja \
+    -D CMAKE_C_COMPILER:FILEPATH=mpicc \
+    -D CMAKE_CXX_COMPILER:FILEPATH=mpic++ \
+    -D PYTHON_EXECUTABLE:FILEPATH=python3 \
+    -D CMAKE_BUILD_TYPE:STRING=RELEASE \
+    -D CMAKE_CXX_FLAGS:STRING=" -O3 -DNDEBUG" \
+    -D TPL_ENABLE_MPI:BOOL=ON \
+    -D TPL_ENABLE_Boost=ON \
+    -D TPL_ENABLE_Matio=OFF \
+    -D BUILD_SHARED_LIBS:BOOL=ON \
+    -D Trilinos_ENABLE_EXPLICIT_INSTANTIATION:BOOL=ON \
+    -D Trilinos_ENABLE_CHECKED_STL:BOOL=OFF \
+    -D Trilinos_ENABLE_Fortran=OFF \
+    -D Trilinos_ENABLE_TriKota:BOOL=OFF \
+    -D Trilinos_ENABLE_Stokhos:BOOL=OFF \
+    -D Trilinos_ENABLE_Belos:BOOL=ON \
+    -D Trilinos_ENABLE_ROL:BOOL=ON \
+    -D Trilinos_ENABLE_PanzerDofMgr=ON \
+    -D Trilinos_ENABLE_PanzerMiniEM=OFF \
+    -D Trilinos_ENABLE_PanzerAdaptersSTK=ON \
+    -D Trilinos_ENABLE_Intrepid2:BOOL=ON \
+    -D Trilinos_ENABLE_Shards:BOOL=ON \
+    -D Trilinos_ENABLE_Amesos2:BOOL=ON \
+    -D Trilinos_ENABLE_MueLu:BOOL=ON \
+    -D Trilinos_ENABLE_Percept:BOOL=OFF \
+    -D Trilinos_ENABLE_Compadre:BOOL=ON \
+    -D Tpetra_SHOW_DEPRECATED_WARNINGS=OFF \
+    ..
