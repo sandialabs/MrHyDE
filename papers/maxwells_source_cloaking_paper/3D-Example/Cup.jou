@@ -1,0 +1,131 @@
+reset
+reset aprepro
+
+### Define variables
+#{xyzdim = 40}
+#{sphrad = 1.6}
+#{obsrad = 12}
+#{sphmov = 5}
+#{meshsizefactor = 7}   
+#{meshsize = 0.75}
+
+### Create outer cube with dimensions [-xyzdim/2,xyzdim/2]^3
+brick x {xyzdim} y {xyzdim} z {xyzdim}
+#{domainvol = 1}
+
+### Create cup main body (without handle) 
+create frustum height 5 radius 1 top 1.5
+create frustum height 5 radius 0.8 top 1.3
+move volume 3 z 0.4 include_merged
+subtract volume 3 from volume 2
+
+### Create cup handle and unite with cup base
+brick x 1.3 y 0.25 z 2.8
+brick x 1.0 y 0.25 z 2.4
+subtract vol 5 from vol 4
+move vol 4 x 1.7
+rotate vol 4 about y angle 6
+
+unite vol 2,4
+#{cupvol = 2}
+
+
+### Create the 8 control spheres and move them to their respective locations
+create sphere radius {sphrad}
+#{sphvolstart = Id("volume")}
+#{sphvol = Id("volume")}
+move volume {sphvol} x {sphmov} y {sphmov} z {sphmov} include_merged
+
+create sphere radius {sphrad}
+#{sphvol = Id("volume")}
+move volume {sphvol} x {sphmov} y {sphmov} z -{sphmov} include_merged
+
+create sphere radius {sphrad}
+#{sphvol = Id("volume")}
+move volume {sphvol} x {sphmov} y -{sphmov} z {sphmov} include_merged
+
+create sphere radius {sphrad}
+#{sphvol = Id("volume")}
+move volume {sphvol} x {sphmov} y -{sphmov} z -{sphmov} include_merged
+
+create sphere radius {sphrad}
+#{sphvol = Id("volume")}
+move volume {sphvol} x -{sphmov} y {sphmov} z {sphmov} include_merged
+
+create sphere radius {sphrad}
+#{sphvol = Id("volume")}
+move volume {sphvol} x -{sphmov} y {sphmov} z -{sphmov} include_merged
+
+create sphere radius {sphrad}
+#{sphvol = Id("volume")}
+move volume {sphvol} x -{sphmov} y -{sphmov} z {sphmov} include_merged
+
+create sphere radius {sphrad}
+#{sphvol = Id("volume")}
+#{sphvolend = Id("volume")}
+move volume {sphvol} x -{sphmov} y -{sphmov} z -{sphmov} include_merged
+
+
+### Create air sphere
+create sphere radius {obsrad}
+#{sphvol = Id("volume")}
+
+
+### Removes cup and spheres from the air domain but keeps them (the cup and spheres) as well as the result (the new air domain) and deletes the previous one
+subtract vol {cupvol}, {sphvolstart} to {sphvolend} from vol {sphvol} keep
+delete vol {sphvol}
+#{sphvolair = Id("volume")}
+
+### Create solid air sphere again and subtract from cube (no keep: so delete old domains and leave the result only)
+create sphere radius {obsrad}
+#{sphvol = Id("volume")}
+
+subtract vol {sphvol} from vol {domainvol}
+#{sphvolobs = Id("volume")}
+
+imprint all
+merge all
+
+
+### Mesh surfaces and volumes (controls and cup have smaller mesh size)
+surface in volume {cupvol} size {meshsize/4} scheme trimesh
+mesh surface in volume {cupvol}
+volume {cupvol} size {meshsize/4} scheme tetmesh
+mesh volume {cupvol}
+
+surface in volume {sphvolstart} to {sphvolend} size {meshsize/4} scheme trimesh
+mesh surface in volume {sphvolstart} to {sphvolend}
+volume {sphvolstart} to {sphvolend} size {meshsize/4} scheme tetmesh
+mesh volume {sphvolstart} to {sphvolend}
+
+surface in volume {sphvolair} with not is_meshed size {meshsize} scheme trimesh
+mesh surface in volume {sphvolair} with not is_meshed
+volume {sphvolair} size {meshsize} scheme tetmesh
+mesh volume {sphvolair}
+
+surface in volume {sphvolobs} with not is_meshed size {meshsize} scheme trimesh
+mesh surface in volume {sphvolobs} with not is_meshed
+volume {sphvolobs} size {meshsize} scheme tetmesh
+mesh volume {sphvolobs}
+
+### Name blocks
+block 1 vol {cupvol}
+block 1 name 'source'
+block 2 vol {sphvolstart} to {sphvolend}
+block 2 name 'control'
+block 3 vol {sphvolair}
+block 3 name 'air'
+block 4 vol {sphvolobs}
+block 4 name 'observation'
+
+### Create pec sideset
+#{sidedim = xyzdim/2 - 1e-6}
+sideset 1 surface in volume {sphvolobs} with x_coord > {sidedim} or x_coord < -{sidedim} or y_coord > {sidedim} or y_coord < -{sidedim} or z > {sidedim} or z < -{sidedim}
+sideset 1 name "pec"
+
+### check for correctness of mesh
+topology check coincident node tet all tolerance 1.0e-4
+
+export mesh "cup-spheres-large.exo" dimension 3 overwrite
+
+
