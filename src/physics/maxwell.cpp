@@ -69,7 +69,9 @@ void maxwell<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
   functionManager->addFunction("refractive index",fs.get<string>("refractive index","1.0"),"ip");
   functionManager->addFunction("epsilon",fs.get<string>("permittivity","1.0"),"ip");
   functionManager->addFunction("sigma",fs.get<string>("conductivity","0.0"),"ip");
+  functionManager->addFunction("mu",fs.get<string>("permeability","1.0"),"side ip");
   functionManager->addFunction("epsilon",fs.get<string>("permittivity","1.0"),"side ip");
+  functionManager->addFunction("refractive index",fs.get<string>("refractive index","1.0"),"side ip");
   
 }
 
@@ -340,10 +342,10 @@ void maxwell<EvalT>::boundaryResidual() {
   }
   else if (spaceDim == 3) {
     
-    double gamma = -0.9944;
-    if (include_Beqn && bcs(Bnum,cside) == "Neumann") { // Really ABC
-      // Contributes -<nxnxE,V> along boundary in B equation
+    if (include_Eeqn && bcs(Enum,cside) == "Neumann") { // Really ABC
+      // Contributes -<nxnxE,V> along boundary in E equation
     
+      Vista<EvalT> mu, epsilon, rindex;
       View_Sc2 nx, ny, nz;
       nx = wkset->getScalarField("n[x]");
       ny = wkset->getScalarField("n[y]");
@@ -351,21 +353,28 @@ void maxwell<EvalT>::boundaryResidual() {
       auto Ex = wkset->getSolutionField("E[x]");
       auto Ey = wkset->getSolutionField("E[y]");
       auto Ez = wkset->getSolutionField("E[z]");
+      {
+        Teuchos::TimeMonitor funceval(*boundaryResidualFunc);
+        mu = functionManager->evaluate("mu","side ip");
+        epsilon = functionManager->evaluate("epsilon","side ip");
+        rindex = functionManager->evaluate("refractive index","side ip");
+      }
       
-      auto off = subview(wkset->offsets, Bnum, ALL());
-      auto basis = wkset->basis_side[wkset->usebasis[Bnum]];
+      auto off = subview(wkset->offsets, Enum, ALL());
+      auto basis = wkset->basis_side[wkset->usebasis[Enum]];
       
       parallel_for("maxwell bndry resid ABC",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    MRHYDE_LAMBDA (const int elem ) {
     
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+          EvalT lightspeed = 1.0/rindex(elem,pt)/std::sqrt(epsilon(elem,pt)*mu(elem,pt));
           EvalT nce_x = ny(elem,pt)*Ez(elem,pt) - nz(elem,pt)*Ey(elem,pt);
           EvalT nce_y = nz(elem,pt)*Ex(elem,pt) - nx(elem,pt)*Ez(elem,pt);
           EvalT nce_z = nx(elem,pt)*Ey(elem,pt) - ny(elem,pt)*Ex(elem,pt);
-          EvalT c0 = -(1.0+gamma)*(ny(elem,pt)*nce_z - nz(elem,pt)*nce_y)*wts(elem,pt);
-          EvalT c1 = -(1.0+gamma)*(nz(elem,pt)*nce_x - nx(elem,pt)*nce_z)*wts(elem,pt);
-          EvalT c2 = -(1.0+gamma)*(nx(elem,pt)*nce_y - ny(elem,pt)*nce_x)*wts(elem,pt);
+          EvalT c0 = -lightspeed*(ny(elem,pt)*nce_z - nz(elem,pt)*nce_y)*wts(elem,pt);
+          EvalT c1 = -lightspeed*(nz(elem,pt)*nce_x - nx(elem,pt)*nce_z)*wts(elem,pt);
+          EvalT c2 = -lightspeed*(nx(elem,pt)*nce_y - ny(elem,pt)*nce_x)*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += c0*basis(elem,dof,pt,0) + c1*basis(elem,dof,pt,1) + c2*basis(elem,dof,pt,2);
           }
