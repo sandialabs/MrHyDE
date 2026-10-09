@@ -227,8 +227,9 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial,
     // Just getting the number of times from first physics set should be fine
     // TODO will this be affected by having physics sets with different timesteppers?
     int store_index = 0;
-    size_t numFwdSteps = postproc->soln[set]->getTotalTimes(store_index)-1; 
-    
+    auto & soln_source = postproc->is_incremental_adjoint ? postproc->incr_soln : postproc->soln;
+    size_t numFwdSteps = soln_source[set]->getTotalTimes(store_index)-1;
+
     for (size_t timeiter = 0; timeiter<numFwdSteps; timeiter++) {
       size_t cindex = numFwdSteps-timeiter;
       phi_prev[set] = linalg->getNewOverlappedVector(set);
@@ -239,15 +240,15 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial,
         cout << "**** Current time is " << current_time << endl << endl;
         cout << "*******************************************************" << endl << endl << endl;
       }
-      
+
       // TMW: this is specific to implicit Euler
       // Needs to be generalized
       // Also, need to implement checkpoint/recovery
-      bool fndu = postproc->soln[set]->extract(sol[set], cindex);
+      bool fndu = soln_source[set]->extract(sol[set], cindex);
       if (!fndu) {
         TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE was not able to find forward solution");
       }
-      bool fndup = postproc->soln[set]->extract(sol_prev[set], cindex-1);
+      bool fndup = soln_source[set]->extract(sol_prev[set], cindex-1);
       if (!fndup) {
         TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE was not able to find previous forward solution");
       }
@@ -255,10 +256,10 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial,
       params->updateDynamicParams(cindex-1);
       //assembler->performGather(set,u_prev[set],0,0);
       //assembler->resetPrevSoln(set);
-      
+
       int stime_index = cindex-1;
-      
-      current_time = postproc->soln[set]->getSpecificTime(store_index, stime_index);
+
+      current_time = soln_source[set]->getSpecificTime(store_index, stime_index);
       postproc->setTimeIndex(cindex);
       assembler->updateStage(stage, current_time, deltat);
       
@@ -344,7 +345,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
   
     bool build_jacobian = !linalg->getJacobianReuse(set);
     matrix_RCP J, J_over;
-    
+
     J = linalg->getNewMatrix(set);
     if (build_jacobian) {
       J_over = linalg->getNewOverlappedMatrix(set);
@@ -525,6 +526,12 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
       
       current_du->putScalar(0.0);
       current_du_over->putScalar(0.0);
+      if (set < linalg->context.size() && !linalg->context[set].is_null()) {
+        linalg->context[set]->jacobian_rebuilt_this_step = build_jacobian;
+        linalg->context[set]->stage_alpha_u =
+          (isTransient && butcher_b[set](stage) != 0.0)
+            ? butcher_A[set](stage, stage) / butcher_b[set](stage) : 1.0;
+      }
       linalg->linearSolver(set, J, current_res, current_du);
       
       // doesn't always write to file - only if requested

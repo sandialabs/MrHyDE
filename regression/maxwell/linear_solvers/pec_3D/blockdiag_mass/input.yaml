@@ -1,0 +1,30 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  debug level: 0
+  verbosity: 10
+  disable timers: true
+
+  Mesh input file: ../input_common_maxwell_hex3d.yaml
+  Physics input file: ../input_common_maxwell_hex3d.yaml
+  Discretization input file: ../input_common_maxwell_hex3d.yaml
+  Functions input file: ../input_common_maxwell_hex3d.yaml
+  Solver input file: ../input_solver_common.yaml
+  Analysis input file: ../input_common_maxwell_hex3d.yaml
+  Postprocess input file: ../input_common_maxwell_hex3d.yaml
+
+  Solver:
+    final time: 0.5  # 10 steps, so dt = 0.05; mass-AMG needs the small step to converge
+    preconditioner reuse type: none  # the only deck here that rebuilds every solve
+    preconditioner type: block diagonal
+    Block Diagonal Settings:
+      variable groups:
+        E: 'E'
+        B: 'B'
+      E:
+        preconditioner: AMG
+        use mass matrix: true
+      B:
+        preconditioner: AMG
+        use mass matrix: true
+...

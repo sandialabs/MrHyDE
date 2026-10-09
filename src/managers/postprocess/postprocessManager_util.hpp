@@ -109,24 +109,24 @@ void PostprocessManager<Node>::record(vector<vector_RCP> &current_soln, const Sc
         write_exodus_this_step = true;
     }
     
-    if (nf2ff.save &&
+    if (!is_incremental && nf2ff.save &&
         this->useCurrentTimeForDFT(nf2ff_ports, current_time)) {
         this->accumulateNF2FF(current_soln, current_time, deltat);
     }
-    if (lumped_port_parameters.save &&
+    if (!is_incremental && lumped_port_parameters.save &&
         this->useCurrentTimeForDFT(lumped_port_parameter_ports, current_time)) {
         this->accumulateLumpedPortParameters(current_soln, current_time, deltat);
     }
 
     // Write to exodus if requested and within user-defined time window for output
-    if (write_exodus_this_step && current_time + 1.0e-100 >= exodus_record_start && current_time - 1.0e-100 <= exodus_record_stop) {
+    if (!is_incremental && write_exodus_this_step && current_time + 1.0e-100 >= exodus_record_start && current_time - 1.0e-100 <= exodus_record_stop) {
         if (write_solution) {
             this->writeSolution(current_soln, current_time);
         }
     }
     
     // Write all other output if requested and within user-defined time window for output
-    if (write_this_step && current_time + 1.0e-100 >= record_start && current_time - 1.0e-100 <= record_stop) {
+    if (!is_incremental && write_this_step && current_time + 1.0e-100 >= record_start && current_time - 1.0e-100 <= record_stop) {
         
         if (compute_error) {
             this->computeError(current_soln, current_time);
@@ -150,12 +150,13 @@ void PostprocessManager<Node>::record(vector<vector_RCP> &current_soln, const Sc
     
     // We only store the full forward state if running optimization, or if user requested it
     if (save_solution) {
-        for (size_t set = 0; set < soln.size(); ++set) {
-            soln[set]->store(current_soln[set], current_time, 0);
+        auto &target = is_incremental ? incr_soln : soln;
+        for (size_t set = 0; set < target.size(); ++set) {
+            target[set]->store(current_soln[set], current_time, 0);
         }
     }
     
-    if (write_solution_to_file) {
+    if (!is_incremental && write_solution_to_file) {
         linalg->writeStateToFile(current_soln, solution_storage_file, stepnum);
     }
 }

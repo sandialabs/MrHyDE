@@ -63,6 +63,7 @@ refuxerr = float(w[9])
 
 if abs(uxerr-refuxerr) > aeps :
   print('  Failure: L2 error for ux too large.')
+  status += 1
 
 for line in open(flog):
   if "L2 norm of the error for uy" in  line: uyline = line
@@ -76,6 +77,7 @@ refuyerr = float(w[9])
 
 if abs(uyerr-refuyerr) > aeps :
   print('  Failure: L2 error for uy too large.')
+  status += 1
 
 for line in open(flog):
   if "L2 norm of the error for pr" in  line: prline = line
@@ -89,6 +91,7 @@ refprerr = float(w[9])
 
 if abs(prerr-refprerr) > aeps :
   print('  Failure: L2 error for pr too large.')
+  status += 1
 
 # ------------------------------
 # ------------------------------

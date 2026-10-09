@@ -19,9 +19,23 @@
 #include "postprocessManager.hpp"
 #include "solutionStorage.hpp"
 #include "linearAlgebraInterface.hpp"
+#include "block_prec/CrsFilter.hpp"
 #include "MrHyDE_Debugger.hpp"
 
+// For auxiliary-space setup on HCURL block.
+#include "Panzer_Interpolation.hpp"
+#include "Panzer_DOFManager.hpp"
+#include "Panzer_IntrepidFieldPattern.hpp"
+#include "Thyra_TpetraLinearOp.hpp"
+#include "Thyra_TpetraThyraWrappers.hpp"
+
 namespace MrHyDE {
+
+// H(grad)/H(curl) bases a split named for the RefMaxwell/Maxwell1 auxiliary spaces.
+struct AuxiliaryBasisSpec {
+  std::string hgrad_name, hcurl_name;
+  int hgrad_order = 1, hcurl_order = 1;
+};
 
 /**
  * @class SolverManager
@@ -93,6 +107,31 @@ public:
   
   /** @brief Configure fixed DOFs based on settings */
   void setupFixedDOFs(Teuchos::RCP<Teuchos::ParameterList> & settings);
+  /** @brief Build A-block auxiliary-space data (D0, M1, coords) for block-triangular RefMaxwell. */
+  void setupBlockTriangularAuxiliary(const size_t & set,
+                                     const Teuchos::RCP<LinearSolverContext<Node> > & cntxt);
+  // Assemble the set mass and cache one block of it per variable.
+  void assembleAuxiliaryMass(const size_t & set,
+                             const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
+                             matrix_RCP & assembled_mass_matrix,
+                             std::vector<Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > > & blockMaps);
+  // Resolve the auxiliary bases; false when only the block mass matrices are needed.
+  bool resolveAuxiliaryBases(const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
+                             AuxiliaryBasisSpec & bases);
+  // Build D0 on the primary edge numbering and M1 on the edge block.
+  void buildAuxiliaryGradient(const size_t & set,
+                              const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
+                              const AuxiliaryBasisSpec & bases,
+                              const matrix_RCP & assembled_mass_matrix,
+                              const std::vector<Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > > & blockMaps,
+                              size_t & edgeBlock,
+                              Teuchos::RCP<panzer::DOFManager> & hgrad_dof);
+  // Build nodal coordinates, lumped nodal mass, and the edge coordinates.
+  void buildAuxiliaryNodalData(const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
+                               const AuxiliaryBasisSpec & bases,
+                               const Teuchos::RCP<panzer::DOFManager> & hgrad_dof,
+                               const std::vector<Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > > & blockMaps,
+                               const size_t edgeBlock);
   
   /** @brief Finalize workset allocation for assembly */
   void finalizeWorkset();
@@ -115,10 +154,10 @@ public:
   /** @brief Executes adjoint solve for gradient computation */
   void adjointModel(MrHyDE_OptVector & gradient);
   
-  /** @brief Incremental forward solve (for Hessian-vector products) */
-  void incrementalForwardModel(ScalarT & objective);
+  /** @brief Tangent sweep for hessVec (c_y w = -c_u v) */
+  void incrementalForwardModel(MrHyDE_OptVector & v);
   
-  /** @brief Incremental adjoint solve (for Hessian-vector products) */
+  /** @brief Second-order adjoint for hessVec; assembles Hv */
   void incrementalAdjointModel(MrHyDE_OptVector & hessvec);
   
   /** @brief Solve steady-state PDE */
@@ -324,7 +363,7 @@ public:
   vector<vector_RCP> du_over;            // Overlapped Newton increment
   vector<vector_RCP> restart_solution;   // Stored restart state
   vector<vector_RCP> restart_adjoint_solution; // Stored restart adjoint
-  
+
   vector<vector_RCP> q_pcg, z_pcg, p_pcg, r_pcg; // PCG storage
   vector<vector_RCP> p_pcg_over, q_pcg_over;     // Overlapped PCG storage
   

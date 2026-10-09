@@ -1,0 +1,50 @@
+# Expected Scaling Behavior for Maxwell Cavity Strong Scaling Test
+#
+# This file documents qualitative expectations for the strong scaling test.
+# These are NOT hard thresholds - they provide guidance on what "reasonable"
+# scaling looks like for this problem.
+
+# Minimum parallel efficiency threshold (percent)
+# The test will FAIL if efficiency drops below this value.
+# This is intentionally set low to accommodate various hardware configurations.
+minimum_parallel_efficiency: 50
+
+# Problem characteristics
+problem:
+  type: "Maxwell 3D cavity (TM_110 mode)"
+  mesh_size: "20x20x10 hexahedral elements (4000 total)"
+  solver: "Iterative with domain decomposition preconditioner"
+  time_steps: 20
+
+# Expected behavior notes
+notes: |
+  Strong scaling efficiency depends heavily on:
+  
+  1. Problem Size:
+     - Small problems have less parallel work, leading to lower efficiency
+     - This test uses 4000 elements which is modest; efficiency may be lower
+       than production-scale runs
+  
+  2. Hardware Configuration:
+     - Shared-memory systems typically show 70-90% efficiency at low core counts
+     - Distributed memory systems may show lower efficiency due to communication
+     - NUMA effects can reduce efficiency on multi-socket nodes
+  
+  3. Solver Characteristics:
+     - Iterative solvers with domain decomposition depend on subdomain coupling
+     - Communication overhead increases with processor count
+     - Preconditioner setup cost may not scale perfectly
+  
+  4. What to expect:
+     - 1 to 2 procs: 80-95% efficiency (minimal communication)
+     - 2 to 4 procs: 60-85% efficiency (increasing communication)
+     - Above 4 procs: efficiency depends strongly on problem size
+  
+  If this test fails:
+     - First check if the run completed successfully
+     - Review timing breakdown to identify bottlenecks
+     - Consider if hardware issues (oversubscription, memory pressure) affected results
+     - For unusual failures, run manually and inspect log files
+
+# Processor counts tested
+processor_counts: [1, 2, 4]

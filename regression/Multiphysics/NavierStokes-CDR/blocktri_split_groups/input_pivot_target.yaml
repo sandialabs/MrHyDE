@@ -1,0 +1,43 @@
+%YAML 1.1
+---
+#            ux    uy    pr  :  c
+#         [ S_ux  Axy   Bx   :  0  ]    S_ux = Axx
+#    M =  [  0   S_uy   By   : Ayc ]    S_uy = Ayy - Ayx d(Axx)^-1 Axy
+#         [  0    0    S_pr  :  0  ]    S_pr = P - Bx' d(Axx)^-1 Bx - By' d(Ayy)^-1 By
+#         [ ...................... ]
+#         [  0    0     0    : S_c ]    S_c  = Dcc
+ANONYMOUS:
+  verbosity: 10
+  debug level: 0
+  disable timers: true
+
+  Mesh input file: input_common.yaml
+  Physics input file: input_common.yaml
+  Discretization input file: input_common.yaml
+  Functions input file: input_common.yaml
+  Solver input file: input_solver_common.yaml
+  Analysis input file: input_common.yaml
+  Postprocess input file: input_common.yaml
+
+  Solver:
+    Block Triangular Settings:
+      variable groups:
+        ux: 'ux'
+        uy: 'uy'
+        pr: 'pr'
+        c: 'c'
+      schur target: pr
+      approximation type: diag
+      diag use lumped pivot diagonal: false
+      split groups:
+        flow:
+          splits: 'ux, uy, pr'
+          composition: gauss-seidel
+        scalar:
+          splits: 'c'
+          composition: jacobi
+      ux: {preconditioner: Direct}
+      uy: {preconditioner: Direct}
+      pr: {preconditioner: Direct}
+      c:  {preconditioner: Direct}
+...

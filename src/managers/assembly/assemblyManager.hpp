@@ -188,8 +188,9 @@ public:
    * @param mass Reference-counted pointer to the mass matrix to be filled.
    * @param massdiag Reference-counted pointer to the vector storing the diagonal of the mass matrix.
    */
-  void getWeightedMass(const size_t & set, matrix_RCP & mass, vector_RCP & massdiag);
-  
+  void getWeightedMass(const size_t & set, matrix_RCP & mass, vector_RCP & massdiag,
+                       const bool use_unit_weights = false);
+
   /**
    * @brief Compute the parameter mass matrix and its diagonal.
    *
