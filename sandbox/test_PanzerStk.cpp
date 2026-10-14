@@ -55,8 +55,12 @@ int main(int argc, char * argv[]) {
 
   Kokkos::initialize();
   
+  typedef Kokkos::Serial HostExec;
+  typedef Kokkos::HostSpace HostMem;
+  typedef Kokkos::Device<HostExec,HostMem> HostDevice;
+  
   typedef Teuchos::RCP<const shards::CellTopology> topo_RCP;
-  typedef Teuchos::RCP<Intrepid2::Basis<PHX::Device::execution_space, double, double > > basis_RCP;
+  typedef Teuchos::RCP<Intrepid2::Basis<HostDevice> > basis_RCP;
   
   // Pause for 10s to see how much memory is used
   if (Comm->getRank() == 0) {
@@ -160,22 +164,22 @@ int main(int argc, char * argv[]) {
           topo_RCP cellTopo = mesh->getCellTopology(blocknames[b]);
           basis_RCP basis;
           if (dimension == 1) {
-            basis = Teuchos::rcp(new Intrepid2::Basis_HGRAD_LINE_Cn_FEM<PHX::Device::execution_space,double,double>(degree,Intrepid2::POINTTYPE_EQUISPACED) );
+            basis = Teuchos::rcp(new Intrepid2::Basis_HGRAD_LINE_Cn_FEM<HostDevice>(degree,Intrepid2::POINTTYPE_EQUISPACED) );
           }
           else if (dimension == 2){
             if (shape == "quad") {
-              basis = Teuchos::rcp(new Intrepid2::Basis_HGRAD_QUAD_Cn_FEM<PHX::Device::execution_space,double,double>(degree,Intrepid2::POINTTYPE_EQUISPACED) );
+              basis = Teuchos::rcp(new Intrepid2::Basis_HGRAD_QUAD_Cn_FEM<HostDevice>(degree,Intrepid2::POINTTYPE_EQUISPACED) );
             }
             else {
-              basis = Teuchos::rcp(new Intrepid2::Basis_HGRAD_TRI_Cn_FEM<PHX::Device::execution_space,double,double>(degree,Intrepid2::POINTTYPE_EQUISPACED) );
+              basis = Teuchos::rcp(new Intrepid2::Basis_HGRAD_TRI_Cn_FEM<HostDevice>(degree,Intrepid2::POINTTYPE_EQUISPACED) );
             }
           }
           else {
             if (shape == "hex") {
-              basis = Teuchos::rcp(new Intrepid2::Basis_HGRAD_HEX_Cn_FEM<PHX::Device::execution_space,double,double>(degree,Intrepid2::POINTTYPE_EQUISPACED) );
+              basis = Teuchos::rcp(new Intrepid2::Basis_HGRAD_HEX_Cn_FEM<HostDevice>(degree,Intrepid2::POINTTYPE_EQUISPACED) );
             }
             else {
-              basis = Teuchos::rcp(new Intrepid2::Basis_HGRAD_TET_Cn_FEM<PHX::Device::execution_space,double,double>(degree,Intrepid2::POINTTYPE_EQUISPACED) );
+              basis = Teuchos::rcp(new Intrepid2::Basis_HGRAD_TET_Cn_FEM<HostDevice>(degree,Intrepid2::POINTTYPE_EQUISPACED) );
             }
           }
           Teuchos::RCP<const panzer::Intrepid2FieldPattern> Pattern = Teuchos::rcp(new panzer::Intrepid2FieldPattern(basis));

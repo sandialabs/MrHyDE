@@ -181,7 +181,7 @@ typedef Kokkos::View<ScalarT*>::size_type size_type;
 
 // Use ContLayout for faster hierarchical parallelism
 //typedef Kokkos::LayoutContiguous<AssemblyExec::array_layout,VectorSize> ContLayout;
-typedef Kokkos::LayoutContiguous<AssemblyExec::array_layout> ContLayout;
+typedef Sacado::LayoutContiguous<AssemblyExec::array_layout> ContLayout;
 
 typedef Kokkos::View<ScalarT*,AssemblyDevice> View_Sc1;
 typedef Kokkos::View<ScalarT**,AssemblyDevice> View_Sc2;
@@ -191,7 +191,9 @@ typedef Kokkos::View<ScalarT*****,AssemblyDevice> View_Sc5;
 
 // Intrepid and shards typedefs
 typedef Teuchos::RCP<const shards::CellTopology> topo_RCP;
-typedef Teuchos::RCP<Intrepid2::Basis<PHX::Device::execution_space, double, double > > basis_RCP;
+//typedef Teuchos::RCP<Intrepid2::Basis<PHX::Device::execution_space, double, double > > basis_RCP;
+
+typedef Teuchos::RCP<Intrepid2::Basis<HostDevice> > basis_RCP;
 
 #include <exception>
 
