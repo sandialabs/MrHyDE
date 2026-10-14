@@ -38,8 +38,12 @@ int main(int argc, char * argv[]) {
   
   Kokkos::initialize();
   
+  typedef Kokkos::Serial HostExec;
+  typedef Kokkos::HostSpace HostMem;
+  typedef Kokkos::Device<HostExec,HostMem> HostDevice;
+  
   typedef Teuchos::RCP<const shards::CellTopology> topo_RCP;
-  typedef Teuchos::RCP<Intrepid2::Basis<PHX::Device::execution_space, double, double > > basis_RCP;
+  typedef Teuchos::RCP<Intrepid2::Basis<HostDevice> > basis_RCP;
   
   {
     
@@ -94,7 +98,8 @@ int main(int argc, char * argv[]) {
       
       for (size_t b=0; b<blocknames.size(); b++) {
         topo_RCP cellTopo = mesh->getCellTopology(blocknames[b]);
-        basis_RCP basis = Teuchos::rcp(new Intrepid2::Basis_HGRAD_HEX_C1_FEM<PHX::Device::execution_space,double,double>() );
+        //basis_RCP basis = Teuchos::rcp(new Intrepid2::Basis_HGRAD_HEX_C1_FEM<PHX::Device::execution_space,double,double>() );
+        basis_RCP basis = Teuchos::rcp(new Intrepid2::Basis_HGRAD_HEX_C1_FEM<HostDevice>() );
         Teuchos::RCP<const panzer::Intrepid2FieldPattern> Pattern = Teuchos::rcp(new panzer::Intrepid2FieldPattern(basis));
         DOF->addField(blocknames[b], "T", Pattern, panzer::FieldType::CG);
       }
@@ -117,7 +122,7 @@ int main(int argc, char * argv[]) {
       
       for (size_t b=0; b<blocknames.size(); b++) {
         topo_RCP cellTopo = mesh->getCellTopology(blocknames[b]);
-        basis_RCP basis = Teuchos::rcp(new Intrepid2::Basis_HCURL_HEX_I1_FEM<PHX::Device::execution_space,double,double>() );
+        basis_RCP basis = Teuchos::rcp(new Intrepid2::Basis_HCURL_HEX_I1_FEM<HostDevice>() );
         Teuchos::RCP<const panzer::Intrepid2FieldPattern> Pattern = Teuchos::rcp(new panzer::Intrepid2FieldPattern(basis));
         DOF->addField(blocknames[b], "E", Pattern, panzer::FieldType::CG);
       }
@@ -140,7 +145,7 @@ int main(int argc, char * argv[]) {
       
       for (size_t b=0; b<blocknames.size(); b++) {
         topo_RCP cellTopo = mesh->getCellTopology(blocknames[b]);
-        basis_RCP basis = Teuchos::rcp(new Intrepid2::Basis_HDIV_HEX_I1_FEM<PHX::Device::execution_space,double,double>() );
+        basis_RCP basis = Teuchos::rcp(new Intrepid2::Basis_HDIV_HEX_I1_FEM<HostDevice>() );
         Teuchos::RCP<const panzer::Intrepid2FieldPattern> Pattern = Teuchos::rcp(new panzer::Intrepid2FieldPattern(basis));
         DOF->addField(blocknames[b], "B", Pattern, panzer::FieldType::CG);
       }
@@ -163,7 +168,7 @@ int main(int argc, char * argv[]) {
       
       for (size_t b=0; b<blocknames.size(); b++) {
         topo_RCP cellTopo = mesh->getCellTopology(blocknames[b]);
-        basis_RCP basis = Teuchos::rcp(new Intrepid2::Basis_HVOL_C0_FEM<PHX::Device::execution_space,double,double>(*cellTopo) );
+        basis_RCP basis = Teuchos::rcp(new Intrepid2::Basis_HVOL_C0_FEM<HostDevice>(*cellTopo) );
         Teuchos::RCP<const panzer::Intrepid2FieldPattern> Pattern = Teuchos::rcp(new panzer::Intrepid2FieldPattern(basis));
         DOF->addField(blocknames[b], "p", Pattern, panzer::FieldType::CG);
       }

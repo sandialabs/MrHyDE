@@ -220,63 +220,63 @@ basis_RCP DiscretizationInterface::getBasis(const int & dim, const topo_RCP & ce
                                             const string & type, const int & degree) {
   using namespace Intrepid2;
   
-  Teuchos::RCP<Intrepid2::Basis<PHX::Device::execution_space, double, double > > basis;
+  Teuchos::RCP<Intrepid2::Basis<HostDevice> > basis;
   
   string shape = cellTopo->getName();
   
   if (type == "HGRAD") {
     if (dim == 1) {
-      basis = Teuchos::rcp(new Basis_HGRAD_LINE_Cn_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
+      basis = Teuchos::rcp(new Basis_HGRAD_LINE_Cn_FEM<HostDevice>(degree,POINTTYPE_EQUISPACED) );
     }
     if (dim == 2) {
       if (shape == "Quadrilateral_4") {
         if (degree == 1) {
-          basis = Teuchos::rcp(new Basis_HGRAD_QUAD_C1_FEM<PHX::Device::execution_space,double,double>());
+          basis = Teuchos::rcp(new Basis_HGRAD_QUAD_C1_FEM<HostDevice>());
         }
         else {
-          basis = Teuchos::rcp(new Basis_HGRAD_QUAD_Cn_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
+          basis = Teuchos::rcp(new Basis_HGRAD_QUAD_Cn_FEM<HostDevice>(degree,POINTTYPE_EQUISPACED) );
         }
       }
       if (shape == "Triangle_3") {
-        basis = Teuchos::rcp(new Basis_HGRAD_TRI_Cn_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_WARPBLEND) );
+        basis = Teuchos::rcp(new Basis_HGRAD_TRI_Cn_FEM<HostDevice>(degree,POINTTYPE_WARPBLEND) );
       }
     }
     if (dim == 3) {
       if (shape == "Hexahedron_8") {
         if (degree == 1) {
-          basis = Teuchos::rcp(new Basis_HGRAD_HEX_C1_FEM<PHX::Device::execution_space,double,double>() );
+          basis = Teuchos::rcp(new Basis_HGRAD_HEX_C1_FEM<HostDevice>() );
         }
         else {
-          basis = Teuchos::rcp(new Basis_HGRAD_HEX_Cn_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
+          basis = Teuchos::rcp(new Basis_HGRAD_HEX_Cn_FEM<HostDevice>(degree,POINTTYPE_EQUISPACED) );
         }
         
       }
       if (shape == "Tetrahedron_4") {
-        basis = Teuchos::rcp(new Basis_HGRAD_TET_Cn_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
+        basis = Teuchos::rcp(new Basis_HGRAD_TET_Cn_FEM<HostDevice>(degree,POINTTYPE_EQUISPACED) );
       }
     }
   }
   else if (type == "HVOL") {
-    basis = Teuchos::rcp(new Basis_HVOL_C0_FEM<PHX::Device::execution_space,double,double>(*cellTopo));
+    basis = Teuchos::rcp(new Basis_HVOL_C0_FEM<HostDevice>(*cellTopo));
   }
   else if (type == "HDIV") {
     if (dim == 1) {
-      basis = Teuchos::rcp(new Basis_HGRAD_LINE_Cn_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
+      basis = Teuchos::rcp(new Basis_HGRAD_LINE_Cn_FEM<HostDevice>(degree,POINTTYPE_EQUISPACED) );
     }
     else if (dim == 2) {
       if (shape == "Quadrilateral_4") {
-        basis = Teuchos::rcp(new Basis_HDIV_QUAD_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
+        basis = Teuchos::rcp(new Basis_HDIV_QUAD_In_FEM<HostDevice>(degree,POINTTYPE_EQUISPACED) );
       }
       else if (shape == "Triangle_3") {
-        basis = Teuchos::rcp(new Basis_HDIV_TRI_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
+        basis = Teuchos::rcp(new Basis_HDIV_TRI_In_FEM<HostDevice>(degree,POINTTYPE_EQUISPACED) );
       }
     }
     else if (dim == 3) {
       if (shape == "Hexahedron_8") {
-        basis = Teuchos::rcp(new Basis_HDIV_HEX_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
+        basis = Teuchos::rcp(new Basis_HDIV_HEX_In_FEM<HostDevice>(degree,POINTTYPE_EQUISPACED) );
       }
       else if (shape == "Tetrahedron_4") {
-        basis = Teuchos::rcp(new Basis_HDIV_TET_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
+        basis = Teuchos::rcp(new Basis_HDIV_TET_In_FEM<HostDevice>(degree,POINTTYPE_EQUISPACED) );
       }
     }
     
@@ -285,7 +285,7 @@ basis_RCP DiscretizationInterface::getBasis(const int & dim, const topo_RCP & ce
     if (dim == 2) {
       if (shape == "Quadrilateral_4") {
         if (degree == 1) {
-          basis = Teuchos::rcp(new Basis_HDIV_AC_QUAD_I1_FEM<PHX::Device::execution_space,double,double>() );
+          basis = Teuchos::rcp(new Basis_HDIV_AC_QUAD_I1_FEM<HostDevice>() );
         }
         else {
           TEUCHOS_ASSERT(false); // there is no HDIV_AC higher order implemented yet
@@ -305,18 +305,18 @@ basis_RCP DiscretizationInterface::getBasis(const int & dim, const topo_RCP & ce
     }
     else if (dim == 2) {
       if (shape == "Quadrilateral_4") {
-        basis = Teuchos::rcp(new Basis_HCURL_QUAD_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
+        basis = Teuchos::rcp(new Basis_HCURL_QUAD_In_FEM<HostDevice>(degree,POINTTYPE_EQUISPACED) );
       }
       else if (shape == "Triangle_3") {
-        basis = Teuchos::rcp(new Basis_HCURL_TRI_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
+        basis = Teuchos::rcp(new Basis_HCURL_TRI_In_FEM<HostDevice>(degree,POINTTYPE_EQUISPACED) );
       }
     }
     else if (dim == 3) {
       if (shape == "Hexahedron_8") {
-        basis = Teuchos::rcp(new Basis_HCURL_HEX_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
+        basis = Teuchos::rcp(new Basis_HCURL_HEX_In_FEM<HostDevice>(degree,POINTTYPE_EQUISPACED) );
       }
       else if (shape == "Tetrahedron_4") {
-        basis = Teuchos::rcp(new Basis_HCURL_TET_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
+        basis = Teuchos::rcp(new Basis_HCURL_TET_In_FEM<HostDevice>(degree,POINTTYPE_EQUISPACED) );
       }
     }
     
@@ -324,18 +324,18 @@ basis_RCP DiscretizationInterface::getBasis(const int & dim, const topo_RCP & ce
   else if (type == "HFACE") {
     if (dim == 2) {
       if (shape == "Quadrilateral_4") {
-        basis = Teuchos::rcp(new Basis_HFACE_QUAD_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
+        basis = Teuchos::rcp(new Basis_HFACE_QUAD_In_FEM<HostDevice>(degree,POINTTYPE_EQUISPACED) );
       }
       else if (shape == "Triangle_3") {
-        basis = Teuchos::rcp(new Basis_HFACE_TRI_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
+        basis = Teuchos::rcp(new Basis_HFACE_TRI_In_FEM<HostDevice>(degree,POINTTYPE_EQUISPACED) );
       }
     }
     if (dim == 3) {
       if (shape == "Hexahedron_8") {
-        basis = Teuchos::rcp(new Basis_HFACE_HEX_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
+        basis = Teuchos::rcp(new Basis_HFACE_HEX_In_FEM<HostDevice>(degree,POINTTYPE_EQUISPACED) );
       }
       if (shape == "Tetrahedron_4") {
-        basis = Teuchos::rcp(new Basis_HFACE_TET_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
+        basis = Teuchos::rcp(new Basis_HFACE_TET_In_FEM<HostDevice>(degree,POINTTYPE_EQUISPACED) );
       }
     }
   }

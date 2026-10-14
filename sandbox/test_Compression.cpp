@@ -50,6 +50,10 @@ typedef Intrepid2::OrientationTools<PHX::Device::execution_space> OrientTools;
 typedef Intrepid2::RealSpaceTools<PHX::Device::execution_space> RealTools;
 typedef Intrepid2::ArrayTools<PHX::Device::execution_space> ArrayTools;
   
+typedef Kokkos::Serial HostExec;
+typedef Kokkos::HostSpace HostMem;
+typedef Kokkos::Device<HostExec,HostMem> HostDevice;
+
 class Compressor {
     
   public:
@@ -80,7 +84,7 @@ class Compressor {
         // Get the integration pts/wts on reference element
       
         topo_RCP cellTopo = mesh->getCellTopology(blocknames[block]);
-        Teuchos::RCP<Intrepid2::Cubature<PHX::Device::execution_space, double, double> > basisCub  = cubFactory.create<PHX::Device::execution_space, double, double>(*cellTopo, quadorder);
+        Teuchos::RCP<Intrepid2::Cubature<HostDevice> > basisCub  = cubFactory.create<HostDevice>(*cellTopo, quadorder);
         int cubDim = basisCub->getDimension();
         int numCubPoints = basisCub->getNumPoints();
         ref_ip.push_back(DRV("ip", numCubPoints, cubDim));
@@ -455,18 +459,18 @@ int main(int argc, char * argv[]) {
         basis_RCP basis;
         if (dimension == 2) {
           if (shape == "Quadrilateral_4") {
-            basis = Teuchos::rcp(new Basis_HGRAD_QUAD_Cn_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
+            basis = Teuchos::rcp(new Basis_HGRAD_QUAD_Cn_FEM<HostDevice>(degree,POINTTYPE_EQUISPACED) );
           }
           if (shape == "Triangle_3") {
-            basis = Teuchos::rcp(new Basis_HGRAD_TRI_Cn_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_WARPBLEND) );
+            basis = Teuchos::rcp(new Basis_HGRAD_TRI_Cn_FEM<HostDevice>(degree,POINTTYPE_WARPBLEND) );
           }
         }
         else if (dimension == 3) {
           if (shape == "Hexahedron_8") {
-            basis = Teuchos::rcp(new Basis_HGRAD_HEX_Cn_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
+            basis = Teuchos::rcp(new Basis_HGRAD_HEX_Cn_FEM<HostDevice>(degree,POINTTYPE_EQUISPACED) );
           }
           if (shape == "Tetrahedron_4") {
-            basis = Teuchos::rcp(new Basis_HGRAD_TET_Cn_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
+            basis = Teuchos::rcp(new Basis_HGRAD_TET_Cn_FEM<HostDevice>(degree,POINTTYPE_EQUISPACED) );
           }
         }
         Teuchos::RCP<const panzer::Intrepid2FieldPattern> Pattern = Teuchos::rcp(new panzer::Intrepid2FieldPattern(basis));

@@ -43,8 +43,12 @@ int main(int argc, char * argv[]) {
   
   Kokkos::initialize();
   
+  typedef Kokkos::Serial HostExec;
+  typedef Kokkos::HostSpace HostMem;
+  typedef Kokkos::Device<HostExec,HostMem> HostDevice;
+  
   typedef Teuchos::RCP<const shards::CellTopology> topo_RCP;
-  typedef Teuchos::RCP<Intrepid2::Basis<PHX::Device::execution_space, double, double > > basis_RCP;
+  typedef Teuchos::RCP<Intrepid2::Basis<HostDevice> > basis_RCP;
 
   {
     
@@ -84,7 +88,7 @@ int main(int argc, char * argv[]) {
     topo_RCP cell_topology = mesh->getCellTopology(blocknames[0]);
 
     // Just adding basis functions on the first block for now  
-    basis_RCP basis = Teuchos::rcp(new Intrepid2::Basis_HCURL_HEX_In_FEM<PHX::Device::execution_space,double,double>(degree,Intrepid2::POINTTYPE_EQUISPACED) );
+    basis_RCP basis = Teuchos::rcp(new Intrepid2::Basis_HCURL_HEX_In_FEM<HostDevice>(degree,Intrepid2::POINTTYPE_EQUISPACED) );
     Teuchos::RCP<const panzer::Intrepid2FieldPattern> Pattern = Teuchos::rcp(new panzer::Intrepid2FieldPattern(basis));
     DOF->addField(blocknames[0], "T", Pattern, panzer::FieldType::CG);
     
