@@ -35,7 +35,7 @@ int main(int argc, char * argv[]) {
     
 #define VSize 1
     std::cout << "Vector size: " << VSize << std::endl;
-    typedef Kokkos::LayoutContiguous<AssemblyExec::array_layout,VSize> CL;
+    typedef Sacado::LayoutContiguous<AssemblyExec::array_layout,VSize> CL;
 
     int numip = 8;
     int dimension = 3;

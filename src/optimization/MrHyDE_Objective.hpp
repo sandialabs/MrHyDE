@@ -59,7 +59,7 @@ namespace ROL {
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
-    Real value(const Vector<Real> & Params, Real & tol){
+    Real value(const Vector<Real> & Params, Real & tol) override {
       
       Teuchos::TimeMonitor localtimer(*valuetimer);
       
@@ -76,7 +76,7 @@ namespace ROL {
     }
     
     //! Compute gradient of objective function with respect to parameters
-    void gradient(Vector<Real> &g, const Vector<Real> &Params, Real &tol){
+    void gradient(Vector<Real> &g, const Vector<Real> &Params, Real &tol) override {
 
       Teuchos::TimeMonitor localtimer(*gradienttimer);
       bool newparams = this->checkNewParams(Params);

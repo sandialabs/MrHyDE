@@ -71,7 +71,7 @@ namespace Intrepid2 {
       const ordinal_type npts = input.extent(0);
       
       typedef typename Kokkos::DynRankView<typename workViewType::value_type, typename workViewType::memory_space> viewType;
-      auto vcprop = Kokkos::common_view_alloc_prop(work);
+      auto vcprop = Sacado::common_view_alloc_prop(work);
       auto ptr = work.data();
       
       // compute order
@@ -216,7 +216,7 @@ namespace Intrepid2 {
           cardTri = Intrepid2::getPnCardinality<2>(++order);
         } while((4*cardTri !=  cardinality) && (order != Parameters::MaxOrder));
       }
-      auto vcprop = Kokkos::common_view_alloc_prop(inputPoints);
+      auto vcprop = Sacado::common_view_alloc_prop(inputPoints);
       typedef typename Kokkos::DynRankView< inputPointType, typename inputPointViewType::memory_space> workViewType;
       
       switch (operatorType) {

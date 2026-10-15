@@ -38,7 +38,7 @@ int main(int argc, char * argv[]) {
     
 #define VSize 32
     std::cout << "Vector size: " << VSize << std::endl;
-    typedef Kokkos::LayoutContiguous<AssemblyExec::array_layout,VSize> CL;
+    typedef Sacado::LayoutContiguous<AssemblyExec::array_layout,VSize> CL;
 
     int numip = 8;
     int dimension = 3;
@@ -170,7 +170,7 @@ int main(int argc, char * argv[]) {
     // Hierarchical version 1: team over (elem,dof)
     ////////////////////////////////////////////////
 
-    typedef typename Kokkos::ThreadLocalScalarType<decltype(res2)>::type local_scalar_type;
+    typedef typename Sacado::ThreadLocalScalarType<decltype(res2)>::type local_scalar_type;
 
     timer.reset();
     parallel_for("Thermal volume resid 2D",

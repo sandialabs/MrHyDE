@@ -196,10 +196,10 @@ void MHD<EvalT>::volumeResidual() {
           
           EvalT tauu = this->computeTauU(ux, uy, uz, Bx(elem,pt), By(elem,pt), Bz(elem,pt),
                                          mu(elem,pt), ndens(elem,pt), hsize(elem), dt);
-          EvalT taup = this->computeTauP(tauu, hsize(elem));
+          //EvalT taup = this->computeTauP(tauu, hsize(elem));
           
-          EvalT srhores = this->computeStrongResidualRho(drho_dt(elem,pt), drhoux_dx(elem,pt),
-                                                         drhouy_dy(elem,pt), drhouz_dz(elem,pt));
+          //EvalT srhores = this->computeStrongResidualRho(drho_dt(elem,pt), drhoux_dx(elem,pt),
+          //                                               drhouy_dy(elem,pt), drhouz_dz(elem,pt));
           EvalT rho_prime = 0.0;//taup*srhores*wts(elem,pt);
           
           EvalT srhouxres = this->computeStrongResidualRhoux(drhoux_dt(elem,pt), rhoux(elem,pt), drhoux_dx(elem,pt),
@@ -267,10 +267,10 @@ void MHD<EvalT>::volumeResidual() {
           
           EvalT tauu = this->computeTauU(ux, uy, uz, Bx(elem,pt), By(elem,pt), Bz(elem,pt),
                                          mu(elem,pt), ndens(elem,pt), hsize(elem), dt);
-          EvalT taup = this->computeTauP(tauu, hsize(elem));
+          //EvalT taup = this->computeTauP(tauu, hsize(elem));
           
-          EvalT srhores = this->computeStrongResidualRho(drho_dt(elem,pt), drhoux_dx(elem,pt),
-                                                         drhouy_dy(elem,pt), drhouz_dz(elem,pt));
+          //EvalT srhores = this->computeStrongResidualRho(drho_dt(elem,pt), drhoux_dx(elem,pt),
+          //                                               drhouy_dy(elem,pt), drhouz_dz(elem,pt));
           EvalT rho_prime = 0.0;  //taup*srhores*wts(elem,pt);
           
           EvalT srhouxres = this->computeStrongResidualRhoux(drhoux_dt(elem,pt), rhoux(elem,pt), drhoux_dx(elem,pt),
@@ -325,10 +325,10 @@ void MHD<EvalT>::volumeResidual() {
           
           EvalT tauu = this->computeTauU(ux, uy, uz, Bx(elem,pt), By(elem,pt), Bz(elem,pt),
                                          mu(elem,pt), ndens(elem,pt), hsize(elem), dt);
-          EvalT taup = this->computeTauP(tauu, hsize(elem));
+          //EvalT taup = this->computeTauP(tauu, hsize(elem));
           
-          EvalT srhores = this->computeStrongResidualRho(drho_dt(elem,pt), drhoux_dx(elem,pt),
-                                                         drhouy_dy(elem,pt), drhouz_dz(elem,pt));
+          //EvalT srhores = this->computeStrongResidualRho(drho_dt(elem,pt), drhoux_dx(elem,pt),
+          //                                               drhouy_dy(elem,pt), drhouz_dz(elem,pt));
           EvalT rho_prime = 0.0;//taup*srhores*wts(elem,pt);
           
           EvalT srhouyres = this->computeStrongResidualRhouy(drhouy_dt(elem,pt), rhouy(elem,pt), drhouy_dx(elem,pt),
@@ -383,10 +383,10 @@ void MHD<EvalT>::volumeResidual() {
           
           EvalT tauu = this->computeTauU(ux, uy, uz, Bx(elem,pt), By(elem,pt), Bz(elem,pt),
                                          mu(elem,pt), ndens(elem,pt), hsize(elem), dt);
-          EvalT taup = this->computeTauP(tauu, hsize(elem));
+          //EvalT taup = this->computeTauP(tauu, hsize(elem));
           
-          EvalT srhores = this->computeStrongResidualRho(drho_dt(elem,pt), drhoux_dx(elem,pt),
-                                                         drhouy_dy(elem,pt), drhouz_dz(elem,pt));
+          //EvalT srhores = this->computeStrongResidualRho(drho_dt(elem,pt), drhoux_dx(elem,pt),
+          //                                               drhouy_dy(elem,pt), drhouz_dz(elem,pt));
           EvalT rho_prime = 0.0; //taup*srhores*wts(elem,pt);
           
           EvalT srhouzres = this->computeStrongResidualRhouz(drhouz_dt(elem,pt), rhouz(elem,pt), drhouz_dx(elem,pt),
@@ -458,8 +458,8 @@ void MHD<EvalT>::volumeResidual() {
         EvalT Fx = (ndens(elem,pt)/gamma_bar*ux + qx)*wts(elem,pt);
         EvalT Fy = (ndens(elem,pt)/gamma_bar*uy + qy)*wts(elem,pt);
         EvalT Fz = (ndens(elem,pt)/gamma_bar*uz + qz)*wts(elem,pt);
-        EvalT F = (ndens(elem,pt)/gamma_bar*dT_dt(elem,pt))*wts(elem,pt);
-        //EvalT F = (ndens(elem,pt)/gamma_bar*dT_dt(elem,pt) + ndens(elem,pt)*T(elem,pt)*(dux_dx+duy_dy+duz_dz) - 1.0/S(elem,pt)*(jx*jx+jy*jy+jz*jz) - 1.0/Re(elem,pt)*viscous_stress)*wts(elem,pt);
+        //EvalT F = (ndens(elem,pt)/gamma_bar*dT_dt(elem,pt))*wts(elem,pt);
+        EvalT F = (ndens(elem,pt)/gamma_bar*dT_dt(elem,pt) + ndens(elem,pt)*T(elem,pt)*(dux_dx+duy_dy+duz_dz) - 1.0/S(elem,pt)*(jx*jx+jy*jy+jz*jz) - 1.0/Re(elem,pt)*viscous_stress)*wts(elem,pt);
         
         for (size_type dof=0; dof<basis.extent(1); dof++) {
           res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + F*basis(elem,dof,pt,0);

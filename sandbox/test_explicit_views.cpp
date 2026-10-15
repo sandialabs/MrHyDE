@@ -41,7 +41,7 @@ int main(int argc, char * argv[]) {
     int dimension = 3;
     int numdof = 12;
     
-    typedef Kokkos::LayoutContiguous<AssemblyExec::array_layout,VSize> CL;
+    typedef Sacado::LayoutContiguous<AssemblyExec::array_layout,VSize> CL;
 
     ////////////////////////////////////////////////
     // Set up timer and views

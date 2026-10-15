@@ -123,7 +123,7 @@ void induction<EvalT>::volumeResidual() {
   
   bool use_stab = use_stabilization; // seems redundant but necessary to capture properly in lambdas
   auto hsize = wkset->getElementSize();
-  ScalarT dt = wkset->deltat;
+  //ScalarT dt = wkset->deltat;
   
   
   // Magnetic field equation
