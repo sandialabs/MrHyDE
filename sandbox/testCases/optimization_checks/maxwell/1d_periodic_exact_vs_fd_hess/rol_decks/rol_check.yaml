@@ -1,15 +1,15 @@
 %YAML 1.1
 ---
-# Magnitude scan only. Confirms w_EM=1e13, w_reg=1e5 gives balanced
+# Magnitude check only. Confirms w_EM=1e13, w_reg=1e5 gives balanced
 # weighted contributions at the seeded probe point before we spend compute
-# on the race. Iteration Limit: 0 -> ROL exits after the scan.
+# on the race. Iteration Limit: 0 -> ROL exits after the check.
 ANONYMOUS:
   Analysis:
     analysis type: ROL2
     ROL2:
       General:
         Output Level: 2
-        Do magnitude scan: true
+        Do magnitude check: true
         FD Check Random Seed: 42
         FD Check Random Scale: 1.0e-3
         Do grad+hessvec check: false

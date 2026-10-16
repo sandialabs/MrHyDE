@@ -8,7 +8,7 @@
    Kn  = nodal auxiliary matrix D0^T M1 D0                 n x n
    m_n = lumped nodal mass, integral(N_n)                  n
 
- Questions? Contact Alexey Voronin (abvoron@sandia.gov)
+ Questions? Contact Alexey Voronin
  ************************************************************************/
 
 #ifndef MRHYDE_BLOCK_PREC_MAXWELL_INVERSE_HPP
@@ -20,6 +20,7 @@
 #include "linearSolverContext.hpp"
 
 #include <MueLu_Maxwell_Utils.hpp>
+#include <MueLu_Utilities.hpp>
 #include <Xpetra_MatrixFactory.hpp>
 #include <Xpetra_MatrixUtils.hpp>
 #include <Xpetra_TripleMatrixMultiply.hpp>
@@ -487,6 +488,84 @@ splitD0(const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
     return Teuchos::null;
   }
   return cntxt->refMaxwell.D0_matrix;
+}
+
+// Two-level p-multigrid: Hiptmair at the E order, one order-1 RefMaxwell application as the coarse solve.
+template<class Node>
+Teko::LinearOp
+buildPMultigridPreconditioner(const typename BlockTypes<Node>::CrsMatrixRCP & S,
+                              const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
+                              const size_t split,
+                              const std::string & label,
+                              const int verbosity) {
+  using XpetraMatrix = Xpetra::Matrix<ScalarT, LO, GO, Node>;
+  using MagT = typename Teuchos::ScalarTraits<ScalarT>::magnitudeType;
+  using device_type = typename Node::device_type;
+  const FieldSplit<Node> & splitState = cntxt->splits[split];
+  const PMultigridData<Node> & pmg = cntxt->pMultigrid;
+  TEUCHOS_TEST_FOR_EXCEPTION(pmg.P.is_null(), std::runtime_error,
+    "'preconditioner: p-multigrid' on split '" << splitState.name
+    << "' needs 'hgrad basis name' and 'hcurl basis name' in that split.");
+  const std::string pmgXml =
+    LinearSolverContext<Node>::splitXmlFile(splitState.settings, "p-Multigrid Settings");
+  Teuchos::ParameterList params = cntxt->pMultigridParams(split, *S->getComm());
+  TEUCHOS_TEST_FOR_EXCEPTION(!mueluParamsWantHiptmair(params), std::runtime_error,
+    "'p-multigrid' XML '" << pmgXml << "' must set 'smoother: type' to HIPTMAIR.");
+  const std::string rmXml =
+    LinearSolverContext<Node>::splitXmlFile(splitState.settings, "RefMaxwell Settings");
+  TEUCHOS_TEST_FOR_EXCEPTION(rmXml.empty(), std::runtime_error,
+    "'p-multigrid' on split '" << splitState.name
+    << "' needs 'xml param file' in 'RefMaxwell Settings' for the order-1 coarse solve.");
+  Teuchos::ParameterList coarseParams = cntxt->refMaxwellParams(split, *S->getComm());
+  TEUCHOS_TEST_FOR_EXCEPTION(coarseParams.isParameter("refmaxwell: space number") &&
+                             coarseParams.get<int>("refmaxwell: space number") != 1,
+    std::runtime_error,
+    "'p-multigrid' coarse RefMaxwell XML '" << rmXml << "' must keep 'refmaxwell: space number' at 1.");
+  coarseParams.set("refmaxwell: disable addon", true);
+
+  normalizeMueLuVerbosity(params, verbosity);
+  params.set("max levels", 2);
+  params.set("coarse: max size", 1);
+  params.set("multigrid algorithm", "unsmoothed");
+  params.set("repartition: enable", false);
+  params.set("reuse: type", "none");
+  // MueLu applies P^T itself, so no R is stored.
+  params.set("transpose: use implicit", true);
+  params.set("coarse: type", "RefMaxwell");
+  params.set("coarse: params", coarseParams);
+  detail::addHiptmairUserData<Node>(params, S, splitD0<Node>(cntxt, S), label, verbosity);
+
+  Teuchos::RCP<XpetraMatrix> P_x = detail::wrapAsXpetraMatrix<Node>(pmg.P);
+  // The rows detectBoundaryConditionsSM flags without a row-sum tolerance.
+  const Kokkos::View<bool*, device_type> fineRows =
+    MueLu::Utilities<ScalarT, LO, GO, Node>::DetectDirichletRows_kokkos(
+      *detail::wrapAsXpetraMatrix<Node>(S), Teuchos::ScalarTraits<MagT>::eps(), true);
+  Kokkos::View<bool*, device_type> coarseCols("pmg_bc_cols", P_x->getColMap()->getLocalNumElements());
+  Kokkos::View<bool*, device_type> coarseDomain("pmg_bc_domain", P_x->getDomainMap()->getLocalNumElements());
+  MueLu::Utilities<ScalarT, LO, GO, Node>::DetectDirichletColsAndDomains(*P_x, fineRows,
+                                                                       coarseCols, coarseDomain);
+  const typename BlockTypes<Node>::CrsMatrixRCP P0 =
+    Teuchos::rcp(new typename BlockTypes<Node>::CrsMatrix(*pmg.P, Teuchos::Copy));
+  Teuchos::RCP<XpetraMatrix> P0_x = detail::wrapAsXpetraMatrix<Node>(P0);
+  MueLu::Utilities<ScalarT, LO, GO, Node>::ZeroDirichletCols(P0_x, coarseCols);
+
+  // Coarse PEC edges become identity rows, the way PEC rows of S are.
+  Teuchos::RCP<XpetraMatrix> A1 = detail::buildAuxNodalMatrix<Node>(S, P0);
+  Kokkos::View<const bool*, device_type> coarseRows = coarseDomain;
+  MueLu::Utilities<ScalarT, LO, GO, Node>::ApplyOAZToMatrixRows(A1, coarseRows);
+  Teuchos::RCP<XpetraMatrix> M1_coarse = detail::buildAuxNodalMatrix<Node>(cntxt->refMaxwell.M1_matrix, pmg.P);
+
+  Teuchos::ParameterList & coarse = params.sublist("level 1 user data");
+  coarse.set("A", A1);
+  coarse.set("P", P0_x);
+  coarse.set("D0", detail::wrapAsXpetraMatrix<Node>(pmg.D0_coarse));
+  coarse.set("Dk_1", detail::wrapAsXpetraMatrix<Node>(pmg.D0_coarse));
+  coarse.set("Mk_one", M1_coarse);
+  coarse.set("M1_beta", M1_coarse);
+  coarse.set("invMk_1_invBeta", detail::buildRefMaxwellM0inv<Node>(pmg.coarse_nodal_lumped_mass, 1.0));
+  coarse.set("Coordinates", pmg.coarse_nodal_coords);
+  return cntxt->inverseLibrary(verbosity, S->getComm()->getRank()).build(
+    "MueLu", params, label + " p-multigrid", S);
 }
 
 // MueLu parameters for one block-triangular split: its own 'AMG Settings' if it has any,

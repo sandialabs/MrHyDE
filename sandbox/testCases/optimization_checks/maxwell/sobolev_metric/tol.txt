@@ -1,0 +1,6 @@
+# Hardest level of each refinement family, for the RefMaxwell inner-tolerance study.
+# mesh  N_t
+s1  128
+s7  8
+s8  4
+s6  32

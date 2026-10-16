@@ -6,9 +6,9 @@ ANONYMOUS:
     ROL2:
       General:
         Output Level: 2
-        Do magnitude scan: true
+        Do magnitude check: false
         FD Check Random Seed: 42
-        FD Check Random Scale: 0.0
+        FD Check Random Scale: 1.0
         Do grad+hessvec check: false
         Bound Optimization Variables: false
         Secant:
@@ -20,5 +20,5 @@ ANONYMOUS:
         Gradient Tolerance: 1.0e-6
         Constraint Tolerance: 1.0e-08
         Step Tolerance: 1.0e-50
-        Iteration Limit: 0
+        Iteration Limit: 1
 ...

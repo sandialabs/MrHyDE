@@ -56,7 +56,7 @@ void SolverManager<Node>::forwardModel(ScalarT & objective) {
   params->sacadoizeParams(false);
   postproc->resetObjectives();
   postproc->resetSolutions();
-  linalg->resetAllJacobian();
+  linalg->startSweep(is_adjoint);
   
   for (size_t set=0; set<setnames.size(); ++set) {
     if (!scalarDirichletData[set]) {
@@ -113,7 +113,7 @@ void SolverManager<Node>::adjointModel(MrHyDE_OptVector & gradient) {
     is_adjoint = true;
     
     params->sacadoizeParams(false);
-    linalg->resetAllJacobian();
+    linalg->startSweep(is_adjoint);
     
     vector<vector_RCP> phi = setInitial();
     
@@ -172,7 +172,7 @@ void SolverManager<Node>::incrementalForwardModel(MrHyDE_OptVector & v) {
   is_adjoint = false;
   params->sacadoizeParams(false);
   // Without this, a prior adjoint leaves J^T cached and the tangent solve blows up.
-  linalg->resetAllJacobian();
+  linalg->startSweep(is_adjoint);
 
   params->updateParams(v);
 
@@ -232,7 +232,7 @@ void SolverManager<Node>::incrementalAdjointModel(MrHyDE_OptVector & hessvec) {
 
     params->sacadoizeParams(false);
     // Need J^T; do not reuse the tangent-sweep Jacobian.
-    linalg->resetAllJacobian();
+    linalg->startSweep(is_adjoint);
 
     // p = second-order adjoint (zero terminal condition).
     vector<vector_RCP> p = setInitial();

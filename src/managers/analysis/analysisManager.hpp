@@ -105,6 +105,16 @@ public:
   /** @brief Perform a second ROL-based optimization strategy. */
   void ROL2Solve();
 
+  void hessianSolve();
+
+  // 1 for every parameter global id on a control block.
+  std::vector<int> controlDofMask(const string & control_blocks, const size_t nspatial);
+
+  void hessianEigenvalues(Teuchos::ParameterList & hset,
+                          const Teuchos::RCP<Tpetra::Operator<ScalarT,LO,GO,SolverNode> > & Hop,
+                          const string & prefix, const int & neig,
+                          const int & ctrl_dim, const bool & hermitian);
+
   /** @brief Perform stochastic optimization using ROL. */
   void ROLStochSolve();
 

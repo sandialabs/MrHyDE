@@ -147,56 +147,6 @@ namespace ROL {
       params->updateParams(u);
     }
     
-    //print out Hessian (estimated via component-wise FD; to get inverse covariance in linear-Gaussian Bayesian inverse problem)
-    void printHess(const string & filename, const Vector<Real> & xin, const int & commrank){
-      StdVector<Real> x = Teuchos::dyn_cast<StdVector<Real> >(const_cast<Vector<Real> &>(xin));
-      int paramDim = x.getVector()->size();
-      
-      Teuchos::RCP<StdVector<Real> > g = Teuchos::rcp(new StdVector<Real>(Teuchos::rcp(new vector<Real>(paramDim,0.0))));
-      ScalarT gtol = sqrt(ROL_EPSILON<Real>());
-      this->gradient(*g,x,gtol);
-      Teuchos::RCP<StdVector<Real> > gnew = Teuchos::rcp(new StdVector<Real>(Teuchos::rcp(new vector<Real>(paramDim,0.0))));
-      
-      vector<vector<ScalarT> > hessStash(paramDim);
-      
-      //Real h = 1.e-3*x.norm(); //step length
-      Real h = std::max(static_cast<Real>(1.0),
-                        x.norm())*sqrt(ROL_EPSILON<Real>()); ///step length...more like what ROL has...
-      
-      //perturb each component
-      for(int i=0; i<x.dimension(); i++){
-        //compute new step
-        Teuchos::RCP<StdVector<Real> > xnew = Teuchos::rcp(new StdVector<Real>(Teuchos::rcp(new vector<Real>(paramDim,0.0))));
-        xnew->set(x);
-        xnew->axpy(h,*x.basis(i));
-        
-        //gradient at new step
-        gnew->zero();
-        this->gradient(*gnew,*xnew,gtol);
-        
-        //i-th column (or row...) of Hessian
-        gnew->axpy(static_cast<Real>(-1.0),*g);
-        gnew->scale(static_cast<Real>(1.0)/h);
-        Teuchos::RCP<vector<ScalarT> > gnewv = gnew->getVector();
-        
-        vector<ScalarT> row(paramDim);
-        for(int j=0; j<paramDim; j++)
-          row[j] = (*gnewv)[j];
-        hessStash[i] = row;
-      }
-      
-      if(commrank == 0){
-        std::ofstream respOUT(filename);
-        respOUT.precision(16);
-        for(int i=0; i<paramDim; i++){
-          for(int j=0; j<paramDim; j++)
-            respOUT << hessStash[i][j] << " ";
-          respOUT << endl;
-        }
-        respOUT.close();
-      }
-    }
-    
     /*!
      \brief Generate data to plot objective function
      */

@@ -3,7 +3,7 @@
  Everything here is off unless a 'verify' flag or verbosity >= 5 turns
  it on.
 
- Questions? Contact Alexey Voronin (abvoron@sandia.gov)
+ Questions? Contact Alexey Voronin
  ************************************************************************/
 
 #ifndef MRHYDE_BLOCK_PREC_VERIFY_HPP
@@ -404,6 +404,7 @@ void verifyBlockSystem(const BlockSystem<Node> & blocks,
                        const Teuchos::RCP<typename BlockTypes<Node>::MultiVector> & lumpedMass,
                        const ScalarT damping,
                        const bool useLumpedWeightDiagonal,
+                       const bool useAbsoluteWeightDiagonal,
                        const bool schurIsDiag,
                        const bool requested,
                        const int verbosity) {
@@ -486,7 +487,9 @@ void verifyBlockSystem(const BlockSystem<Node> & blocks,
       D0->apply(xd, g);
       M1->apply(g, M1g);
       const auto q = g.dot(M1g);
-      const auto vol = lumpedMass->getVector(0)->norm1();
+      LA_Vector ones(lumpedMass->getMap());
+      ones.putScalar(1.0);
+      const auto vol = ones.dot(*lumpedMass->getVector(0));
       const auto rel = (vol > 0) ? std::abs(q - vol) / vol : std::abs(q - vol);
       if (rank == 0) {
         std::cout << "[BLOCK-VERIFY] D0-scale rel = "
@@ -500,7 +503,7 @@ void verifyBlockSystem(const BlockSystem<Node> & blocks,
     Teuchos::RCP<LA_Vector> dinv =
       detail::buildInverseDiagonal<Node>(
         Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(blocks.blocks[0][0]),
-        useLumpedWeightDiagonal, w);
+        useLumpedWeightDiagonal, w, useAbsoluteWeightDiagonal);
     LA_Vector t(blocks.maps[0]), Sx(blocks.maps[1]), mf(blocks.maps[1]);
     LA_Vector dt(blocks.maps[0]);
     blocks.blocks[0][1]->apply(x1, t);

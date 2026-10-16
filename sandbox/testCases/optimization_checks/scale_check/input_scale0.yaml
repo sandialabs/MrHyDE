@@ -69,7 +69,7 @@ ANONYMOUS:
       "relaxation: backward mode": false
       "relaxation: sweeps": 2
     dump jacobian: false
-  Analysis input file: rol_decks/rol_scan_zero.yaml
+  Analysis input file: rol_decks/rol_check_zero.yaml
   Postprocess:
     write solution: false
     write frequency: 1

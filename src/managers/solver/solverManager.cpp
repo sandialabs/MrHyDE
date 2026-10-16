@@ -7,6 +7,7 @@
 ************************************************************************/
 
 #include "solverManager.hpp"
+#include "paramRieszUtil.hpp"
 
 #include <unordered_map>
 
@@ -15,6 +16,7 @@ using namespace MrHyDE;
 #include "solverManager_construct.hpp"
 #include "solverManager_models.hpp"
 #include "solverManager_setup.hpp"
+#include "solverManager_paramRiesz.hpp"
 #include "solverManager_solvers.hpp"
 #include "solverManager_util.hpp"
 

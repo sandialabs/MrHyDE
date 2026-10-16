@@ -13,7 +13,7 @@ fi
 
 mkdir -p logs
 
-for cfg in "input_base.yaml scan" "input_scale0.yaml scan_scale_0"; do
+for cfg in "input_base.yaml check" "input_scale0.yaml check_scale_0"; do
   set -- $cfg
   input="$1"; tag="$2"
   logfile="logs/${tag}.log"
@@ -22,8 +22,8 @@ for cfg in "input_base.yaml scan" "input_scale0.yaml scan_scale_0"; do
 done
 
 echo ""
-for tag in scan scan_scale_0; do
+for tag in check check_scale_0; do
   echo "--- logs/${tag}.log ---"
-  grep -n -A 20 -F "[MAGNITUDE-SCAN]" "logs/${tag}.log" || echo "NO SCAN OUTPUT FOUND"
+  grep -n -A 20 -F "[MAGNITUDE-CHECK]" "logs/${tag}.log" || echo "NO CHECK OUTPUT FOUND"
   echo ""
 done

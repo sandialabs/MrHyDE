@@ -15,6 +15,11 @@
 #include "MrHyDE_Stochastic_Objective.hpp"
 #include "MrHyDE_OptVector.hpp"
 #include "MrHyDE_Sample_Set_Reader.hpp"
+#include "MrHyDE_HessianOperator.hpp"
+#include "paramRieszUtil.hpp"
+#include "AnasaziBasicEigenproblem.hpp"
+#include "AnasaziBlockKrylovSchurSolMgr.hpp"
+#include "AnasaziTpetraAdapter.hpp"
 #include "ROL_LineSearchStep.hpp"
 #include "ROL_Algorithm.hpp"
 #include "ROL_Bounds.hpp"
@@ -38,5 +43,6 @@ using namespace MrHyDE;
 
 #include "analysisManager_construct.hpp"
 #include "analysisManager_solve.hpp"
+#include "analysisManager_hessian.hpp"
 #include "analysisManager_util.hpp"
 

@@ -8,18 +8,19 @@ before committing to a long optimization.
 | `scale_check/` | Prints each objective and regularization term's magnitude, so you can pick weights. |
 | `maxwell/hess_vec_check_lq/` | Checks gradient and HessVec correctness on an LQ Maxwell control problem. |
 | `maxwell/1d_periodic_exact_vs_fd_hess/` | Times exact HessVec against the FD fallback on the same problem. |
+| `maxwell/sobolev_metric/` | Reproduces the paper's refinement study in-code: a Sobolev H(curl) metric keeps the trust-region CG count flat under z-refinement and well below the Euclidean count under time and transverse refinement. |
 | `thermal/hess_vec_check_lq/` | Same correctness checks on thermal, plus a mesh sweep. |
 | `thermal/hess_vec_check_lq_tracking/` | Same again, with a nonzero tracking target wrapped in `trk_gate`. |
 
 ## Running
 
-Each test has its own driver (`run.sh`, `run_scan.sh`, `run_exact_sweep.sh`),
+Each test has its own driver (`run.sh`, `run_check.sh`, `run_exact_sweep.sh`),
 and each looks for the solver as `./mrhyde` in its own directory:
 
 ```bash
 cd scale_check
-ln -sf <path-to-build>/src/mrhyde mrhyde && ./run_scan.sh
-MRHYDE_BIN=<path-to-build>/src/mrhyde ./run_scan.sh   # or skip the link
+ln -sf <path-to-build>/src/mrhyde mrhyde && ./run_check.sh
+MRHYDE_BIN=<path-to-build>/src/mrhyde ./run_check.sh   # or skip the link
 ```
 
 ## Flags
@@ -27,7 +28,7 @@ MRHYDE_BIN=<path-to-build>/src/mrhyde ./run_scan.sh   # or skip the link
 All live under `Analysis:ROL2:General:`. Turn on only what you need.
 
 ```yaml
-Do magnitude scan: true           # per-term unweighted and weighted values
+Do magnitude check: true          # per-term unweighted and weighted values
 Do grad+hessvec check: true       # ROL gradient and HessVec FD diagnostics
 Do exact hessvec check: true      # HessVec finite difference table
 Do algebraic hessvec check: true  # H*0, bilinearity, Rayleigh

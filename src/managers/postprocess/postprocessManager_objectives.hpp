@@ -128,10 +128,10 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> &current_soln
   
   // Objective function values
   vector<ScalarT> totaldiff(objectives.size(), 0.0);
-  const bool scan = magnitude_scan_active;
+  const bool check = magnitude_check_active;
   vector<ScalarT> unweighted_self;
   vector<vector<ScalarT>> unweighted_regs;
-  if (scan) {
+  if (check) {
     unweighted_self.assign(objectives.size(), 0.0);
     unweighted_regs.resize(objectives.size());
     for (size_t r = 0; r < objectives.size(); ++r) {
@@ -183,7 +183,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> &current_soln
         
         // Update the objective function value
         totaldiff[r] += objectives[r].weight * objsum_host(0);
-        if (scan) {
+        if (check) {
           unweighted_self[r] += objsum_host(0);
         }
       }
@@ -209,7 +209,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> &current_soln
           if (Comm->getRank() == 0)
           {
             totaldiff[r] += objectives[r].weight * obj[0] * obj[0];
-            if (scan) {
+            if (check) {
               unweighted_self[r] += obj[0] * obj[0];
             }
           }
@@ -268,7 +268,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> &current_soln
       }
       
       totaldiff[r] += intresp;
-      if (scan) {
+      if (check) {
         unweighted_self[r] += intresp; // weight applied later in reportObjective
       }
 
@@ -451,7 +451,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> &current_soln
               ScalarT diff = rdata(0, 0) - objectives[r].sensor_data(pt, tindex);
               ScalarT sdiff = objectives[r].weight * diff * diff;
               totaldiff[r] += sdiff;
-              if (scan) {
+              if (check) {
                 unweighted_self[r] += diff * diff;
               }
             }
@@ -511,7 +511,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> &current_soln
               for (size_type pt = 0; pt < regvals_sc_host.extent(1); ++pt)
               {
                 totaldiff[r] += regwt * regvals_sc_host(elem, pt);
-                if (scan) {
+                if (check) {
                   unweighted_regs[r][reg] += regvals_sc_host(elem, pt);
                 }
               }
@@ -556,7 +556,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> &current_soln
                 for (size_type pt = 0; pt < regvals_sc_host.extent(1); ++pt)
                 {
                   totaldiff[r] += regwt * regvals_sc_host(elem, pt);
-                  if (scan) {
+                  if (check) {
                     unweighted_regs[r][reg] += regvals_sc_host(elem, pt);
                   }
                 }
@@ -586,7 +586,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> &current_soln
           for(int k = 0; k < param_dim; k++)
           {
             totaldiff[r] += regwt * param_vec[k] * param_vec[k];
-            if (scan) {
+            if (check) {
               unweighted_regs[r][reg] += param_vec[k] * param_vec[k];
             }
           }
@@ -600,7 +600,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> &current_soln
   {
     objectives[r].objective_values.push_back(totaldiff[r]);
     objectives[r].objective_times.push_back(current_time);
-    if (scan) {
+    if (check) {
       objectives[r].objective_unweighted_self.push_back(unweighted_self[r]);
       if (objectives[r].regularization_unweighted.size() != objectives[r].regularizations.size()) {
         objectives[r].regularization_unweighted.assign(objectives[r].regularizations.size(),
@@ -694,7 +694,7 @@ void PostprocessManager<Node>::reportObjective(ScalarT &objectiveval)
 template <class Node>
 void PostprocessManager<Node>::reportUnweightedMagnitudes()
 {
-  if (!magnitude_scan_active) {
+  if (!magnitude_check_active) {
     return;
   }
 

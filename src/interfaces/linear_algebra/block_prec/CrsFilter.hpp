@@ -2,7 +2,7 @@
  MrHyDE - One filtered-copy kernel for the row and entry filters the block
  preconditioners need.
 
- Questions? Contact Alexey Voronin (abvoron@sandia.gov)
+ Questions? Contact Alexey Voronin
  ************************************************************************/
 
 #ifndef MRHYDE_BLOCK_PREC_CRS_FILTER_HPP
@@ -103,6 +103,12 @@ struct KeepAllEntries {
   KOKKOS_INLINE_FUNCTION LO operator()(const LO, const LO col, ScalarT &) const { return col; }
 };
 
+struct DropExactZeros {
+  KOKKOS_INLINE_FUNCTION LO operator()(const LO, const LO col, ScalarT & value) const {
+    return value == ScalarT(0) ? LO(-1) : col;
+  }
+};
+
 template<class Node>
 struct KeepUnflaggedRows {
   Kokkos::View<const bool*, typename Node::device_type::memory_space> flagged;
@@ -122,6 +128,13 @@ struct ColumnsFromTable {
   Kokkos::View<const LO*, typename Node::device_type> outCol;
   KOKKOS_INLINE_FUNCTION LO operator()(const LO, const LO col, ScalarT &) const {
     return outCol(col);
+  }
+};
+
+// Drops stored zeros, such as the element columns Panzer's interpolations leave in their graph.
+struct DropZeroEntries {
+  KOKKOS_INLINE_FUNCTION LO operator()(const LO, const LO col, ScalarT & value) const {
+    return (value == ScalarT(0)) ? LO(-1) : col;
   }
 };
 

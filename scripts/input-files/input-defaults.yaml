@@ -164,8 +164,6 @@ ANONYMOUS: # Comments
     output file: output # .exo gets added automatically
     plot solution at nodes: false # useful for certain basis types
     write Dakota output: false
-    write Hessian: false # may be used in optimization
-    Hessian output file: hess.dat
     compute response forward gradient: false # used in UQ studies
     extra cell field reduction: mean # or max, min
 ...
