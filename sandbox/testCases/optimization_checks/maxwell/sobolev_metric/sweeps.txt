@@ -1,0 +1,22 @@
+# Refinement families, one run per line, each (mesh, N_t) pair run once per metric.
+#   dt: refine time on s1 ; z: refine z at N_t=8 ; tx: refine transverse at N_t=4
+#   dtz: refine time on the z-refined mesh s6 (NZ=12), to combine with dt
+# family  mesh  N_t
+dt  s1  4
+dt  s1  8
+dt  s1  16
+dt  s1  32
+dt  s1  64
+dt  s1  128
+z   s1  8
+z   s2  8
+z   s6  8
+z   s7  8
+tx  s1  4
+tx  s3  4
+tx  s5  4
+tx  s8  4
+dtz s6 4
+dtz s6 8
+dtz s6 16
+dtz s6 32

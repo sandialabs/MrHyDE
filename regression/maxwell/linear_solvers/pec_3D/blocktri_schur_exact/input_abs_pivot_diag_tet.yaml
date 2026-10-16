@@ -1,0 +1,47 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  debug level: 0
+  verbosity: 10
+  disable timers: true
+
+  Mesh:
+    dimension: 3
+    shape: tet
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    zmin: 0.0
+    zmax: 0.5
+    NX: 8
+    NY: 8
+    NZ: 4
+    blocknames: eblock-0_0_0
+  Physics input file: ../input_common_maxwell_hex3d.yaml
+  Discretization input file: ../input_common_maxwell_hex3d.yaml
+  Functions input file: ../input_common_maxwell_hex3d.yaml
+  Solver input file: ../input_solver_common.yaml
+  Analysis input file: ../input_common_maxwell_hex3d.yaml
+  Postprocess input file: ../input_common_maxwell_hex3d.yaml
+
+  Solver:
+    preconditioner type: block triangular
+    Block Triangular Settings:
+      variable groups:
+        B: 'B'
+        E: 'E'
+      schur target: E
+      approximation type: diag
+      diag use absolute pivot diagonal: true
+      B:
+        preconditioner: AMG
+        AMG Settings:
+          xml param file: ../xml/amg_pivot.xml
+      E:
+        preconditioner: RefMaxwell
+        hgrad basis name: phi_aux
+        hcurl basis name: E
+        RefMaxwell Settings:
+          xml param file: ../xml/refmaxwell_dl015.xml
+...

@@ -3,7 +3,7 @@ MrHyDE - Parameter canonicalization, validation, and filtering for the block
 preconditioners. Normalizes keys and strips MrHyDE-owned ones before a list is
 handed to MueLu or Ifpack2. No matrices are modified here.
 
- Questions? Contact Alexey Voronin (abvoron@sandia.gov)
+ Questions? Contact Alexey Voronin
  ************************************************************************/
 
 #ifndef MRHYDE_BLOCK_PREC_PARAM_UTILS_HPP
@@ -49,6 +49,14 @@ inline void loadXmlBroadcast(const std::string & file,
   text.resize(len);
   if (len > 0) Teuchos::broadcast<int,char>(comm, 0, len, &text[0]);
   Teuchos::updateParametersFromXmlString(text, Teuchos::ptr(&out));
+}
+
+// A deck may write 'damping: 2' rather than '2.0', and Teuchos stores that as an int.
+inline ScalarT scalarParam(const Teuchos::ParameterList & pl, const char * key,
+                           const ScalarT fallback) {
+  if (!pl.isParameter(key)) return fallback;
+  if (pl.getEntry(key).isType<int>()) return static_cast<ScalarT>(pl.get<int>(key));
+  return pl.get<ScalarT>(key);
 }
 
 inline std::string canonicalPreconditionerType(const std::string & raw) {
@@ -163,6 +171,12 @@ inline Teuchos::ParameterList validMaxwell1Params() {
   return v;
 }
 
+inline Teuchos::ParameterList validPMultigridParams() {
+  Teuchos::ParameterList v("p-Multigrid Settings");
+  v.set("xml param file", "");
+  return v;
+}
+
 inline void validateRefMaxwellSettingsSection(const Teuchos::ParameterList & list, const std::string &) {
   list.validateParameters(validRefMaxwellParams());
 }
@@ -177,6 +191,9 @@ inline void validateNestedBlockSublists(const Teuchos::ParameterList & list, con
   }
   if (list.isSublist("Maxwell1 Settings")) {
     validateMaxwell1SettingsSection(list.sublist("Maxwell1 Settings"), sectionName + ".Maxwell1 Settings");
+  }
+  if (list.isSublist("p-Multigrid Settings")) {
+    list.sublist("p-Multigrid Settings").validateParameters(validPMultigridParams());
   }
 }
 
@@ -197,7 +214,7 @@ inline const std::vector<std::string> & mrhydeOwnedKeys() {
     "inner krylov solver", "inner krylov max iters", "inner krylov tol",
     "approximation type", "mass scale",
     "triangle", "damping",
-    "diag use lumped diagonal", "diag use lumped pivot diagonal",
+    "diag use lumped diagonal", "diag use lumped pivot diagonal", "diag use absolute pivot diagonal",
     "filter SM", "filter threshold", "verify complex", "verify Kn consistency",
     "use Kn from M1"
   };
@@ -206,7 +223,7 @@ inline const std::vector<std::string> & mrhydeOwnedKeys() {
 
 inline const std::vector<std::string> & mrhydeOwnedSublists() {
   static const std::vector<std::string> keys = {
-    "AMG Settings", "RefMaxwell Settings", "Maxwell1 Settings"
+    "AMG Settings", "RefMaxwell Settings", "Maxwell1 Settings", "p-Multigrid Settings"
   };
   return keys;
 }

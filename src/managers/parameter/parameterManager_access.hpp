@@ -166,7 +166,7 @@ MrHyDE_OptVector ParameterManager<Node>::getCurrentVector() {
     //}
   }
     
-  MrHyDE_OptVector newvec(new_disc_params, new_active_params, 1.0, diagParamMass, paramMass, Comm->getRank());
+  MrHyDE_OptVector newvec(new_disc_params, new_active_params, 1.0, diagParamMass, paramRiesz, Comm->getRank());
   return newvec;
 }
 

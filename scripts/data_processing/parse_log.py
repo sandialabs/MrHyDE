@@ -115,6 +115,8 @@ def check(solves, mean, imax, log="mrhyde.log", iter_tol=None, res=None,
     s = stats(log)
     if s is None:
         print("Failure: %s has no Belos solves. Is verbosity 10 set?" % log)
+        if res is not None:
+            res.add(False, label, "no Belos solves in %s" % log)
         return 1
 
     # Exact, not a band: a short count means the time loop died early.

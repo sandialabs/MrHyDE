@@ -181,7 +181,7 @@ namespace MrHyDE {
 
     /** @brief Constructs parameter mass matrix and diagonal scaling. */
     void setParamMass(Teuchos::RCP<LA_MultiVector> diag,
-                      matrix_RCP mass);
+                      Teuchos::RCP<MrHyDE_ParamRiesz> riesz);
 
     /** @brief Releases stored memory and cleans up data structures. */
     void purgeMemory();
@@ -324,7 +324,7 @@ namespace MrHyDE {
     Teuchos::RCP<MrHyDE_Debugger> debugger;                    // Debugging utility
 
     Teuchos::RCP<LA_MultiVector> diagParamMass;                // Diagonal mass matrix entries
-    matrix_RCP paramMass;                                      // Full mass matrix for parameter DOFs
+    Teuchos::RCP<MrHyDE_ParamRiesz> paramRiesz;                // Riesz map carried by the ROL control vector
 
     Teuchos::RCP<Teuchos::Time> constructortimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::ParameterManager::constructor()");
     Teuchos::RCP<Teuchos::Time> updatetimer      = Teuchos::TimeMonitor::getNewCounter("MrHyDE::ParameterManager::updateParams()");

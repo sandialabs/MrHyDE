@@ -1,6 +1,6 @@
 %YAML 1.1
 ---
-# Magnitude-scan probe on a Maxwell E-B control problem: reports each objective
+# Magnitude-check probe on a Maxwell E-B control problem: reports each objective
 # and regularization term in unweighted and weighted forms so YAML weights can
 # be sanity-checked before a long ROL run.
 ANONYMOUS:
@@ -194,7 +194,7 @@ ANONYMOUS:
     ROL2:
       General:
         Output Level: 2
-        Do magnitude scan: true
+        Do magnitude check: true
         FD Check Random Seed: 42
         FD Check Random Scale: 1.0e-8
         Do grad+hessvec check: false

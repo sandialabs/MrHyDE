@@ -38,9 +38,10 @@ namespace MrHyDE {
 // Schur and block-triangular options.
 // Overview at the top of linearAlgebraInterface_blockprec.hpp.
 struct SchurConfig {
-  std::string approximation_type;   // base, diag or mass
+  std::string approximation_type;   // base, diag, mass or exact-curl
   ScalarT damping;                  // scales the diag Schur correction
   bool correction_use_lumped_weight;   // 'diag use lumped pivot diagonal'
+  bool correction_use_absolute_weight; // 'diag use absolute pivot diagonal'; overrides the lumped choice
   std::string triangle;             // auto, upper, lower
   bool diagonal_prec_use_lumped;    // 'diag use lumped diagonal', the Diagonal split inverse
   ScalarT mass_scale;               // multiplies M_p in the 'mass' Schur variant
@@ -74,6 +75,7 @@ struct BlockData {
   typedef Tpetra::MultiVector<CoordScalar,LO,GO,Node> LA_CoordMultiVector;
   std::vector<Teuchos::RCP<LA_CrsMatrix> > mass_matrices;
   std::vector<Teuchos::RCP<LA_CoordMultiVector> > dof_coords;   // per-DOF, for MueLu
+  Teuchos::RCP<LA_CrsMatrix> curl;   // H(curl) target to H(div) pivot, for 'exact-curl'
 };
 
 // Maxwell1 (Reitzinger-Schoberl) reuses D0, M1 and the coords from RefMaxwellData.
@@ -83,6 +85,19 @@ struct Maxwell1Data {
   Teuchos::RCP<LA_CrsMatrix> D0_normalized;
 };
 
+// Order-1 operators for the p-multigrid split, built once per set by SolverManager::buildPMultigridCoarseData.
+template<class Node>
+struct PMultigridData {
+  typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node>   LA_CrsMatrix;
+  typedef Tpetra::MultiVector<ScalarT,LO,GO,Node> LA_MultiVector;
+  typedef typename Teuchos::ScalarTraits<ScalarT>::coordinateType CoordScalar;
+  typedef Tpetra::MultiVector<CoordScalar,LO,GO,Node> LA_CoordMultiVector;
+  Teuchos::RCP<LA_CrsMatrix> P;
+  Teuchos::RCP<const LA_CrsMatrix> D0_coarse;
+  Teuchos::RCP<LA_CoordMultiVector> coarse_nodal_coords;
+  Teuchos::RCP<LA_MultiVector> coarse_nodal_lumped_mass;
+};
+
 // One named group of variables receiving a single approximate inverse, PETSc's PCFIELDSPLIT
 // idea. Each split keeps its own preconditioner hierarchy so reuse never crosses splits.
 template<class Node>
@@ -90,10 +105,10 @@ struct FieldSplit {
   std::string name;                   // key from 'variable groups'
   std::string variables;              // that key's comma-separated variable list
   Teuchos::ParameterList settings;    // the split sublist
-  // AMG, RefMaxwell, Maxwell1, Direct or Diagonal; the block-diagonal path also accepts
-  // an Ifpack2 smoother name here.
+  // AMG, RefMaxwell, Maxwell1, p-multigrid, Direct or Diagonal; the block-diagonal path
+  // also accepts an Ifpack2 smoother name here.
   std::string prec_type;
-  Teuchos::RCP<Teuchos::ParameterList> refmaxwell_xml, maxwell1_xml;
+  Teuchos::RCP<Teuchos::ParameterList> refmaxwell_xml, maxwell1_xml, pmultigrid_xml;
   Teuchos::RCP<MueLu::RefMaxwell<ScalarT,LO,GO,Node> > refmaxwell_prec;
   Teuchos::RCP<MueLu::Maxwell1<ScalarT,LO,GO,Node> > maxwell1_prec;
   ScalarT addon_beta_built = 0.0;     // beta baked into refmaxwell_prec
@@ -178,6 +193,15 @@ public:
     jacobian_rebuilt_this_step = true;
   }
   
+  // With 'reuse Jacobian across sweeps', restore the Jacobian kept for this sweep's kind.
+  void setSweepKind(const bool adjoint) {
+    sweep_kind = adjoint ? 1 : 0;
+    if (reuse_across_sweeps && use_direct && !kept_matrix[sweep_kind].is_null()) {
+      matrix = kept_matrix[sweep_kind];
+      have_matrix = true;
+    }
+  }
+
   // Parsed deck
   string amesos_type;                 // KLU2, SuperLU, ...
   string belos_type;                  // Block GMRES, BiCGStab, GCRODR, ...
@@ -188,7 +212,9 @@ public:
   bool right_preconditioner;
   string preconditioner_reuse_type;   // none, update, full
   bool reuse_matrix;
+  bool reuse_across_sweeps = false;   // freeze fwd/adjoint factorizations; needs 'reuse Jacobian', constant operator
   ScalarT stage_alpha_u = 1.0;        // DIRK spatial-term scaling a_ss/b_s
+  ScalarT operator_dt = 0.0;          // dt divided by the leading BDF weight, for the reuse-across-sweeps scale check
 
   // Runtime state
   bool jacobian_rebuilt_this_step;
@@ -201,6 +227,7 @@ public:
   RefMaxwellData<Node> refMaxwell;
   BlockData<Node> block;
   Maxwell1Data<Node> maxwell1;
+  PMultigridData<Node> pMultigrid;
 
   Teuchos::ParameterList prec_sublist, belos_sublist;
   // One container per scheme, one sublist per split, Schur target last.
@@ -231,6 +258,14 @@ public:
   bool reuse_belos_solver_mgr;
 
   Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > amesos_solver;
+
+  // Index 0 forward, 1 adjoint; filled only with 'reuse Jacobian across sweeps'.
+  int sweep_kind = 0;
+  matrix_RCP kept_matrix[2];
+  Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > kept_amesos[2];
+  // Operator scale (stage_alpha_u*operator_dt) each kept slot was factored at; a change means the
+  // frozen factorization is stale (variable dt, a multi-stage method or a BDF order switch).
+  ScalarT kept_scale[2] = {0.0, 0.0};
   Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > prec;      // monolithic AMG
   Teuchos::RCP<Ifpack2::Preconditioner<ScalarT, LO, GO, Node> > prec_dd; // domain decomposition
   Teuchos::RCP<Tpetra::Operator<ScalarT,LO,GO,Node> > prec_block;        // block diagonal/triangular
@@ -248,6 +283,11 @@ public:
   const Teuchos::ParameterList & maxwell1Params(const size_t r,
                                                 const Teuchos::Comm<int> & comm) {
     return splitXml(splits[r].maxwell1_xml, splits[r].settings, "Maxwell1 Settings", comm);
+  }
+
+  const Teuchos::ParameterList & pMultigridParams(const size_t r,
+                                                  const Teuchos::Comm<int> & comm) {
+    return splitXml(splits[r].pmultigrid_xml, splits[r].settings, "p-Multigrid Settings", comm);
   }
 
   bool schurAddonWanted(const Teuchos::Comm<int> & comm) {
@@ -442,14 +482,6 @@ private:
     }
   }
 
-  // A deck may write 'damping: 2' rather than '2.0', and Teuchos stores that as an int.
-  static ScalarT scalarParam(const Teuchos::ParameterList & pl, const char * key,
-                             const ScalarT fallback) {
-    if (!pl.isParameter(key)) return fallback;
-    if (pl.getEntry(key).isType<int>()) return static_cast<ScalarT>(pl.get<int>(key));
-    return pl.get<ScalarT>(key);
-  }
-
   size_t splitIndexByName(const std::string & name) const {
     for (size_t r = 0; r < splits.size(); ++r) {
       if (splits[r].name == name) return r;
@@ -537,10 +569,13 @@ private:
     }
     right_preconditioner = settings.get<bool>("right preconditioner",false);
     reuse_matrix = settings.get<bool>("reuse Jacobian",false);
+    // Asserts the operator depends on neither the control nor the state; leave it off otherwise.
+    reuse_across_sweeps = settings.get<bool>("reuse Jacobian across sweeps",false);
     schur.approximation_type = "base";
     schur.mass_scale = 1.0;
     schur.damping = Teuchos::ScalarTraits<ScalarT>::one();
     schur.correction_use_lumped_weight = false;
+    schur.correction_use_absolute_weight = false;
     schur.triangle = "auto";
     schur.diagonal_prec_use_lumped = false;
   }
@@ -571,15 +606,28 @@ private:
       schur.approximation_type =
         block_prec::canonicalSchurApproximationType(scheme_sublist.get<string>("approximation type"));
     }
-    schur.mass_scale = scalarParam(scheme_sublist, "mass scale", schur.mass_scale);
+    schur.mass_scale = block_prec::scalarParam(scheme_sublist, "mass scale", schur.mass_scale);
     if (scheme_sublist.isParameter("diag use lumped pivot diagonal")) {
       schur.correction_use_lumped_weight =
         scheme_sublist.get<bool>("diag use lumped pivot diagonal");
     }
+    if (scheme_sublist.isParameter("diag use absolute pivot diagonal")) {
+      schur.correction_use_absolute_weight =
+        scheme_sublist.get<bool>("diag use absolute pivot diagonal");
+    }
     if (scheme_sublist.isParameter("triangle")) {
       schur.triangle = block_prec::canonicalSchurTriangle(scheme_sublist.get<string>("triangle"));
     }
-    schur.damping = scalarParam(scheme_sublist, "damping", schur.damping);
+    schur.damping = block_prec::scalarParam(scheme_sublist, "damping", schur.damping);
+    if (block_prec::parseSchurVariant(schur.approximation_type) ==
+        block_prec::SchurVariant::ExactCurl) {
+      TEUCHOS_TEST_FOR_EXCEPTION(splits.size() != 2 || !split_groups.empty(), std::runtime_error,
+        "'exact-curl' needs two splits: an H(div) pivot and an H(curl) Schur target.");
+      TEUCHOS_TEST_FOR_EXCEPTION(
+        !block_prec::resolveUpperTriangle(schur.triangle, right_preconditioner) ||
+        schur.damping != Teuchos::ScalarTraits<ScalarT>::one(), std::runtime_error,
+        "'exact-curl' needs the upper triangle (right preconditioning) and damping 1.");
+    }
   }
 
   void initializeRuntimeState() {

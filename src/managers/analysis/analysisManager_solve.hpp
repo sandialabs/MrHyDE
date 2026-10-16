@@ -173,8 +173,8 @@ static void runAlgebraicHvChecks(Teuchos::ParameterList & ROLsettings,
 
   // [HV-RAYLEIGH] <v_i, H v_i> must be nonneg on convex LQ.
   // Check for accidental sign flip in the second-order adjoint RHS.
-  ScalarT ray1 = v1->dot(*Hv1);
-  ScalarT ray2 = v2->dot(*Hv2);
+  ScalarT ray1 = v1->apply(*Hv1);
+  ScalarT ray2 = v2->apply(*Hv2);
 
   if (rank == 0) {
     std::cout << "[HV-ZERO] || H*0 || = " << hv0 << std::endl;
@@ -202,6 +202,25 @@ static void runOptCheckBlock(Teuchos::ParameterList & ROLsettings,
   });
 
   auto & general = ROLsettings.sublist("General");
+
+  // ROL's "apply and dual" line catches a metric that reaches dot() but not dual().
+  if (general.get("Do vector check", false)) {
+    printSectionBanner(rank, "Vector space check");
+    // checkVector works from the vector it is called on, so a deck whose initial
+    // iterate is zero makes every line of it vacuously zero. Seed all three.
+    Teuchos::RCP<ROL::Vector<ScalarT>> vx = x->clone(), vy = x->clone(), vz = x->clone();
+    seedDirection(ROLsettings, vx, 1);
+    seedDirection(ROLsettings, vy, 2);
+    seedDirection(ROLsettings, vz, 3);
+    std::vector<ScalarT> vcheck = vx->checkVector(*vy, *vz, (rank == 0), std::cout);
+    ScalarT worst = 0.0;
+    for (size_t i=0; i<vcheck.size(); ++i) { worst = std::max(worst, std::abs(vcheck[i])); }
+    const ScalarT scale = std::max(vx->norm(), std::max(vy->norm(), vz->norm()));
+    if (rank == 0) {
+      std::cout << "[VECTOR-CHECK] worst consistency error = " << worst
+                << "   relative to max ||x|| = " << (scale > 0.0 ? worst/scale : worst) << std::endl;
+    }
+  }
 
   if (general.get("Do exact hessvec check", false)) {
     printSectionBanner(rank, "Hessian-vector check");
@@ -326,6 +345,9 @@ void AnalysisManager::run(std::string &analysis_type) {
   else if (analysis_type == "ROL2") {
     this->ROL2Solve();
   }
+  else if (analysis_type == "hessian") {
+    this->hessianSolve();
+  }
   else if (analysis_type == "ROLStoch") {
     this->ROLStochSolve();
   }
@@ -351,7 +373,7 @@ void AnalysisManager::run(std::string &analysis_type) {
   }
   else {
     std::cout << "Unknown analysis option: " << analysis_type << std::endl;
-    std::cout << "Valid and tested options: dry run, forward, adjoint, forward+adjoint, UQ, ROL, ROL2, DCI" << std::endl;
+    std::cout << "Valid and tested options: dry run, forward, adjoint, forward+adjoint, UQ, ROL, ROL2, hessian, DCI" << std::endl;
   }
   
   // There are several cases where one may want to write the parameters to file
@@ -756,17 +778,6 @@ void AnalysisManager::ROLSolve()
     respOUT2.close();
   }
 
-  /*
-   if (settings_->sublist("postproc_ess").get("write Hessian",false)){
-   obj->printHess(settings_->sublist("postproc_ess").get("Hessian output file","hess.dat"),x,comm_->getRank());
-   }
-   if (settings_->sublist("Analysis").get("write output",false)) {
-   ScalarT val = 0.0;
-   solver_->forwardModel(val);
-   //postproc_->writeSolution(settings_->sublist("postproc_ess").get<string>("Output File","output"));
-   }
-   */
-
   if (postproc_plot)
   {
     postproc_->write_solution = true;
@@ -894,11 +905,11 @@ void AnalysisManager::ROL2Solve()
   }
 
   // diagnostic flags
-  const bool do_scan = ROLsettings.sublist("General").get<bool>("Do magnitude scan", false);
+  const bool do_mag_check = ROLsettings.sublist("General").get<bool>("Do magnitude check", false);
   const bool do_gh_check = ROLsettings.sublist("General").get("Do grad+hessvec check", true);
 
-  // Magnitude scan: one forward solve, then restore x if we redirected the probe.
-  if (do_scan)
+  // Magnitude check: one forward solve, then restore x if we redirected the probe.
+  if (do_mag_check)
   {
     Teuchos::RCP<ROL::Vector<ScalarT>> x_save = Teuchos::null;
     if (ROLsettings.sublist("General").isParameter("FD Check Random Seed")) {
@@ -909,12 +920,12 @@ void AnalysisManager::ROL2Solve()
       srand(seed);
       x->randomize(-scale, scale);
       if (comm_->getRank() == 0) {
-        cout << "\n[MAGNITUDE-SCAN] probe at seeded random ctrl (seed=" << seed
+        cout << "\n[MAGNITUDE-CHECK] probe at seeded random ctrl (seed=" << seed
              << ", scale=" << scale << ").\n";
       }
     }
     else if (comm_->getRank() == 0) {
-      cout << "\n[MAGNITUDE-SCAN] probe at the deck's initial iterate.\n";
+      cout << "\n[MAGNITUDE-CHECK] probe at the deck's initial iterate.\n";
     }
     RealT tol = 1.0e-14;
     obj->value(*x, tol);
@@ -947,17 +958,6 @@ void AnalysisManager::ROL2Solve()
   rolSolver.solve(*outStream);
 
   // ScalarT optTime = timer.stop();
-
-  /*
-   if (settings_->sublist("postproc_ess").get("write Hessian",false)){
-   obj->printHess(settings_->sublist("postproc_ess").get("Hessian output file","hess.dat"),x,comm_->getRank());
-   }
-   if (settings_->sublist("Analysis").get("write output",false)) {
-   ScalarT val = 0.0;
-   solver_->forwardModel(val);
-   //postproc_->writeSolution(settings_->sublist("postproc_ess").get<string>("Output File","output"));
-   }
-   */
 
   bool want_report = postproc_plot
                      || postproc_->compute_error
@@ -1621,7 +1621,7 @@ MrHyDE_OptVector AnalysisManager::recoverParametersFromFile() {
     }
   }
   
-  MrHyDE_OptVector newparams(field_params, scalar_params, 1.0, params_->diagParamMass, params_->paramMass, comm_->getRank());
+  MrHyDE_OptVector newparams(field_params, scalar_params, 1.0, params_->diagParamMass, params_->paramRiesz, comm_->getRank());
   return newparams;
   
 }

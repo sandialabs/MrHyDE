@@ -19,7 +19,34 @@ void LinearAlgebraInterface<Node>::linearSolver(Teuchos::RCP<LinearSolverContext
 
   Teuchos::TimeMonitor localtimer(*linearsolvertimer);
   
-  if (cntxt->use_direct) {
+  if (cntxt->use_direct && cntxt->reuse_across_sweeps) {
+    // A kept Jacobian is factored when it is assembled; every other solve only back-solves.
+    const int slot = cntxt->sweep_kind;
+    Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > & kept = cntxt->kept_amesos[slot];
+    const ScalarT scale = cntxt->stage_alpha_u * cntxt->operator_dt;
+    const bool refactor = kept.is_null() || cntxt->jacobian_rebuilt_this_step;
+    if (kept.is_null()) {
+      kept = Amesos2::create<LA_CrsMatrix,LA_MultiVector>(cntxt->amesos_type, J, r, soln);
+      kept->symbolicFactorization();
+      kept->numericFactorization();
+    }
+    else if (cntxt->jacobian_rebuilt_this_step) {
+      kept->setA(J, Amesos2::SYMBFACT);
+      kept->numericFactorization();
+    }
+    else {
+      TEUCHOS_TEST_FOR_EXCEPTION(scale != cntxt->kept_scale[slot], std::runtime_error,
+        "reuse Jacobian across sweeps: the kept factorization was built at (stage weight * dt"
+        " / leading BDF weight) = " << cntxt->kept_scale[slot] << " but this solve needs " << scale
+        << "; it is valid only for a constant operator (linear, single-stage, fixed dt, one BDF"
+        " order throughout).");
+    }
+    if (refactor) { cntxt->kept_scale[slot] = scale; }
+    kept->setX(soln);
+    kept->setB(r);
+    kept->solve();
+  }
+  else if (cntxt->use_direct) {
     if (!cntxt->have_symb_factor) {
       cntxt->amesos_solver = Amesos2::create<LA_CrsMatrix,LA_MultiVector>(cntxt->amesos_type, J, r, soln);
       cntxt->amesos_solver->symbolicFactorization();
@@ -217,6 +244,10 @@ void LinearAlgebraInterface<Node>::maybeReportConditionEstimate(
 template<class Node>
 void LinearAlgebraInterface<Node>::linearSolver(const size_t & set, matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
   context[set]->equation_set_index = set;
+  // Kept here, not at sweep start: setup can leave a mass matrix in the context.
+  if (context[set]->reuse_across_sweeps) {
+    context[set]->kept_matrix[context[set]->sweep_kind] = J;
+  }
   this->linearSolver(context[set],J,r,soln);
 }
 

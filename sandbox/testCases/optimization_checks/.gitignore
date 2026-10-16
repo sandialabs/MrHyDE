@@ -1,7 +1,7 @@
 logs*/
 runs/
 old/
-input_scan.yaml
+input_check.yaml
 input_r[0-9]_*.yaml
 input_ex_*.yaml
 input_fd_*.yaml

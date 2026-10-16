@@ -214,6 +214,8 @@ public:
    */
   void resetJacobian();
   
+  void startSweep(const bool adjoint);
+  
   /**
    * @brief Reset Jacobian-related data for all physics sets.
    */
