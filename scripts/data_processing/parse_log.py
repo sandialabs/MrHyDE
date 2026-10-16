@@ -17,6 +17,7 @@ ITER = re.compile(r"^Iter\s+(\d+),")
 VALUE = re.compile(r"([0-9.eE+-]+) \(")
 UNCONVERGED = "WARNING: Belos linear solve did not converge"
 TIME_STEP = "Beginning Time Step"
+ERROR_NORM = re.compile(r"L2 norm of the error for (\S+) = (\S+)\s+\(time = (\S+)\)")
 
 ITER_TOL_FLOOR = 2
 ITER_TOL_FRAC = 0.15
@@ -74,6 +75,16 @@ def timings(lines):
         if v:
             key = next(k for k, label in TIMERS.items() if label == parts[0])
             out[key] = float(v[2] if len(v) >= 3 else v[0])
+    return out
+
+
+def error_norms(lines):
+    """{var: [(time, L2 error), ...]} from the 'compute errors' block."""
+    out = {}
+    for line in lines:
+        m = ERROR_NORM.search(line)
+        if m:
+            out.setdefault(m.group(1), []).append((float(m.group(3)), float(m.group(2))))
     return out
 
 

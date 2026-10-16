@@ -368,13 +368,13 @@ void maxwell<EvalT>::boundaryResidual() {
                    MRHYDE_LAMBDA (const int elem ) {
     
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          EvalT lightspeed = 1.0/rindex(elem,pt)/std::sqrt(epsilon(elem,pt)*mu(elem,pt));
+          EvalT kappa = rindex(elem,pt)/std::sqrt(epsilon(elem,pt)*mu(elem,pt));
           EvalT nce_x = ny(elem,pt)*Ez(elem,pt) - nz(elem,pt)*Ey(elem,pt);
           EvalT nce_y = nz(elem,pt)*Ex(elem,pt) - nx(elem,pt)*Ez(elem,pt);
           EvalT nce_z = nx(elem,pt)*Ey(elem,pt) - ny(elem,pt)*Ex(elem,pt);
-          EvalT c0 = -lightspeed*(ny(elem,pt)*nce_z - nz(elem,pt)*nce_y)*wts(elem,pt);
-          EvalT c1 = -lightspeed*(nz(elem,pt)*nce_x - nx(elem,pt)*nce_z)*wts(elem,pt);
-          EvalT c2 = -lightspeed*(nx(elem,pt)*nce_y - ny(elem,pt)*nce_x)*wts(elem,pt);
+          EvalT c0 = -kappa*(ny(elem,pt)*nce_z - nz(elem,pt)*nce_y)*wts(elem,pt);
+          EvalT c1 = -kappa*(nz(elem,pt)*nce_x - nx(elem,pt)*nce_z)*wts(elem,pt);
+          EvalT c2 = -kappa*(nx(elem,pt)*nce_y - ny(elem,pt)*nce_x)*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += c0*basis(elem,dof,pt,0) + c1*basis(elem,dof,pt,1) + c2*basis(elem,dof,pt,2);
           }
