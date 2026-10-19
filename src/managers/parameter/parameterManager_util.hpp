@@ -168,10 +168,10 @@ void ParameterManager<Node>::stashParams(){
 
 template<class Node>
 void ParameterManager<Node>::setParamMass(Teuchos::RCP<LA_MultiVector> diag,
-                                          matrix_RCP mass) {
+                                          Teuchos::RCP<MrHyDE_ParamRiesz> riesz) {
   
-  paramMass = mass;
   diagParamMass = diag;
+  paramRiesz = riesz;
   
 }
 /////////////////////////////////////////////////////////////////////////////////////////////

@@ -1,7 +1,7 @@
 /***********************************************************************
  MrHyDE - The two block preconditioners, assembled from block_prec/.
 
- Questions? Contact Alexey Voronin (abvoron@sandia.gov)
+ Questions? Contact Alexey Voronin
  ************************************************************************/
 
 #ifndef MRHYDE_LINEAR_ALGEBRA_BLOCK_PREC_H
@@ -49,6 +49,8 @@ namespace MrHyDE {
 //   base:  S = J11
 //   diag:  S = J11 - damping * J10 * diag(J00)^{-1} * J01
 //   mass:  S = J11 + mass scale * M11, on the Schur target only
+//   exact-curl: S = J11 - s * J10 * C, exact when J01 = s * J00 * C
+//               for the discrete curl C; back-substitutes with -s * C
 //
 // RefMaxwell addon (off by default, MueLu's default too):
 //   addon11 = M1 * D0 * (beta * M0^-1) * D0^T * M1, a Hodge-Laplacian term.
@@ -157,11 +159,6 @@ LinearAlgebraInterface<Node>::buildBlockDiagonalPreconditioner(const matrix_RCP 
   using Types = LATypes<Node>;
   using LA_Map = typename Types::Map;
 
-  // Splits may name an Ifpack2 smoother such as RELAXATION, which is not a block
-  // preconditioner type, so this is a plain name test rather than parseBlockPrecType.
-  const bool useRefMaxwellOnBlock0 = (cntxt != Teuchos::null) &&
-    block_prec::toUpperAsciiCopy(cntxt->splitPrecType(0)) == "REFMAXWELL";
-
   // One map per named split.
   const std::vector<std::string> varNames = variableNamesForSet<Node>(*this, set);
   vector<Teuchos::RCP<const LA_Map> > blockMaps = block_prec::fuseSplitMaps<Node>(
@@ -182,7 +179,7 @@ LinearAlgebraInterface<Node>::buildBlockDiagonalPreconditioner(const matrix_RCP 
   for (size_t b = 0; b < blockMaps.size(); ++b) {
     diagBlocks[b] = remappedBlocks[b][b];
     blockPrecs[b] = block_prec::detail::buildSingleBlockPreconditioner<Node>(
-      diagBlocks[b], cntxt, b, useRefMaxwellOnBlock0, this->verbosity);
+      diagBlocks[b], cntxt, b, this->verbosity);
   }
 
   Teuchos::RCP<const LA_Map> fullMap = J->getRowMap();

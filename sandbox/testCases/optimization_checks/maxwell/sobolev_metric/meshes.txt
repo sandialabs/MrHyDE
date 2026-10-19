@@ -1,0 +1,11 @@
+# Zblocks=9: source block 4, control blocks 3 and 5, PML blocks 0 and 8.
+# nsp sizes the control files; n_u is the live control DoFs per slab.
+# mesh  nsp   n_u   NX  NZ
+s1  224   64    2   2
+s2  656   160   2   6
+s3  896   256   4   2
+s4  504   144   3   2
+s5  2016  576   6   2
+s6  1304  304   2   12
+s7  1952  448   2   18
+s8  3584  1024  8   2

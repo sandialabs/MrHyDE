@@ -313,7 +313,7 @@ class mrhyde_test_support:
 #
 # Byte-diffing mrhyde.log against a gold file is not portable across BLAS/MPI
 # implementations - low-order digits drift by roundoff. For FD-check /
-# magnitude-scan tests, assert on the summary tags they already emit with
+# magnitude-check tests, assert on the summary tags they already emit with
 # tolerance-based predicates instead.
 # ==============================================================================
 

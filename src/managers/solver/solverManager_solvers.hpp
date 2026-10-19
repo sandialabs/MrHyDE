@@ -528,6 +528,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
       current_du_over->putScalar(0.0);
       if (set < linalg->context.size() && !linalg->context[set].is_null()) {
         linalg->context[set]->jacobian_rebuilt_this_step = build_jacobian;
+        linalg->context[set]->operator_dt = deltat / BDF_wts[set](0);
         linalg->context[set]->stage_alpha_u =
           (isTransient && butcher_b[set](stage) != 0.0)
             ? butcher_A[set](stage, stage) / butcher_b[set](stage) : 1.0;
@@ -572,7 +573,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
               currJ->setAllToScalar(0.0);
               currJ_over->setAllToScalar(0.0);
               auto dummy_res_over = linalg->getNewOverlappedVector(set);
-              assembler->assembleJacRes(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, build_jacobian, false, false, true, step,
+              assembler->assembleJacRes(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, true, false, false, true, step,
                                         dummy_res_over, currJ_over, isTransient, current_time, is_adjoint, store_adjPrev,
                                         params->num_active_params, paramvec, paramdot, is_final_time, deltat);
               linalg->fillComplete(currJ_over);

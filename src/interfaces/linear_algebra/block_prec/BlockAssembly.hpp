@@ -1,7 +1,7 @@
 /***********************************************************************
  MrHyDE - Jacobian block extraction and per-block preconditioner assembly.
 
- Questions? Contact Alexey Voronin (abvoron@sandia.gov)
+ Questions? Contact Alexey Voronin
  ************************************************************************/
 
 #ifndef MRHYDE_BLOCK_PREC_ASSEMBLY_HPP
@@ -66,6 +66,14 @@ Teuchos::RCP<Xpetra::Matrix<ScalarT,LO,GO,Node> >
 buildRefMaxwellM0inv(const Teuchos::RCP<typename BlockTypes<Node>::MultiVector> & nodalLumpedMass,
                      const ScalarT beta) {
   using LA_Vector = typename BlockTypes<Node>::Vector;
+  ScalarT lmin = std::numeric_limits<ScalarT>::max(), gmin = 0.0;
+  {
+    auto mv = nodalLumpedMass->getLocalViewHost(Tpetra::Access::ReadOnly);
+    for (size_t i = 0; i < mv.extent(0); ++i) lmin = std::min(lmin, mv(i,0));
+  }
+  Teuchos::reduceAll(*(nodalLumpedMass->getMap()->getComm()), Teuchos::REDUCE_MIN, 1, &lmin, &gmin);
+  TEUCHOS_TEST_FOR_EXCEPTION(gmin <= 0.0, std::runtime_error,
+    "Lumped nodal mass has a non-positive entry (" << gmin << ").");
   Teuchos::RCP<LA_Vector> inv = Teuchos::rcp(new LA_Vector(nodalLumpedMass->getMap(), false));
   inv->reciprocal(*nodalLumpedMass->getVector(0));
   inv->scale(beta);
@@ -256,13 +264,15 @@ struct InverseDiagonalCounts {
   GO missing = 0;
   GO usedLumped = 0;
   GO usedDiag = 0;
+  bool absolute = false;
 };
 
 template<class Node>
 Teuchos::RCP<typename BlockTypes<Node>::Vector>
 buildInverseDiagonal(const ConstMatrixRCP<Node> & mat,
                      const bool useLumpedDiagonal,
-                     InverseDiagonalCounts & counts) {
+                     InverseDiagonalCounts & counts,
+                     const bool useAbsoluteRowSum = false) {
   using Types = BlockTypes<Node>;
   using LA_Vector = typename Types::Vector;
   const ScalarT zero = Teuchos::ScalarTraits<ScalarT>::zero();
@@ -273,20 +283,35 @@ buildInverseDiagonal(const ConstMatrixRCP<Node> & mat,
   LA_Vector diag(rowMap, false);
   mat->getLocalDiagCopy(diag);
 
+  const size_t nrows = static_cast<size_t>(rowMap->getLocalNumElements());
   Teuchos::RCP<LA_Vector> lumped;
-  if (useLumpedDiagonal) {
+  if (useAbsoluteRowSum) {
+    lumped = Teuchos::rcp(new LA_Vector(rowMap, false));
+    const auto local = mat->getLocalMatrixDevice();
+    const auto rows = local.graph.row_map;
+    const auto vals = local.values;
+    const auto dSign = diag.getLocalViewDevice(Tpetra::Access::ReadOnly);
+    auto out = lumped->getLocalViewDevice(Tpetra::Access::OverwriteAll);
+    // An absolute row sum takes the sign of the diagonal.
+    Kokkos::parallel_for("absoluteRowSums",
+      Kokkos::RangePolicy<typename Node::execution_space, size_t>(0, nrows),
+      KOKKOS_LAMBDA(const size_t i) {
+        ScalarT s = zero;
+        for (auto k = rows(i); k < rows(i + 1); ++k) s += Kokkos::abs(vals(k));
+        out(i, 0) = (dSign(i, 0) < zero) ? -s : s;
+      });
+  }
+  else if (useLumpedDiagonal) {
     lumped = Teuchos::rcp(new LA_Vector(mat->getRangeMap(), false));
     LA_Vector ones(mat->getDomainMap(), false);
     ones.putScalar(one);
     mat->apply(ones, *lumped);   // row sums
   }
 
+  const bool wantLumped = useLumpedDiagonal || useAbsoluteRowSum;
   auto dView = diag.getLocalViewDevice(Tpetra::Access::ReadOnly);
-  auto lView = useLumpedDiagonal ? lumped->getLocalViewDevice(Tpetra::Access::ReadOnly)
-                                 : dView;
+  auto lView = wantLumped ? lumped->getLocalViewDevice(Tpetra::Access::ReadOnly) : dView;
   auto iView = inv->getLocalViewDevice(Tpetra::Access::OverwriteAll);
-  const size_t nrows = static_cast<size_t>(rowMap->getLocalNumElements());
-  const bool wantLumped = useLumpedDiagonal;
   GO nDiag = 0, nLumped = 0, nMissing = 0;
   Kokkos::parallel_reduce("buildInverseDiagonal",
     Kokkos::RangePolicy<typename Node::execution_space, size_t>(0, nrows),
@@ -307,6 +332,7 @@ buildInverseDiagonal(const ConstMatrixRCP<Node> & mat,
   counts.usedDiag = nDiag;
   counts.usedLumped = nLumped;
   counts.missing = nMissing;
+  counts.absolute = useAbsoluteRowSum;
   return inv;
 }
 
@@ -325,7 +351,7 @@ void reportInverseDiagonal(const InverseDiagonalCounts & result,
   if (verbosity < 5) return;
   if (comm->getRank() == 0) {
     std::cout << label << ": used_diag=" << global[0]
-              << " used_lumped=" << global[1]
+              << (result.absolute ? " used_abs=" : " used_lumped=") << global[1]
               << " missing=" << global[2] << std::endl;
   }
 }

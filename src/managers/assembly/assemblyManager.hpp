@@ -197,7 +197,9 @@ public:
    * @param mass Reference-counted pointer to the parameter mass matrix.
    * @param massdiag Reference-counted pointer to the vector storing the diagonal of the mass matrix.
    */
-  void getParamMass(matrix_RCP & mass, vector_RCP & massdiag);
+  void getParamMass(matrix_RCP & mass, vector_RCP & massdiag,
+                    const ScalarT & l2_weight, const ScalarT & seminorm_weight,
+                    const vector<bool> & include_block);
   
   /**
    * @brief Compute the weight vector for a given set.
@@ -2024,6 +2026,10 @@ CompressedView<View_Sc3> getWeightedMass(const int & block, const size_t & grp,
  * @return Compressed parameter-mass matrix view.
  */
 CompressedView<View_Sc3> getParamMass(const int & block, const size_t & grp);
+
+// Element contribution to the parameter Riesz operator.
+CompressedView<View_Sc3> getParamRiesz(const int & block, const size_t & grp,
+                                       const ScalarT & l2_weight, const ScalarT & seminorm_weight);
 
 /**
  * @brief Retrieve face-based mass matrix entries.

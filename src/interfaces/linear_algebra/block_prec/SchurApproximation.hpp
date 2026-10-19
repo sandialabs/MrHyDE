@@ -2,7 +2,7 @@
  MrHyDE - Schur approximation pieces for block preconditioners.
  SchurInvDiagStrategy::getInvD composes these into S_k for each split k.
 
- Questions? Contact Alexey Voronin (abvoron@sandia.gov)
+ Questions? Contact Alexey Voronin
  ************************************************************************/
 
 #ifndef MRHYDE_BLOCK_PREC_SCHUR_APPROXIMATION_HPP
@@ -32,12 +32,15 @@ struct SchurAssemblyInputs {
 
 
 
-// beta = alpha_u^2 * (v'*corr*v) / (w'*diag(M_pivot)^-1*w), w = J01*v.
+// diag: beta = alpha_u^2 (v'corr v)/(w' diag(M_pivot)^-1 w), w = J01 v.
+// exact-curl: corr = beta C^T M_pivot C, so beta = (v'corr v)/(u' M_pivot u), u = C v.
 template<class Node>
 ScalarT addonBeta(const BlockSystem<Node> & blocks,
                   const typename BlockTypes<Node>::CrsMatrixRCP & corr,
                   const typename BlockTypes<Node>::CrsMatrixRCP & massPivot,
+                  const typename BlockTypes<Node>::CrsMatrixRCP & curl,
                   const bool useLumpedWeightDiagonal,
+                  const bool useAbsoluteWeightDiagonal,
                   const ScalarT alphaU,
                   const int verbosity) {
   using Types = BlockTypes<Node>;
@@ -51,13 +54,19 @@ ScalarT addonBeta(const BlockSystem<Node> & blocks,
   detail::fillProbe<Node>(z);
   blocks.blocks[1][0]->apply(z, v);
   corr->apply(v, cv);
-  blocks.blocks[0][1]->apply(v, w);
-
-  detail::InverseDiagonalCounts wgt;
-  Teuchos::RCP<LA_Vector> dB =
-    detail::buildInverseDiagonal<Node>(
-      Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(massPivot), useLumpedWeightDiagonal, wgt);
-  dw.elementWiseMultiply(one, *dB, w, zero);
+  if (curl.is_null()) {
+    blocks.blocks[0][1]->apply(v, w);
+    detail::InverseDiagonalCounts wgt;
+    Teuchos::RCP<LA_Vector> dB =
+      detail::buildInverseDiagonal<Node>(
+        Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(massPivot), useLumpedWeightDiagonal, wgt,
+        useAbsoluteWeightDiagonal);
+    dw.elementWiseMultiply(one, *dB, w, zero);
+  }
+  else {
+    curl->apply(v, w);
+    massPivot->apply(w, dw);
+  }
 
   const ScalarT num = v.dot(cv);
   const ScalarT den = w.dot(dw);
@@ -69,13 +78,67 @@ ScalarT addonBeta(const BlockSystem<Node> & blocks,
     }
     return zero;
   }
-  const ScalarT beta = alphaU * alphaU * (num / den);
+  const ScalarT beta = (curl.is_null() ? alphaU * alphaU : one) * (num / den);
 
   if (verbosity >= 5 && blocks.maps[1]->getComm()->getRank() == 0) {
     std::cout << "[ADDON] beta = " << std::setprecision(14) << beta
               << std::setprecision(6) << std::endl;
   }
   return beta;
+}
+
+// Least-squares s in J01*x = s*J00*C*x over two probes, and the relative misfit.
+template<class Node>
+std::pair<ScalarT, typename Teuchos::ScalarTraits<ScalarT>::magnitudeType>
+fitCurlScale(const BlockSystem<Node> & blocks,
+             const typename BlockTypes<Node>::CrsMatrixRCP & curl) {
+  using MultiVector = typename BlockTypes<Node>::MultiVector;
+  using MagT = typename Teuchos::ScalarTraits<ScalarT>::magnitudeType;
+  MultiVector x(blocks.maps[1], 2), Cx(curl->getRangeMap(), 2);
+  MultiVector y(blocks.maps[0], 2), z(blocks.maps[0], 2);
+  detail::fillProbe<Node>(x);
+  blocks.blocks[0][1]->apply(x, y);
+  curl->apply(x, Cx);
+  blocks.blocks[0][0]->apply(Cx, z);
+
+  Teuchos::Array<ScalarT> yz(2), zz(2), yy(2);
+  y.dot(z, yz());
+  z.dot(z, zz());
+  y.dot(y, yy());
+  const ScalarT den = zz[0] + zz[1];
+  const ScalarT ny = yy[0] + yy[1];
+  if (den == ScalarT(0) || ny == ScalarT(0)) {
+    return std::make_pair(ScalarT(0), std::numeric_limits<MagT>::infinity());
+  }
+  const ScalarT s = (yz[0] + yz[1]) / den;
+  y.update(-s, z, ScalarT(1));
+  y.dot(y, yy());
+  return std::make_pair(s, std::sqrt(static_cast<MagT>((yy[0] + yy[1]) / ny)));
+}
+
+// s in J01 = s J00 C under 'exact-curl' when the fit holds, otherwise 0 (diag fallback).
+// The fit fails when dB/dt and curl E carry different weights, as with an absorbing boundary on B.
+template<class Node>
+ScalarT exactCurlScale(const BlockSystem<Node> & blocks,
+                       const typename BlockTypes<Node>::CrsMatrixRCP & curl,
+                       const int verbosity) {
+  using MagT = typename Teuchos::ScalarTraits<ScalarT>::magnitudeType;
+  const ScalarT zero = Teuchos::ScalarTraits<ScalarT>::zero();
+  const std::pair<ScalarT, MagT> fit = curl.is_null()
+    ? std::make_pair(zero, std::numeric_limits<MagT>::infinity())
+    : fitCurlScale<Node>(blocks, curl);
+  const bool holds = (fit.second <= 1.0e-8);
+  if (blocks.maps[0]->getComm()->getRank() == 0 && (!holds || verbosity >= 5)) {
+    if (holds) {
+      std::cout << "[BlockTri] exact-curl: s = " << fit.first << " rel = " << fit.second
+                << std::endl;
+    }
+    else {
+      std::cout << "[BlockTri] exact-curl: rel = " << fit.second << " > 1e-8, using diag"
+                << std::endl;
+    }
+  }
+  return holds ? fit.first : zero;
 }
 
 template<class Node>

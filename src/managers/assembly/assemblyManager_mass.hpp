@@ -286,13 +286,19 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
 
 template<class Node>
 void AssemblyManager<Node>::getParamMass(matrix_RCP & mass,
-                                         vector_RCP & diagMass) {
+                                         vector_RCP & diagMass,
+                                         const ScalarT & l2_weight,
+                                         const ScalarT & seminorm_weight,
+                                         const vector<bool> & include_block) {
   
   Teuchos::TimeMonitor localtimer(*set_init_timer);
   
   using namespace std;
 
   debugger->print("**** Starting AssemblyManager::getParamMass ...");
+  
+  // The plain mass keeps its own element kernel; the weighted kernel rounds differently under FMA.
+  bool combine_terms = (seminorm_weight != 0.0) || (l2_weight != 1.0);
   
   typedef typename Node::execution_space LA_exec;
   bool use_atomics_ = false;
@@ -325,6 +331,10 @@ void AssemblyManager<Node>::getParamMass(matrix_RCP & mass,
   }
   
   for (size_t block=0; block<groups.size(); ++block) {
+    
+    if (!include_block[block]) {
+      continue;
+    }
     
     auto offsets = wkset[block]->paramoffsets;
     auto numDOF = groupData[block]->num_param_dof;
@@ -392,7 +402,8 @@ void AssemblyManager<Node>::getParamMass(matrix_RCP & mass,
          */
       }
       else {
-        auto localmass = this->getParamMass(block, grp);
+        auto localmass = combine_terms ? this->getParamRiesz(block, grp, l2_weight, seminorm_weight)
+                                       : this->getParamMass(block, grp);
       
         if (data_avail) {
         
@@ -1060,6 +1071,130 @@ CompressedView<View_Sc3> AssemblyManager<Node>::getParamMass(const int & block, 
   }
 
   return mass;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Get a local Riesz matrix on the parameter space: l2_weight*(phi_i,phi_j) plus
+// seminorm_weight times the control basis's natural seminorm (curl, grad or div).
+///////////////////////////////////////////////////////////////////////////////////////
+
+template<class Node>
+CompressedView<View_Sc3> AssemblyManager<Node>::getParamRiesz(const int & block, const size_t & grp,
+                                                              const ScalarT & l2_weight,
+                                                              const ScalarT & seminorm_weight) {
+
+  auto numDOF = groupData[block]->num_param_dof;
+
+  View_Sc3 riesz_view("local param riesz", groups[block][grp]->numElem,
+                      groups[block][grp]->paramLIDs.extent(1),
+                      groups[block][grp]->paramLIDs.extent(1));
+  CompressedView<View_Sc3> riesz(riesz_view);
+
+  auto cwts = groups[block][grp]->wts;
+  auto offsets = wkset[block]->paramoffsets;
+
+  const bool need_semi = (seminorm_weight != 0.0);
+  vector<CompressedView<View_Sc4>> tbasis, tbasis_grad, tbasis_curl;
+  vector<CompressedView<View_Sc3>> tbasis_div;
+  if (groups[block][grp]->storeAll || groupData[block]->use_basis_database) {
+    tbasis = groups[block][grp]->basis;
+    if (need_semi) {
+      tbasis_grad = groups[block][grp]->basis_grad;
+      tbasis_curl = groups[block][grp]->basis_curl;
+      tbasis_div = groups[block][grp]->basis_div;
+    }
+  }
+  else {
+    vector<View_Sc4> tmpbasis, tmpbasis_grad, tmpbasis_curl, tmpbasis_nodes;
+    vector<View_Sc3> tmpbasis_div;
+    disc->getPhysicalVolumetricBasis(groupData[block], groups[block][grp]->localElemID,
+                                     tmpbasis, tmpbasis_grad, tmpbasis_curl,
+                                     tmpbasis_div, tmpbasis_nodes);
+    for (size_t i=0; i<tmpbasis.size(); ++i) {
+      tbasis.push_back(CompressedView<View_Sc4>(tmpbasis[i]));
+      if (need_semi) {
+        tbasis_grad.push_back(CompressedView<View_Sc4>(tmpbasis_grad[i]));
+        tbasis_curl.push_back(CompressedView<View_Sc4>(tmpbasis_curl[i]));
+        tbasis_div.push_back(CompressedView<View_Sc3>(tmpbasis_div[i]));
+      }
+    }
+  }
+
+  for (size_type n=0; n<numDOF.extent(0); n++) {
+
+    string btype = wkset[block]->basis_types[wkset[block]->paramusebasis[n]];
+    auto off = subview(offsets,n,ALL());
+    ScalarT l2wt = l2_weight;
+
+    auto cbasis = tbasis[wkset[block]->paramusebasis[n]];
+    if (btype.substr(0,5) == "HGRAD" || btype.substr(0,4) == "HVOL") {
+      parallel_for("Group get param riesz l2",
+                   RangePolicy<AssemblyExec>(0,riesz.extent(0)),
+                   MRHYDE_LAMBDA (const size_type e ) {
+        for (size_type i=0; i<cbasis.extent(1); i++ ) {
+          for (size_type j=0; j<cbasis.extent(1); j++ ) {
+            for (size_type k=0; k<cbasis.extent(2); k++ ) {
+              riesz(e,off(i),off(j)) += l2wt*cbasis(e,i,k,0)*cbasis(e,j,k,0)*cwts(e,k);
+            }
+          }
+        }
+      });
+    }
+    else if (btype.substr(0,4) == "HDIV" || btype.substr(0,5) == "HCURL") {
+      parallel_for("Group get param riesz l2",
+                   RangePolicy<AssemblyExec>(0,riesz.extent(0)),
+                   MRHYDE_LAMBDA (const size_type e ) {
+        for (size_type i=0; i<cbasis.extent(1); i++ ) {
+          for (size_type j=0; j<cbasis.extent(1); j++ ) {
+            for (size_type k=0; k<cbasis.extent(2); k++ ) {
+              for (size_type dim=0; dim<cbasis.extent(3); dim++ ) {
+                riesz(e,off(i),off(j)) += l2wt*cbasis(e,i,k,dim)*cbasis(e,j,k,dim)*cwts(e,k);
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Sobolev seminorm: curl/grad share the View_Sc4 kernel, div is View_Sc3.
+    const std::string semi_op = seminormOpForBasis(btype);
+    if (seminorm_weight != 0.0 && (semi_op == "curl" || semi_op == "grad")) {
+      auto cder = (semi_op == "curl") ? tbasis_curl[wkset[block]->paramusebasis[n]]
+                                      : tbasis_grad[wkset[block]->paramusebasis[n]];
+      ScalarT semiwt = seminorm_weight;
+      parallel_for("Group get param riesz seminorm",
+                   RangePolicy<AssemblyExec>(0,riesz.extent(0)),
+                   MRHYDE_LAMBDA (const size_type e ) {
+        for (size_type i=0; i<cder.extent(1); i++ ) {
+          for (size_type j=0; j<cder.extent(1); j++ ) {
+            for (size_type k=0; k<cder.extent(2); k++ ) {
+              for (size_type dim=0; dim<cder.extent(3); dim++ ) {
+                riesz(e,off(i),off(j)) += semiwt*cder(e,i,k,dim)*cder(e,j,k,dim)*cwts(e,k);
+              }
+            }
+          }
+        }
+      });
+    }
+    else if (seminorm_weight != 0.0 && semi_op == "div") {
+      auto cdiv = tbasis_div[wkset[block]->paramusebasis[n]];
+      ScalarT semiwt = seminorm_weight;
+      parallel_for("Group get param riesz div",
+                   RangePolicy<AssemblyExec>(0,riesz.extent(0)),
+                   MRHYDE_LAMBDA (const size_type e ) {
+        for (size_type i=0; i<cdiv.extent(1); i++ ) {
+          for (size_type j=0; j<cdiv.extent(1); j++ ) {
+            for (size_type k=0; k<cdiv.extent(2); k++ ) {
+              riesz(e,off(i),off(j)) += semiwt*cdiv(e,i,k)*cdiv(e,j,k)*cwts(e,k);
+            }
+          }
+        }
+      });
+    }
+
+  }
+
+  return riesz;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////

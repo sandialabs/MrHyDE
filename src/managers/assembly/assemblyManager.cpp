@@ -12,6 +12,7 @@
  */
 
 #include "assemblyManager.hpp"
+#include "paramRieszUtil.hpp"
 
 using namespace MrHyDE;
 

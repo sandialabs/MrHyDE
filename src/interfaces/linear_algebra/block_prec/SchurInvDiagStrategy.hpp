@@ -2,10 +2,11 @@
  MrHyDE - Diagonal-inverse strategy for the block-triangular preconditioner.
 
  Supplies Teko with one approximate inverse per field split: split 0 is inverted as
- given, every split after it on a Schur approximation. Teko's Gauss-Seidel factory calls
- getInvD once per build and composes the triangular solve from the result.
+ given, every split after it on a Schur approximation. Teko's Gauss-Seidel factory, or the
+ block-triangular factory itself under exact-curl, calls getInvD once per build and composes
+ the triangular solve from the result.
 
- Questions? Contact Alexey Voronin (abvoron@sandia.gov)
+ Questions? Contact Alexey Voronin
  ************************************************************************/
 
 #ifndef MRHYDE_BLOCK_PREC_SCHUR_INV_DIAG_STRATEGY_HPP
@@ -34,18 +35,21 @@ public:
   SchurInvDiagStrategy(const matrix_rcp & J,
                        const BlockSystem<Node> & blocks,
                        const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
-                       const int verbosity)
+                       const int verbosity,
+                       const ScalarT curlScale = Teuchos::ScalarTraits<ScalarT>::zero())
     : J_(J), blocks_(blocks), cntxt_(cntxt), verbosity_(verbosity),
-      comm_(J->getComm()) {}
+      comm_(J->getComm()), curlScale_(curlScale) {}
 
   // invDiag[k] inverts S_k = J_kk - damping * sum_{j<k} J_kj diag(J_jj)^-1 J_jk ('diag'),
-  // J_kk ('base'), or J_kk + mass scale * M_k on the target ('mass').
+  // J_kk ('base'), J_kk + mass scale * M_k on the target ('mass'), or J_11 - s J_10 C ('exact-curl').
   void getInvD(const Teko::BlockedLinearOp & /* A */,
                Teko::BlockPreconditionerState & /* state */,
                std::vector<Teko::LinearOp> & invDiag) const override {
     const size_t nb = blocks_.numBlocks();
     const SchurVariant variant = parseSchurVariant(cntxt_->schur.approximation_type);
-    const bool useDiag = (variant == SchurVariant::Diag);
+    const bool useExactCurl = (curlScale_ != Teuchos::ScalarTraits<ScalarT>::zero());
+    const bool useDiag = (variant == SchurVariant::Diag) ||
+                         (variant == SchurVariant::ExactCurl && !useExactCurl);
     if (useDiag && verbosity_ >= 5 && comm_->getRank() == 0 &&
         cntxt_->schur.damping == Teuchos::ScalarTraits<ScalarT>::zero()) {
       std::cout << "[BlockTri] damping is 0; the diagonal correction is off." << std::endl;
@@ -77,16 +81,22 @@ public:
           S = addCorrection<Node>(S, corr);
         }
       }
+      if (k == cntxt_->schur_target_index && useExactCurl) {
+        corr = this->exactCurlCorrection();
+        S = addCorrection<Node>(S, corr);
+      }
       if (k == cntxt_->schur_target_index && variant == SchurVariant::Mass) {
         S = addCorrection<Node>(S, this->targetMassMatrix(), cntxt_->schur.mass_scale);
       }
       if (k == cntxt_->schur_target_index) {
         // beta is read off the 2x2 correction, so it stays undefined above two splits.
-        this->recordSchurAddonBeta(nb == 2 ? corr : Teuchos::null);
+        this->recordSchurAddonBeta(nb == 2 ? corr : Teuchos::null,
+                                   useExactCurl ? cntxt_->block.curl : Teuchos::null);
         verifyBlockSystem<Node>(blocks_, J_, S,
           cntxt_->refMaxwell.D0_matrix, cntxt_->refMaxwell.M1_matrix,
           cntxt_->refMaxwell.nodal_coords, cntxt_->refMaxwell.nodal_lumped_mass,
           cntxt_->schur.damping, cntxt_->schur.correction_use_lumped_weight,
+          cntxt_->schur.correction_use_absolute_weight,
           useDiag, this->blockVerifyRequested(), verbosity_);
       }
       invDiag.push_back(this->buildSplitInverse(k, S));
@@ -94,6 +104,16 @@ public:
   }
 
 private:
+  // -s J10 C, scaling C before the product.
+  matrix_rcp exactCurlCorrection() const {
+    using LA_CrsMatrix = typename Types::CrsMatrix;
+    LA_CrsMatrix scaledCurl(*cntxt_->block.curl, Teuchos::Copy);
+    scaledCurl.scale(-curlScale_);
+    matrix_rcp corr = Teuchos::rcp(new LA_CrsMatrix(blocks_.blocks[1][0]->getRowMap(), 0));
+    Tpetra::MatrixMatrix::Multiply(*blocks_.blocks[1][0], false, scaledCurl, false, *corr);
+    return corr;
+  }
+
   // Split j weights split k only inside one pivot/target group.
   bool eliminatesWithin(const size_t j, const size_t k) const {
     const size_t g = cntxt_->splitGroupOf(k);
@@ -118,7 +138,8 @@ private:
     detail::InverseDiagonalCounts counts;
     Teuchos::RCP<typename Types::Vector> dinv = detail::buildInverseDiagonal<Node>(
       Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(blocks_.blocks[split][split]),
-      cntxt_->schur.correction_use_lumped_weight, counts);
+      cntxt_->schur.correction_use_lumped_weight, counts,
+      cntxt_->schur.correction_use_absolute_weight);
     detail::reportInverseDiagonal<Node>(counts, "Schur weight diag inverse", comm_, verbosity_);
     GO missing = 0;
     Teuchos::reduceAll<int, GO>(*comm_, Teuchos::REDUCE_SUM, 1, &counts.missing, &missing);
@@ -153,7 +174,7 @@ private:
       });
   }
 
-  void recordSchurAddonBeta(const matrix_rcp & schurCorr) const {
+  void recordSchurAddonBeta(const matrix_rcp & schurCorr, const matrix_rcp & curl) const {
     RefMaxwellData<Node> & refMaxwell = cntxt_->refMaxwell;
     const bool wanted = cntxt_->schurAddonWanted(*J_->getComm());
     const matrix_rcp pivotMass = wanted
@@ -171,8 +192,9 @@ private:
       return;
     }
     refMaxwell.schur_addon_beta = addonBeta<Node>(
-      blocks_, schurCorr, pivotMass,
+      blocks_, schurCorr, pivotMass, curl,
       cntxt_->schur.correction_use_lumped_weight,
+      cntxt_->schur.correction_use_absolute_weight,
       cntxt_->stage_alpha_u, verbosity_);
     refMaxwell.schur_addon_beta_alpha_u = cntxt_->stage_alpha_u;
     refMaxwell.schur_addon_beta_valid = true;
@@ -183,6 +205,7 @@ private:
   Teuchos::RCP<LinearSolverContext<Node> > cntxt_;
   int verbosity_;
   Teuchos::RCP<const Teuchos::Comm<int> > comm_;
+  const ScalarT curlScale_;
 };
 
 } // namespace block_prec

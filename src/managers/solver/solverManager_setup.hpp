@@ -140,6 +140,12 @@ void SolverManager<Node>::completeSetup() {
           block_prec::SchurVariant::Mass) {
       return true;
     }
+    // 'exact-curl' reads cntxt->block.curl, which only this setup builds.
+    if (use_block_tri &&
+        block_prec::parseSchurVariant(cntxt->schur.approximation_type) ==
+          block_prec::SchurVariant::ExactCurl) {
+      return true;
+    }
     if (use_block_tri || use_block_diag) {
       for (size_t r = 0; r < cntxt->numSplits(); ++r) {
         if (declaresAuxiliaryBases(cntxt->splitSettings(r))) return true;
@@ -181,6 +187,7 @@ void SolverManager<Node>::completeSetup() {
         dst.nodal_coords = src.nodal_coords;
         dst.nodal_lumped_mass = src.nodal_lumped_mass;
         ctxVec[set]->block = source_context->block;
+        ctxVec[set]->pMultigrid = source_context->pMultigrid;
       }
     };
     share_auxiliary_data(linalg->context);
@@ -206,6 +213,10 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
   matrix_RCP assembled_mass_matrix;
   std::vector<Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > > blockMaps;
   this->assembleAuxiliaryMass(set, cntxt, assembled_mass_matrix, blockMaps);
+  if (block_prec::parseSchurVariant(cntxt->schur.approximation_type) ==
+      block_prec::SchurVariant::ExactCurl) {
+    this->buildAuxiliaryCurl(set, cntxt, blockMaps);
+  }
 
   AuxiliaryBasisSpec bases;
   if (!this->resolveAuxiliaryBases(cntxt, bases)) {
@@ -214,10 +225,13 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
   }
 
   size_t edgeBlock = 0;
-  Teuchos::RCP<panzer::DOFManager> hgrad_dof;
+  Teuchos::RCP<panzer::DOFManager> hgrad_dof, hcurl_dof;
   this->buildAuxiliaryGradient(set, cntxt, bases, assembled_mass_matrix, blockMaps,
-                               edgeBlock, hgrad_dof);
+                               edgeBlock, hgrad_dof, hcurl_dof);
   this->buildAuxiliaryNodalData(cntxt, bases, hgrad_dof, blockMaps, edgeBlock);
+  if (bases.p_multigrid) {
+    this->buildPMultigridCoarseData(set, cntxt, bases, hcurl_dof, edgeBlock, blockMaps[edgeBlock]);
+  }
 
   debugger->print("**** setupBlockTriangularAuxiliary: end set " + std::to_string(set));
 }
@@ -307,8 +321,11 @@ bool SolverManager<Node>::resolveAuxiliaryBases(const Teuchos::RCP<LinearSolverC
   };
   const Teuchos::ParameterList * refmaxwellSetupListPtr = nullptr;
   for (size_t r = 0; r < cntxt->numSplits(); ++r) {
-    if (refmaxwellSetupListPtr == nullptr && hasBasis(&cntxt->splitSettings(r))) {
+    if (!hasBasis(&cntxt->splitSettings(r))) continue;
+    const bool pmg = block_prec::toUpperAsciiCopy(cntxt->splitPrecType(r)) == "P-MULTIGRID";
+    if (refmaxwellSetupListPtr == nullptr || (pmg && !bases.p_multigrid)) {
       refmaxwellSetupListPtr = &cntxt->splitSettings(r);
+      bases.p_multigrid = pmg;
     }
   }
   if (refmaxwellSetupListPtr == nullptr && hasBasis(&cntxt->prec_sublist)) {
@@ -335,8 +352,11 @@ bool SolverManager<Node>::resolveAuxiliaryBases(const Teuchos::RCP<LinearSolverC
     TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error,
       "RefMaxwell auxiliary setup needs 'hgrad basis name' and 'hcurl basis name' in a split sublist.");
   }
+  TEUCHOS_TEST_FOR_EXCEPTION(hgrad_order > 2, std::runtime_error,
+    "RefMaxwell auxiliary setup supports 'hgrad basis order' 1 or 2, not " << hgrad_order
+    << "; above 2 the nodal coordinates ignore edge and face orientation.");
 
-  if ((hgrad_order != 1 || hcurl_order != 1) && Comm->getRank() == 0) {
+  if ((hgrad_order != 1 || hcurl_order != 1) && !bases.p_multigrid && Comm->getRank() == 0) {
     std::cout << "WARNING: RefMaxwell/Maxwell1 auxiliary spaces assume order 1 "
               << "(hgrad basis order = " << hgrad_order
               << ", hcurl basis order = " << hcurl_order << ")."
@@ -353,6 +373,115 @@ bool SolverManager<Node>::resolveAuxiliaryBases(const Teuchos::RCP<LinearSolverC
 // ========================================================================================
 // ========================================================================================
 
+// One-field Panzer DOF manager over every element block.
+template<class Node>
+Teuchos::RCP<panzer::DOFManager>
+SolverManager<Node>::buildAuxDofManager(const Teuchos::RCP<panzer::ConnManager> & conn,
+                                        const std::string & field,
+                                        const std::vector<basis_RCP> & blockBases,
+                                        const bool orientations) {
+  Teuchos::RCP<panzer::DOFManager> dof = Teuchos::rcp(new panzer::DOFManager());
+  dof->setConnManager(conn, *(Comm->getRawMpiComm()));
+  dof->setOrientationsRequired(orientations);
+  for (size_t b = 0; b < mesh->block_names.size(); ++b) {
+    dof->addField(mesh->block_names[b], field,
+                  Teuchos::rcp(new panzer::Intrepid2FieldPattern(blockBases[b])),
+                  panzer::FieldType::CG);
+  }
+  dof->buildGlobalUnknowns();
+  return dof;
+}
+
+// ========================================================================================
+// ========================================================================================
+
+// Auxiliary GID to the primary GID of the same element DOF; throws on any mismatch.
+template<class Node>
+std::unordered_map<GO,GO>
+SolverManager<Node>::auxToPrimaryGids(const size_t & set,
+                                      const Teuchos::RCP<panzer::DOFManager> & aux,
+                                      const std::string & field,
+                                      const size_t var,
+                                      const std::string & label) {
+  const int field_num = aux->getFieldNum(field);
+  std::unordered_map<GO,GO> aux2prim;
+  GO conflictGid = -1;
+  for (size_t b = 0; b < mesh->block_names.size(); ++b) {
+    const std::string & block_name = mesh->block_names[b];
+    TEUCHOS_TEST_FOR_EXCEPTION(var >= disc->offsets[set][b].size(), std::runtime_error,
+      label << ": variable " << var << " is invalid for " << block_name << " ("
+      << disc->offsets[set][b].size() << " variables).");
+    const std::vector<int> & prim_off = disc->offsets[set][b][var];
+    const std::vector<int> aux_off = aux->getGIDFieldOffsets(block_name, field_num);
+    TEUCHOS_TEST_FOR_EXCEPTION(aux_off.size() != prim_off.size(), std::runtime_error,
+      label << ": offset count mismatch for '" << field << "' on " << block_name
+      << " (auxiliary=" << aux_off.size() << ", primary=" << prim_off.size() << ").");
+    for (size_t e = 0; e < disc->my_elements[b].extent(0); ++e) {
+      const LO local_elem_id = disc->my_elements[b](e);
+      std::vector<GO> aux_gids;
+      aux->getElementGIDs(local_elem_id, aux_gids, block_name);
+      const std::vector<GO> prim_gids = disc->getGIDs(set, b, local_elem_id);
+      for (size_t j = 0; j < aux_off.size(); ++j) {
+        const GO aux_gid = aux_gids[aux_off[j]];
+        const GO prim_gid = prim_gids[prim_off[j]];
+        auto ins = aux2prim.emplace(aux_gid, prim_gid);
+        if (!ins.second && ins.first->second != prim_gid && conflictGid < 0) conflictGid = aux_gid;
+      }
+    }
+  }
+  GO worst = -1;
+  Teuchos::reduceAll<int, GO>(*Comm, Teuchos::REDUCE_MAX, 1, &conflictGid, &worst);
+  TEUCHOS_TEST_FOR_EXCEPTION(worst >= 0, std::runtime_error,
+    label << ": auxiliary GID " << worst << " maps to two primary GIDs.");
+  return aux2prim;
+}
+
+// ========================================================================================
+// ========================================================================================
+
+// Primary row to auxiliary row LID; every owned row must pair with an owned auxiliary row.
+template<class Node>
+Kokkos::View<LO*, typename Node::device_type>
+SolverManager<Node>::primaryRowTable(const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > & primary_map,
+                                     const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > & aux_map,
+                                     const std::unordered_map<GO,GO> & aux2prim,
+                                     const std::string & label) {
+  GO unmappedGid = -1, nonOwnedGid = -1, noAuxRowGid = -1;
+  std::unordered_map<GO,LO> prim2aux_lid;
+  const LO n_aux_rows = static_cast<LO>(aux_map->getLocalNumElements());
+  for (LO lid = 0; lid < n_aux_rows; ++lid) {
+    const GO aux_gid = aux_map->getGlobalElement(lid);
+    auto it = aux2prim.find(aux_gid);
+    if (it == aux2prim.end()) {
+      if (unmappedGid < 0) unmappedGid = aux_gid;
+      continue;
+    }
+    if (nonOwnedGid < 0 && !primary_map->isNodeGlobalElement(it->second)) nonOwnedGid = it->second;
+    prim2aux_lid[it->second] = lid;
+  }
+  const LO n_rows = static_cast<LO>(primary_map->getLocalNumElements());
+  Kokkos::View<LO*, LA_device> table("aux_row_table", n_rows);
+  auto tableHost = Kokkos::create_mirror_view(table);
+  for (LO lid = 0; lid < n_rows; ++lid) {
+    auto it = prim2aux_lid.find(primary_map->getGlobalElement(lid));
+    if (it == prim2aux_lid.end() && noAuxRowGid < 0) noAuxRowGid = primary_map->getGlobalElement(lid);
+    tableHost(lid) = (it == prim2aux_lid.end()) ? LO(-1) : it->second;
+  }
+  Kokkos::deep_copy(table, tableHost);
+  GO bad[3] = {unmappedGid, nonOwnedGid, noAuxRowGid}, worst[3] = {-1, -1, -1};
+  Teuchos::reduceAll<int, GO>(*(primary_map->getComm()), Teuchos::REDUCE_MAX, 3, bad, worst);
+  TEUCHOS_TEST_FOR_EXCEPTION(worst[0] >= 0, std::runtime_error,
+    label << ": no primary GID for auxiliary GID " << worst[0] << ".");
+  TEUCHOS_TEST_FOR_EXCEPTION(worst[1] >= 0, std::runtime_error,
+    label << ": primary GID " << worst[1] << " is not owned by the rank that owns its auxiliary row.");
+  TEUCHOS_TEST_FOR_EXCEPTION(worst[2] >= 0, std::runtime_error,
+    label << ": no auxiliary row for primary GID " << worst[2] << ".");
+  return table;
+}
+
+// ========================================================================================
+// ========================================================================================
+
 // D0 on the primary edge numbering, and M1 restricted to the edge block.
 template<class Node>
 void SolverManager<Node>::buildAuxiliaryGradient(const size_t & set,
@@ -361,40 +490,22 @@ void SolverManager<Node>::buildAuxiliaryGradient(const size_t & set,
                                                 const matrix_RCP & assembled_mass_matrix,
                                                 const std::vector<Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > > & blockMaps,
                                                 size_t & edgeBlock,
-                                                Teuchos::RCP<panzer::DOFManager> & hgrad_dof) {
+                                                Teuchos::RCP<panzer::DOFManager> & hgrad_dof,
+                                                Teuchos::RCP<panzer::DOFManager> & hcurl_dof) {
   const std::string & hgrad_basis = bases.hgrad_name;
   const std::string & hcurl_basis = bases.hcurl_name;
-  const int hgrad_order = bases.hgrad_order;
-  const int hcurl_order = bases.hcurl_order;
 
   Teuchos::RCP<panzer::ConnManager> conn = mesh->getSTKConnManager();
 
   // Panzer DOF managers for auxiliary H(grad) and H(curl) on the mesh (used to build D0).
-  hgrad_dof = Teuchos::rcp(new panzer::DOFManager());
-  hgrad_dof->setConnManager(conn, *(Comm->getRawMpiComm()));
-  hgrad_dof->setOrientationsRequired(false);
-
-  Teuchos::RCP<panzer::DOFManager> hcurl_dof = Teuchos::rcp(new panzer::DOFManager());
-  hcurl_dof->setConnManager(conn, *(Comm->getRawMpiComm()));
-  hcurl_dof->setOrientationsRequired(true);
-
-  for (size_t block = 0; block < mesh->block_names.size(); ++block) {
-    std::string block_name = mesh->block_names[block];
+  std::vector<basis_RCP> hgrad_bases, hcurl_bases;
+  for (std::string block_name : mesh->block_names) {
     topo_RCP cellTopo = mesh->getCellTopology(block_name);
-
-    basis_RCP hgrad_basis_ptr = disc->getBasis(dimension, cellTopo, "HGRAD", hgrad_order);
-    Teuchos::RCP<const panzer::Intrepid2FieldPattern> hgrad_pattern =
-      Teuchos::rcp(new panzer::Intrepid2FieldPattern(hgrad_basis_ptr));
-    hgrad_dof->addField(block_name, hgrad_basis, hgrad_pattern, panzer::FieldType::CG);
-
-    basis_RCP hcurl_basis_ptr = disc->getBasis(dimension, cellTopo, "HCURL", hcurl_order);
-    Teuchos::RCP<const panzer::Intrepid2FieldPattern> hcurl_pattern =
-      Teuchos::rcp(new panzer::Intrepid2FieldPattern(hcurl_basis_ptr));
-    hcurl_dof->addField(block_name, hcurl_basis, hcurl_pattern, panzer::FieldType::CG);
+    hgrad_bases.push_back(disc->getBasis(dimension, cellTopo, "HGRAD", bases.hgrad_order));
+    hcurl_bases.push_back(disc->getBasis(dimension, cellTopo, "HCURL", bases.hcurl_order));
   }
-
-  hgrad_dof->buildGlobalUnknowns();
-  hcurl_dof->buildGlobalUnknowns();
+  hgrad_dof = this->buildAuxDofManager(conn, hgrad_basis, hgrad_bases, false);
+  hcurl_dof = this->buildAuxDofManager(conn, hcurl_basis, hcurl_bases, true);
 
   // D0 = gradient: nodal (Hgrad) -> edge (Hcurl), used for RefMaxwell's auxiliary space.
   // Panzer's buildInterpolation emits +-0.5, not the +-1 of an incidence matrix.
@@ -428,81 +539,93 @@ void SolverManager<Node>::buildAuxiliaryGradient(const size_t & set,
   // Restrict full mass to edge block: M1 is the H(curl) mass on the edge block for RefMaxwell.
   cntxt->refMaxwell.M1_matrix = linalg->extractDiagonalBlock(assembled_mass_matrix, edge_block_map);
 
-  // aux2prim: aux_gids[aux_off[j]] -> prim_gids[E_off[j]], not by local index.
   const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > nodal_map = cntxt->refMaxwell.D0_matrix->getDomainMap();
   const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > d0_col_map = cntxt->refMaxwell.D0_matrix->getColMap();
   if (!aux_edge_map->isSameAs(*edge_block_map)) {
-    const int hcurl_field_num = hcurl_dof->getFieldNum(hcurl_basis);
-    std::unordered_map<GO,GO> aux2prim;
-    GO conflictGid = -1;
-    for (size_t b = 0; b < mesh->block_names.size(); ++b) {
-      const std::string & block_name = mesh->block_names[b];
-      const auto & block_offsets = disc->offsets[set][b];
-      TEUCHOS_TEST_FOR_EXCEPTION(edgeBlock >= block_offsets.size(), std::runtime_error,
-        "D0 remap: edge variable " + std::to_string(edgeBlock) + " is invalid for " +
-        block_name + " (" + std::to_string(block_offsets.size()) + " variables).");
-      const std::vector<int> & E_off = block_offsets[edgeBlock];
-      const std::vector<int> aux_off = hcurl_dof->getGIDFieldOffsets(block_name, hcurl_field_num);
-      TEUCHOS_TEST_FOR_EXCEPTION(aux_off.size() != E_off.size(), std::runtime_error,
-        "D0 remap: HCURL offset count mismatch on " + block_name +
-        " (auxiliary=" + std::to_string(aux_off.size()) +
-        ", primary=" + std::to_string(E_off.size()) + ").");
-      const size_t num_elem = disc->my_elements[b].extent(0);
-      for (size_t e = 0; e < num_elem; ++e) {
-        LO local_elem_id = disc->my_elements[b](e);
-        std::vector<GO> aux_gids, prim_gids;
-        hcurl_dof->getElementGIDs(local_elem_id, aux_gids, block_name);
-        prim_gids = disc->getGIDs(set, b, local_elem_id);
-        for (size_t j = 0; j < aux_off.size(); ++j) {
-          const GO aux_gid = aux_gids[aux_off[j]];
-          const GO prim_gid = prim_gids[E_off[j]];
-          auto ins = aux2prim.emplace(aux_gid, prim_gid);
-          if (!ins.second && ins.first->second != prim_gid && conflictGid < 0) conflictGid = aux_gid;
-        }
-      }
-    }
-
-    // Primary edge row -> auxiliary row, the inverse of aux2prim, for the filtered copy.
-    const LO n_aux_rows = aux_edge_map->getLocalNumElements();
-    GO unmappedGid = -1, nonOwnedGid = -1;
-    std::unordered_map<GO,LO> prim2aux_lid;
-    for (LO lid = 0; lid < n_aux_rows; ++lid) {
-      const GO aux_row_gid = aux_edge_map->getGlobalElement(lid);
-      auto it = aux2prim.find(aux_row_gid);
-      if (it == aux2prim.end()) {
-        if (unmappedGid < 0) unmappedGid = aux_row_gid;
-        continue;
-      }
-      if (nonOwnedGid < 0 && !edge_block_map->isNodeGlobalElement(it->second)) {
-        nonOwnedGid = it->second;
-      }
-      prim2aux_lid[it->second] = lid;
-    }
-    GO bad[3] = {conflictGid, unmappedGid, nonOwnedGid}, worst[3] = {-1, -1, -1};
-    Teuchos::reduceAll<int, GO>(*(aux_edge_map->getComm()), Teuchos::REDUCE_MAX, 3, bad, worst);
-    TEUCHOS_TEST_FOR_EXCEPTION(worst[0] >= 0, std::runtime_error,
-      "D0 remap: auxiliary edge GID " << worst[0] << " maps to two primary GIDs.");
-    TEUCHOS_TEST_FOR_EXCEPTION(worst[1] >= 0, std::runtime_error,
-      "D0 remap: no primary GID for auxiliary GID " << worst[1] << ".");
-    TEUCHOS_TEST_FOR_EXCEPTION(worst[2] >= 0, std::runtime_error,
-      "D0 remap: primary edge GID " << worst[2] << " is not owned by the rank that "
-      "owns its auxiliary row.");
-
     // Rows move to the primary numbering; the nodal columns are untouched.
-    const LO n_prim_rows = static_cast<LO>(edge_block_map->getLocalNumElements());
-    Kokkos::View<LO*, typename Node::device_type> srcRowLid("d0_remap_row", n_prim_rows);
-    auto srcRowLidHost = Kokkos::create_mirror_view(srcRowLid);
-    for (LO lid = 0; lid < n_prim_rows; ++lid) {
-      auto it = prim2aux_lid.find(edge_block_map->getGlobalElement(lid));
-      srcRowLidHost(lid) = (it == prim2aux_lid.end()) ? LO(-1) : it->second;
-    }
-    Kokkos::deep_copy(srcRowLid, srcRowLidHost);
     block_prec::detail::RowsFromTable<Node> rows;
-    rows.srcRow = srcRowLid;
+    rows.srcRow = this->primaryRowTable(edge_block_map, aux_edge_map,
+      this->auxToPrimaryGids(set, hcurl_dof, hcurl_basis, edgeBlock, "D0 remap"), "D0 remap");
     cntxt->refMaxwell.D0_matrix = block_prec::detail::filterCopyCrs<Node>(
       *cntxt->refMaxwell.D0_matrix, edge_block_map, d0_col_map, nodal_map, edge_block_map,
       rows, block_prec::detail::KeepAllEntries());
   }
+}
+
+// ========================================================================================
+// ========================================================================================
+
+// Discrete curl C from the target's H(curl) to the pivot's H(div), both in primary numbering.
+template<class Node>
+void SolverManager<Node>::buildAuxiliaryCurl(const size_t & set,
+                                            const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
+                                            const std::vector<Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > > & blockMaps) {
+  // Split 0 is the pivot and split 1 the target, one variable each.
+  const std::vector<std::string> & names = varlist[set][0];
+  const std::string family[2] = {"HDIV", "HCURL"};
+  size_t var[2] = {names.size(), names.size()};
+  for (size_t r = 0; r < 2; ++r) {
+    const std::vector<std::string> held = block_prec::splitCommaList(cntxt->split(r).variables);
+    if (held.size() != 1) continue;
+    for (size_t v = 0; v < names.size() && v < blockMaps.size(); ++v) {
+      const LO bind = useBasis[set][0][v];
+      if (names[v] == held[0] && bind >= 0 &&
+          disc->basis_types[0][bind].substr(0, family[r].size()) == family[r]) {
+        var[r] = v;
+      }
+    }
+  }
+  TEUCHOS_TEST_FOR_EXCEPTION(var[0] == names.size() || var[1] == names.size(), std::runtime_error,
+    "'exact-curl' needs two splits: an H(div) pivot and an H(curl) Schur target.");
+
+  // The primary bases themselves, so the auxiliary spaces match both splits at any order.
+  Teuchos::RCP<panzer::ConnManager> conn = mesh->getSTKConnManager();
+  Teuchos::RCP<panzer::DOFManager> aux[2];
+  std::unordered_map<GO,GO> aux2prim[2];
+  for (size_t r = 0; r < 2; ++r) {
+    std::vector<basis_RCP> blockBases;
+    for (size_t b = 0; b < mesh->block_names.size(); ++b) {
+      blockBases.push_back(disc->basis_pointers[b][useBasis[set][b][var[r]]]);
+    }
+    aux[r] = this->buildAuxDofManager(conn, names[var[r]], blockBases, true);
+  }
+  const auto C_aux = block_prec::thyraToTpetraCrs<Node>(
+    panzer::buildInterpolation(conn, aux[1], aux[0], names[var[1]], names[var[0]],
+                               Intrepid2::OPERATOR_CURL, 1000, false, true, false));
+  for (size_t r = 0; r < 2; ++r) {
+    aux2prim[r] = this->auxToPrimaryGids(set, aux[r], names[var[r]], var[r], "Curl remap");
+  }
+
+  // Rows to the pivot block, columns to the target.
+  const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > & pivot_map = blockMaps[var[0]];
+  const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > & target_map = blockMaps[var[1]];
+  block_prec::detail::RowsFromTable<Node> rows;
+  rows.srcRow = this->primaryRowTable(pivot_map, C_aux->getRowMap(), aux2prim[0], "Curl remap");
+
+  const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > aux_cols = C_aux->getColMap();
+  const LO n_cols = static_cast<LO>(aux_cols->getLocalNumElements());
+  Kokkos::View<LO*, LA_device> outCol("curl_remap_col", n_cols);
+  auto outColHost = Kokkos::create_mirror_view(outCol);
+  std::vector<GO> col_gids;
+  GO noPrimColGid = -1;
+  for (LO c = 0; c < n_cols; ++c) {
+    auto it = aux2prim[1].find(aux_cols->getGlobalElement(c));
+    if (it == aux2prim[1].end() && noPrimColGid < 0) noPrimColGid = aux_cols->getGlobalElement(c);
+    outColHost(c) = (it == aux2prim[1].end()) ? LO(-1) : static_cast<LO>(col_gids.size());
+    if (it != aux2prim[1].end()) col_gids.push_back(it->second);
+  }
+  Kokkos::deep_copy(outCol, outColHost);
+  GO worst = -1;
+  Teuchos::reduceAll<int, GO>(*(pivot_map->getComm()), Teuchos::REDUCE_MAX, 1, &noPrimColGid, &worst);
+  TEUCHOS_TEST_FOR_EXCEPTION(worst >= 0, std::runtime_error,
+    "Curl remap: no primary GID for auxiliary column GID " << worst << ".");
+  const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > col_map = Teuchos::rcp(new Tpetra::Map<LO,GO,Node>(
+    Teuchos::OrdinalTraits<Tpetra::global_size_t>::invalid(), col_gids, 0, pivot_map->getComm()));
+
+  block_prec::detail::ColumnsFromTable<Node> cols;
+  cols.outCol = outCol;
+  cntxt->block.curl = block_prec::detail::filterCopyCrs<Node>(
+    *C_aux, pivot_map, col_map, target_map, pivot_map, rows, cols);
 }
 
 // ========================================================================================
@@ -515,14 +638,42 @@ void SolverManager<Node>::buildAuxiliaryNodalData(const Teuchos::RCP<LinearSolve
                                                  const Teuchos::RCP<panzer::DOFManager> & hgrad_dof,
                                                  const std::vector<Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > > & blockMaps,
                                                  const size_t edgeBlock) {
-  const int hgrad_order = bases.hgrad_order;
   const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > nodal_map = cntxt->refMaxwell.D0_matrix->getDomainMap();
   const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > edge_block_map = blockMaps[edgeBlock];
+  const std::map<GO, std::vector<double> > gid_to_coords = this->computeAuxiliaryNodalData(
+    hgrad_dof, bases.hgrad_name, bases.hgrad_order, nodal_map,
+    cntxt->refMaxwell.nodal_coords, cntxt->refMaxwell.nodal_lumped_mass);
 
+  if (cntxt->block.dof_coords.size() != blockMaps.size()) {
+    cntxt->block.dof_coords.assign(blockMaps.size(), Teuchos::null);
+  }
+  auto edge_coords = buildEdgeAveragedNodeCoords<ScalarT,LO,GO,Node>(
+    cntxt->refMaxwell.D0_matrix, edge_block_map, gid_to_coords, dimension);
+  cntxt->block.dof_coords[edgeBlock] = edge_coords;
+  debugger->print("**** setupBlockTriangularAuxiliary: populated block.dof_coords[edgeBlock=" +
+                  std::to_string(edgeBlock) + "] length " +
+                  std::to_string(edge_coords->getGlobalLength()));
+
+
+  
+}
+
+// ========================================================================================
+// ========================================================================================
+
+// Coordinates and lumped mass of the H(grad) DOFs on nodal_map; returns GID to coordinates.
+template<class Node>
+std::map<GO, std::vector<double> >
+SolverManager<Node>::computeAuxiliaryNodalData(const Teuchos::RCP<panzer::DOFManager> & hgrad_dof,
+                                               const std::string & hgrad_name,
+                                               const int hgrad_order,
+                                               const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > & nodal_map,
+                                               Teuchos::RCP<typename RefMaxwellData<Node>::LA_CoordMultiVector> & coords,
+                                               Teuchos::RCP<LA_MultiVector> & lumped_mass) {
   // Nodal coordinates on D0 domain (Hgrad) for RefMaxwell nullspace / mesh info.
-  cntxt->refMaxwell.nodal_coords = Teuchos::rcp(
+  coords = Teuchos::rcp(
     new Tpetra::MultiVector<typename Teuchos::ScalarTraits<ScalarT>::coordinateType,LO,GO,Node>(nodal_map, dimension));
-  auto coords_2d = cntxt->refMaxwell.nodal_coords->getLocalViewHost(Tpetra::Access::OverwriteAll);
+  auto coords_2d = coords->getLocalViewHost(Tpetra::Access::OverwriteAll);
 
   typedef Intrepid2::CellTools<PHX::Device::execution_space> AuxCellTools;
   typedef Intrepid2::FunctionSpaceTools<PHX::Device::execution_space> AuxFuncTools;
@@ -573,6 +724,37 @@ void SolverManager<Node>::buildAuxiliaryNodalData(const Teuchos::RCP<LinearSolve
     auto nodes_h = Kokkos::create_mirror_view(elem_nodes);
     Kokkos::deep_copy(nodes_h, elem_nodes);
 
+    // Above order 1, DOFs sit off the vertices and Panzer orders a field's GIDs by entity, not by basis index.
+    if (hgrad_order > 1) {
+      const std::vector<int> & offs =
+        hgrad_dof->getGIDFieldOffsets(block_name, hgrad_dof->getFieldNum(hgrad_name));
+      DRV refDofPts("hgrad dof pts", nB, dimension);
+      blockHgrad->getDofCoords(refDofPts);
+      DRV physDofPts("hgrad phys dof pts", nC, nB, dimension);
+      AuxCellTools::mapToPhysicalFrame(physDofPts, refDofPts, elem_nodes, *blockTopo);
+      auto phys_h = Kokkos::create_mirror_view(physDofPts);
+      Kokkos::deep_copy(phys_h, physDofPts);
+      for (size_t e = 0; e < num_elem; ++e) {
+        std::vector<GO> elem_dofs;
+        LO local_elem_id = disc->my_elements[block](e);
+        hgrad_dof->getElementGIDs(local_elem_id, elem_dofs, block_name);
+        for (int i = 0; i < nB; ++i) {
+          const GO gid = elem_dofs[offs[i]];
+          if (gid_to_coords.find(gid) == gid_to_coords.end()) {
+            std::vector<double> coord(dimension, 0.0);
+            for (int d = 0; d < dimension; ++d) coord[d] = phys_h(e, i, d);
+            gid_to_coords[gid] = coord;
+          }
+          const LO og_lid = og_map->getLocalElement(gid);
+          if (og_lid == Teuchos::OrdinalTraits<LO>::invalid()) continue;
+          ScalarT acc = 0.0;
+          for (int q = 0; q < nP; ++q) acc += wts_h(e, q) * vals_h(i, q);
+          mass_og_view(og_lid, 0) += acc;
+        }
+      }
+      continue;
+    }
+
     for (size_t e = 0; e < num_elem; ++e) {
       std::vector<GO> elem_dofs;
       LO local_elem_id = disc->my_elements[block](e);
@@ -599,21 +781,15 @@ void SolverManager<Node>::buildAuxiliaryNodalData(const Teuchos::RCP<LinearSolve
     mass_owned->putScalar(0.0);
     Tpetra::Export<LO,GO,Node> og_to_owned(og_map, nodal_map);
     mass_owned->doExport(*mass_og, og_to_owned, Tpetra::ADD);
-    ScalarT lmin = std::numeric_limits<ScalarT>::max(), gmin = 0.0;
-    {
-      auto mv = mass_owned->getLocalViewHost(Tpetra::Access::ReadOnly);
-      for (size_t i = 0; i < mv.extent(0); ++i) lmin = std::min(lmin, mv(i,0));
-    }
-    Teuchos::reduceAll(*(nodal_map->getComm()), Teuchos::REDUCE_MIN, 1, &lmin, &gmin);
-    TEUCHOS_TEST_FOR_EXCEPTION(gmin <= 0.0, std::runtime_error,
-      "Lumped nodal mass has a non-positive entry (" << gmin << ").");
-    // sum(m_n) is |Omega|. norm1 is collective, so every rank must call it.
-    const ScalarT msum = mass_owned->getVector(0)->norm1();
+    // sum(m_n) is |Omega|. dot is collective, so every rank must call it.
+    LA_MultiVector ones(nodal_map, 1);
+    ones.putScalar(1.0);
+    const ScalarT msum = ones.getVector(0)->dot(*mass_owned->getVector(0));
     if (verbosity >= 5 && nodal_map->getComm()->getRank() == 0) {
       std::cout << "[AUX] lumped nodal mass: sum = " << std::setprecision(14)
                 << msum << std::setprecision(6) << std::endl;
     }
-    cntxt->refMaxwell.nodal_lumped_mass = mass_owned;
+    lumped_mass = mass_owned;
   }
 
   GO missing_coords = 0;
@@ -633,19 +809,78 @@ void SolverManager<Node>::buildAuxiliaryNodalData(const Teuchos::RCP<LinearSolve
     TEUCHOS_TEST_FOR_EXCEPTION(global_missing > 0, std::runtime_error,
       "RefMaxwell setup: " << global_missing << " nodes have no coordinates.");
   }
+  return gid_to_coords;
+}
 
-  if (cntxt->block.dof_coords.size() != blockMaps.size()) {
-    cntxt->block.dof_coords.assign(blockMaps.size(), Teuchos::null);
+// ========================================================================================
+// ========================================================================================
+
+// p-multigrid coarse level: order-1 D0, P from H(curl)_1 into the E rows, nodal coords and mass.
+template<class Node>
+void SolverManager<Node>::buildPMultigridCoarseData(const size_t & set,
+                                                   const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
+                                                   const AuxiliaryBasisSpec & bases,
+                                                   const Teuchos::RCP<panzer::DOFManager> & hcurl_dof,
+                                                   const size_t edgeBlock,
+                                                   const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > & edge_block_map) {
+  TEUCHOS_TEST_FOR_EXCEPTION(bases.hgrad_order != bases.hcurl_order, std::runtime_error,
+    "'p-multigrid' needs 'hgrad basis order' equal to 'hcurl basis order'; this split has "
+    << bases.hgrad_order << " and " << bases.hcurl_order << ".");
+  Teuchos::RCP<panzer::ConnManager> conn = mesh->getSTKConnManager();
+  std::vector<basis_RCP> hgrad1_bases, hcurl1_bases;
+  for (std::string block_name : mesh->block_names) {
+    topo_RCP cellTopo = mesh->getCellTopology(block_name);
+    hgrad1_bases.push_back(disc->getBasis(dimension, cellTopo, "HGRAD", 1));
+    hcurl1_bases.push_back(disc->getBasis(dimension, cellTopo, "HCURL", 1));
   }
-  auto edge_coords = buildEdgeAveragedNodeCoords<ScalarT,LO,GO,Node>(
-    cntxt->refMaxwell.D0_matrix, edge_block_map, gid_to_coords, dimension);
-  cntxt->block.dof_coords[edgeBlock] = edge_coords;
-  debugger->print("**** setupBlockTriangularAuxiliary: populated block.dof_coords[edgeBlock=" +
-                  std::to_string(edgeBlock) + "] length " +
-                  std::to_string(edge_coords->getGlobalLength()));
+  Teuchos::RCP<panzer::DOFManager> hgrad1_dof =
+    this->buildAuxDofManager(conn, bases.hgrad_name, hgrad1_bases, false);
+  Teuchos::RCP<panzer::DOFManager> hcurl1_dof =
+    this->buildAuxDofManager(conn, bases.hcurl_name, hcurl1_bases, true);
 
+  PMultigridData<Node> & pmg = cntxt->pMultigrid;
+  pmg.D0_coarse = block_prec::thyraToTpetraCrs<Node>(
+    panzer::buildInterpolation(conn, hgrad1_dof, hcurl1_dof, bases.hgrad_name, bases.hcurl_name,
+                               Intrepid2::OPERATOR_GRAD, 1000, false, true, false));
+  const auto P_aux = block_prec::thyraToTpetraCrs<Node>(
+    panzer::buildInterpolation(conn, hcurl1_dof, hcurl_dof, bases.hcurl_name, bases.hcurl_name,
+                               Intrepid2::OPERATOR_VALUE, 1000, false, true, false));
+  block_prec::detail::RowsFromTable<Node> rows;
+  rows.srcRow = this->primaryRowTable(edge_block_map, P_aux->getRowMap(),
+    this->auxToPrimaryGids(set, hcurl_dof, bases.hcurl_name, edgeBlock, "P remap"), "P remap");
+  pmg.P = block_prec::detail::filterCopyCrs<Node>(
+    *P_aux, edge_block_map, P_aux->getColMap(), P_aux->getDomainMap(), edge_block_map,
+    rows, block_prec::detail::DropZeroEntries());
+  this->computeAuxiliaryNodalData(hgrad1_dof, bases.hgrad_name, 1, pmg.D0_coarse->getDomainMap(),
+                                  pmg.coarse_nodal_coords, pmg.coarse_nodal_lumped_mass);
 
-  
+  if (verbosity >= 5) {
+    using MagT = typename Teuchos::ScalarTraits<ScalarT>::magnitudeType;
+    const matrix_RCP & D0p = cntxt->refMaxwell.D0_matrix;
+    LA_MultiVector x1(pmg.D0_coarse->getDomainMap(), 1), g1(pmg.D0_coarse->getRangeMap(), 1);
+    LA_MultiVector xp(D0p->getDomainMap(), 1), gp(edge_block_map, 1), Pg(edge_block_map, 1);
+    MagT worst = 0.0;
+    for (int d = 0; d < dimension; ++d) {
+      {
+        auto c1 = pmg.coarse_nodal_coords->getLocalViewHost(Tpetra::Access::ReadOnly);
+        auto v1 = x1.getLocalViewHost(Tpetra::Access::OverwriteAll);
+        for (size_t i = 0; i < v1.extent(0); ++i) v1(i, 0) = static_cast<ScalarT>(c1(i, d));
+        auto cp = cntxt->refMaxwell.nodal_coords->getLocalViewHost(Tpetra::Access::ReadOnly);
+        auto vp = xp.getLocalViewHost(Tpetra::Access::OverwriteAll);
+        for (size_t i = 0; i < vp.extent(0); ++i) vp(i, 0) = static_cast<ScalarT>(cp(i, d));
+      }
+      pmg.D0_coarse->apply(x1, g1);
+      pmg.P->apply(g1, Pg);
+      D0p->apply(xp, gp);
+      Pg.update(-1.0, gp, 1.0);
+      const MagT num = Pg.getVector(0)->normInf(), den = gp.getVector(0)->normInf();
+      if (den > 0.0) worst = std::max(worst, num / den);
+    }
+    if (Comm->getRank() == 0) {
+      std::cout << "[AUX] p-multigrid P check: max_d |P*D0_1*x1_d - D0_p*x_d| / |D0_p*x_d| = "
+                << worst << std::endl;
+    }
+  }
 }
 
 // ========================================================================================
@@ -756,7 +991,10 @@ void SolverManager<Node>::setupDiscretizedParamMass() {
     diagParamMass_over = diagParamMass;
   }
   
-  assembler->getParamMass(pmass,diagParamMass_over);
+  vector<bool> include_block = this->resolveParamRieszMetric();
+  
+  assembler->getParamMass(pmass, diagParamMass_over,
+                          param_riesz.l2_weight, param_riesz.semi_weight, include_block);
   
   if (linalg->getHaveOverlapped()) {
     linalg->exportParamVectorFromOverlapped(diagParamMass, diagParamMass_over);
@@ -766,13 +1004,275 @@ void SolverManager<Node>::setupDiscretizedParamMass() {
   }
   
 
+  vector_RCP assembled_diag;
+  if (param_riesz.apply == "iterative") {
+    assembled_diag = Teuchos::rcp(new LA_MultiVector(*diagParamMass, Teuchos::Copy));
+  }
+  
+  // Before fillComplete: the owned matrix has no entry in a row the assembly never
+  // reached, so the missing diagonal has to be inserted rather than replaced.
+  this->completeParamRieszDiagonal(paramMass, diagParamMass);
+  
   if (compute_matrix) {
     linalg->fillComplete(paramMass);
   }
   
-  params->setParamMass(diagParamMass, paramMass);
+  if (!param_riesz.file.empty()) {
+    linalg->writeMatrixToFile(paramMass, param_riesz.file);
+  }
+  
+  Teuchos::RCP<MrHyDE_ParamRiesz> riesz;
+  size_t dropped_zeros = 0;
+  // Only the exact form needs a solver; the diagonal is inverted entrywise.
+  if (param_riesz.apply == "exact") {
+    matrix_RCP factored = paramMass;
+    // The parameter graph spans the whole mesh, so outside the metric's blocks it stores zeros.
+    if (param_riesz.drop_zeros) {
+      factored = block_prec::detail::filterCopyCrs<Node>(
+        *paramMass, paramMass->getRowMap(), paramMass->getColMap(), paramMass->getDomainMap(),
+        paramMass->getRangeMap(), block_prec::detail::KeepAllRows(),
+        block_prec::detail::DropExactZeros());
+      dropped_zeros = paramMass->getGlobalNumEntries() - factored->getGlobalNumEntries();
+    }
+    riesz = Teuchos::rcp(new MrHyDE_ParamRiesz(paramMass, param_riesz.solver, factored));
+  }
+  else if (param_riesz.apply == "iterative") {
+    riesz = this->buildIterativeParamRiesz(assembled_diag);
+  }
+  
+  params->setParamMass(diagParamMass, riesz);
+  
+  if (verbosity >= 5 && Comm->getRank() == 0) {
+    const auto nblocks_used = std::count(include_block.begin(), include_block.end(), true);
+    std::cout << "[RieszMap] P = " << param_riesz.l2_weight << "*M + " << param_riesz.semi_weight
+              << "*S over " << nblocks_used << " of " << include_block.size() << " blocks, apply "
+              << param_riesz.apply << ", dim " << paramMass->getGlobalNumRows()
+              << (param_riesz.drop_zeros ? ", -" + std::to_string(dropped_zeros) + " zeros" : "")
+              << std::endl;
+  }
   
   debugger->print("**** Finished SolverManager::setupDiscretizedParamMass()");
+  
+}
+
+// ========================================================================================
+// Type "regularizer" takes the weights and blocks from the objective's regularization terms.
+// ========================================================================================
+
+template<class Node>
+vector<bool> SolverManager<Node>::resolveParamRieszMetric() {
+  
+  TEUCHOS_TEST_FOR_EXCEPTION(param_riesz.type != "mass" && param_riesz.type != "sobolev"
+                             && param_riesz.type != "regularizer", std::runtime_error,
+                             "Riesz map: type must be mass, sobolev or regularizer");
+  TEUCHOS_TEST_FOR_EXCEPTION(param_riesz.apply != "diagonal" && param_riesz.apply != "exact" &&
+                             param_riesz.apply != "iterative", std::runtime_error,
+                             "Riesz map: apply must be diagonal, exact or iterative");
+  TEUCHOS_TEST_FOR_EXCEPTION(param_riesz.apply != "diagonal" && (assembler->lump_mass || assembler->matrix_free),
+                             std::runtime_error,
+                             "Riesz map: apply exact/iterative needs an assembled matrix (unset lump mass / matrix free)");
+  if (param_riesz.apply == "iterative") {
+    TEUCHOS_TEST_FOR_EXCEPTION(param_riesz.prec != "RefMaxwell" && param_riesz.prec != "Jacobi",
+                               std::runtime_error,
+                               "Riesz map: iterative preconditioner must be RefMaxwell or Jacobi");
+    TEUCHOS_TEST_FOR_EXCEPTION(param_riesz.prec == "RefMaxwell" && param_riesz.xml.empty(),
+                               std::runtime_error,
+                               "Riesz map: RefMaxwell needs Iterative Settings -> xml param file");
+    TEUCHOS_TEST_FOR_EXCEPTION(param_riesz.prec == "RefMaxwell" &&
+                               (params->num_discretized_params != 1 ||
+                                params->discretized_param_basis_types[params->discretized_param_usebasis[0]].substr(0,5) != "HCURL"),
+                               std::runtime_error,
+                               "Riesz map: RefMaxwell needs exactly one HCURL discretized parameter");
+  }
+  
+  vector<bool> include_block(blocknames.size(), false);
+
+  const std::string ptype = params->discretized_param_basis_types[params->discretized_param_usebasis[0]];
+  const std::string semi_op = seminormOpForBasis(ptype);
+
+  if (param_riesz.type == "regularizer") {
+
+    param_riesz.l2_weight = 0.0;
+    param_riesz.semi_weight = 0.0;
+    std::set<string> l2_terms, semi_terms;
+    std::map<std::pair<string,ScalarT>, vector<bool> > term_blocks;
+
+    // The objective is instantiated once per block, so each term is seen once per
+    // block it lives on and only its first instance contributes a weight.
+    for (size_t r=0; r<postproc->objectives.size(); ++r) {
+      for (size_t k=0; k<postproc->objectives[r].regularizations.size(); ++k) {
+        const regularization & reg = postproc->objectives[r].regularizations[k];
+        if (reg.type != "integrated" || reg.weight == 0.0 || reg.location != "volume") {
+          continue;
+        }
+        const string key = postproc->objectives[r].name + "/" + reg.name;
+        term_blocks[{key, reg.weight}].resize(blocknames.size(), false);
+        term_blocks[{key, reg.weight}][reg.block] = true;
+        include_block[reg.block] = true;
+        // Classify by the control basis's natural derivative, not a hardcoded operator.
+        // Match op( at a token boundary so e.g. scurl( does not count as curl(.
+        auto identChar = [](char c) {
+          return (c>='a'&&c<='z') || (c>='A'&&c<='Z') || (c>='0'&&c<='9') || c=='_';
+        };
+        // Functions helpers resolve per block as in the function managers; append each one used.
+        std::map<string,string> helpers;
+        if (settings->isSublist("Functions")) {
+          const Teuchos::ParameterList & flist = settings->sublist("Functions");
+          for (int pass = 0; pass < 2; ++pass) {
+            for (auto it = flist.begin(); it != flist.end(); ++it) {
+              const bool sub = flist.isSublist(it->first);
+              if (pass == 0 && !sub && flist.entry(it).isType<string>()) {
+                helpers[it->first] = flist.entry(it).getValue<string>(nullptr);
+              }
+              if (pass == 1 && sub && it->first.find(blocknames[reg.block]) != string::npos) {
+                const Teuchos::ParameterList & blist = flist.sublist(it->first);
+                for (auto jt = blist.begin(); jt != blist.end(); ++jt) {
+                  if (blist.entry(jt).isType<string>()) {
+                    helpers[jt->first] = blist.entry(jt).getValue<string>(nullptr);
+                  }
+                }
+              }
+            }
+          }
+        }
+        std::string f = reg.function;
+        std::set<string> expanded;
+        for (size_t p = 0; p < f.size(); ) {
+          if (!identChar(f[p])) { ++p; continue; }
+          size_t q = p;
+          while (q < f.size() && identChar(f[q])) { ++q; }
+          auto h = helpers.find(f.substr(p, q-p));
+          if (h != helpers.end() && expanded.insert(h->first).second) { f += ";" + h->second; }
+          p = q;
+        }
+        f.erase(std::remove_if(f.begin(), f.end(), ::isspace), f.end());
+        auto hasToken = [&](const std::string & s, const std::string & tok) {
+          for (size_t p = s.find(tok); p != std::string::npos; p = s.find(tok, p+1)) {
+            const size_t q = p + tok.size();
+            if ((p == 0 || !identChar(s[p-1])) && (q == s.size() || !identChar(s[q]))) { return true; }
+          }
+          return false;
+        };
+        auto hasOpCall = [&](const std::string & op) {
+          const std::string tok = op + "(";
+          for (size_t p = f.find(tok); p != std::string::npos; p = f.find(tok, p+1)) {
+            if (p == 0 || !identChar(f[p-1])) { return true; }
+          }
+          return false;
+        };
+        const bool has_semi = !semi_op.empty() && hasOpCall(semi_op);
+        for (const std::string other : {"curl", "grad", "div"}) {
+          TEUCHOS_TEST_FOR_EXCEPTION(other != semi_op && hasOpCall(other),
+            std::runtime_error, "Riesz map: regularizer term '" + key + "' uses " + other +
+            "() but a " + ptype + " control has no such seminorm; use type = sobolev");
+        }
+        // An l2 part is a control name left once every derivative call of it is removed.
+        std::string bare = f;
+        bool has_l2 = false;
+        for (const string & name : params->discretized_param_names) {
+          for (const std::string op : {"curl", "grad", "div"}) {
+            const std::string call = op + "(" + name + ")";
+            for (size_t p = bare.find(call); p != std::string::npos; p = bare.find(call, p)) {
+              bare.erase(p, call.size());
+            }
+          }
+        }
+        for (const string & name : params->discretized_param_names) {
+          has_l2 = has_l2 || hasToken(bare, name);
+        }
+        TEUCHOS_TEST_FOR_EXCEPTION(has_semi && has_l2, std::runtime_error,
+          "Riesz map: regularizer term '" + key + "' mixes an l2 part and a " + semi_op +
+          "() part; split it into two terms or use type = sobolev");
+        if (has_semi) {
+          if (semi_terms.insert(key).second) { param_riesz.semi_weight += reg.weight; }
+        }
+        else {
+          if (l2_terms.insert(key).second) { param_riesz.l2_weight += reg.weight; }
+        }
+      }
+    }
+    
+    TEUCHOS_TEST_FOR_EXCEPTION(l2_terms.empty() && semi_terms.empty(), std::runtime_error,
+                               "Riesz map: type = regularizer found no nonzero volume regularization");
+    for (auto it=term_blocks.begin(); it!=term_blocks.end(); ++it) {
+      TEUCHOS_TEST_FOR_EXCEPTION(it->second != include_block, std::runtime_error,
+                                 "Riesz map: regularizer needs every term on the same blocks with one weight");
+    }
+
+  }
+  else {
+    
+    if (param_riesz.type == "mass") { // the l2 piece alone
+      param_riesz.semi_weight = 0.0;
+    }
+    if (param_riesz.blocks.empty()) { // the parameter field's own domain
+      include_block.assign(blocknames.size(), true);
+    }
+    else {
+      include_block = matchNamedBlocks(param_riesz.blocks, blocknames,
+                                       "Error: Parameter Riesz map -> blocks");
+    }
+    
+  }
+  
+  // The seminorm needs a derivative the control basis supports.
+  TEUCHOS_TEST_FOR_EXCEPTION(param_riesz.semi_weight != 0.0 && semi_op.empty(), std::runtime_error,
+                             "Riesz map: no Sobolev seminorm for basis '" + ptype + "'; use type = mass");
+  // The classification keys on the first parameter, so a seminorm metric is single-field.
+  TEUCHOS_TEST_FOR_EXCEPTION(param_riesz.semi_weight != 0.0 && params->num_discretized_params != 1,
+                             std::runtime_error,
+                             "Riesz map: a seminorm metric supports a single discretized parameter");
+  // The seminorm annihilates its own kernel, so it is singular without the l2 term.
+  TEUCHOS_TEST_FOR_EXCEPTION(param_riesz.l2_weight == 0.0 && param_riesz.semi_weight != 0.0,
+                             std::runtime_error,
+                             "Riesz map: a seminorm with l2 weight 0 is singular");
+  TEUCHOS_TEST_FOR_EXCEPTION(assembler->lump_mass && param_riesz.semi_weight != 0.0,
+                             std::runtime_error,
+                             "Riesz map: a seminorm cannot be lumped; unset lump mass");
+
+  return include_block;
+}
+
+// ========================================================================================
+// Dofs outside the metric's blocks carry no control; give them the mean live diagonal so P is invertible.
+// ========================================================================================
+
+template<class Node>
+void SolverManager<Node>::completeParamRieszDiagonal(matrix_RCP & riesz, vector_RCP & diag) {
+
+  // Single rank already fillComplete'd this matrix in getParamMass; reopen so dead-row diagonals insert.
+  if (riesz->isFillComplete()) { riesz->resumeFill(); }
+
+  auto dview = diag->template getLocalView<HostDevice>(Tpetra::Access::ReadWrite);
+  
+  ScalarT local_sum = 0.0;
+  GO local_live = 0;
+  for (size_t i=0; i<dview.extent(0); ++i) {
+    if (dview(i,0) != 0.0) { local_sum += dview(i,0); ++local_live; }
+  }
+  
+  ScalarT global_sum = 0.0;
+  GO global_live = 0;
+  Teuchos::reduceAll<int,ScalarT>(*Comm, Teuchos::REDUCE_SUM, 1, &local_sum, &global_sum);
+  Teuchos::reduceAll<int,GO>(*Comm, Teuchos::REDUCE_SUM, 1, &local_live, &global_live);
+  
+  TEUCHOS_TEST_FOR_EXCEPTION(global_live == 0, std::runtime_error,
+                             "Riesz map: the operator assembled nothing");
+  
+  const ScalarT fill = global_sum/static_cast<ScalarT>(global_live);
+  
+  for (size_t i=0; i<dview.extent(0); ++i) {
+    if (dview(i,0) != 0.0) { continue; }
+    dview(i,0) = fill;
+    const GO grow = riesz->getRowMap()->getGlobalElement(i);
+    riesz->insertGlobalValues(grow, Teuchos::tuple<GO>(grow), Teuchos::tuple<ScalarT>(fill));
+  }
+  
+  const GO global_dead = static_cast<GO>(diag->getGlobalLength()) - global_live;
+  if (global_dead > 0 && verbosity >= 5 && Comm->getRank() == 0) {
+    std::cout << "[RieszMap] " << global_dead << " dofs outside the metric's blocks given diagonal "
+              << fill << std::endl;
+  }
   
 }
 

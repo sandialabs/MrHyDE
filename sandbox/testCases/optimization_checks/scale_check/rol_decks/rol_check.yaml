@@ -6,7 +6,7 @@ ANONYMOUS:
     ROL2:
       General:
         Output Level: 2
-        Do magnitude scan: true
+        Do magnitude check: true
         FD Check Random Seed: 42
         FD Check Random Scale: 1.0e-8
         Do grad+hessvec check: false

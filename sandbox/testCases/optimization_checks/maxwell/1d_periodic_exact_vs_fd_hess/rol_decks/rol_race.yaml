@@ -11,7 +11,7 @@ ANONYMOUS:
     ROL2:
       General:
         Output Level: 3
-        Do magnitude scan: false
+        Do magnitude check: false
         Do grad+hessvec check: false
         Do exact hessvec check: false
         Do algebraic hessvec check: false

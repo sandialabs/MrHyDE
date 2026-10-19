@@ -3,7 +3,7 @@
 
  Everything in block_prec/ is in MrHyDE::block_prec; ::detail is module-private.
 
- Questions? Contact Alexey Voronin (abvoron@sandia.gov)
+ Questions? Contact Alexey Voronin
  ************************************************************************/
 
 #ifndef MRHYDE_BLOCK_PREC_TYPES_HPP
@@ -43,12 +43,13 @@ struct BlockTypes {
   using HostVals = typename CrsMatrix::nonconst_values_host_view_type;
 };
 
-enum class SchurVariant { Base, Diag, Mass };
+enum class SchurVariant { Base, Diag, Mass, ExactCurl };
 
 inline std::string schurVariantName(const SchurVariant variant) {
   if (variant == SchurVariant::Base) return "base";
   if (variant == SchurVariant::Diag) return "diag";
   if (variant == SchurVariant::Mass) return "mass";
+  if (variant == SchurVariant::ExactCurl) return "exact-curl";
   return "base";
 }
 
@@ -85,9 +86,10 @@ inline SchurVariant parseSchurVariant(const std::string & canonical) {
   if (up == "BASE") return SchurVariant::Base;
   if (up == "DIAG") return SchurVariant::Diag;
   if (up == "MASS") return SchurVariant::Mass;
+  if (up == "EXACT-CURL") return SchurVariant::ExactCurl;
   TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error,
     "Unsupported Schur approximation type '" << canonical
-    << "'. Supported canonical values are: base, diag, mass.");
+    << "'. Supported canonical values are: base, diag, mass, exact-curl.");
   return SchurVariant::Base;
 }
 
@@ -116,19 +118,27 @@ inline bool resolveUpperTriangle(const std::string & triangle, const bool rightP
   return (side == TriangleSide::Auto) ? rightPreconditioner : (side == TriangleSide::Upper);
 }
 
-enum class BlockPrecType { AMG, RefMaxwell, Maxwell1, Direct, Diagonal };
+enum class BlockPrecType { AMG, RefMaxwell, Maxwell1, Direct, Diagonal, PMultigrid };
 
-inline BlockPrecType parseBlockPrecType(const std::string & raw) {
+// False for a name that is not a block preconditioner type, such as an Ifpack2 smoother.
+inline bool tryParseBlockPrecType(const std::string & raw, BlockPrecType & type) {
   std::string u = raw.empty() ? std::string("AMG") : raw;
   toUpperAscii(u);
-  if (u == "AMG" || u == "MUELU") return BlockPrecType::AMG;
-  if (u == "REFMAXWELL") return BlockPrecType::RefMaxwell;
-  if (u == "MAXWELL1") return BlockPrecType::Maxwell1;
-  if (u == "DIRECT") return BlockPrecType::Direct;
-  if (u == "DIAG" || u == "DIAGONAL") return BlockPrecType::Diagonal;
-  TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error,
-    "Unsupported block preconditioner type '" << raw << "'. Supported: AMG, RefMaxwell, Maxwell1, Direct, Diagonal.");
-  return BlockPrecType::AMG;
+  if (u == "AMG" || u == "MUELU") type = BlockPrecType::AMG;
+  else if (u == "REFMAXWELL") type = BlockPrecType::RefMaxwell;
+  else if (u == "MAXWELL1") type = BlockPrecType::Maxwell1;
+  else if (u == "DIRECT") type = BlockPrecType::Direct;
+  else if (u == "DIAG" || u == "DIAGONAL") type = BlockPrecType::Diagonal;
+  else if (u == "P-MULTIGRID") type = BlockPrecType::PMultigrid;
+  else return false;
+  return true;
+}
+
+inline BlockPrecType parseBlockPrecType(const std::string & raw) {
+  BlockPrecType type = BlockPrecType::AMG;
+  TEUCHOS_TEST_FOR_EXCEPTION(!tryParseBlockPrecType(raw, type), std::runtime_error,
+    "Unsupported block preconditioner type '" << raw << "'. Supported: AMG, RefMaxwell, Maxwell1, Direct, Diagonal, p-multigrid.");
+  return type;
 }
 
 } // namespace block_prec
