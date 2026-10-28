@@ -1,6 +1,6 @@
 # Examples for the paper Source Cloaking for Maxwell’s Equations: Well-Posedness, Adjoint Analysis, and Fully Discrete Convergence
 
-This folder contains MrHyDE input files for the examples used in the Numerical Results section of the  Paper titled "Source Cloaking for Maxwell’s Equations: Well-Posedness, Adjoint Analysis, and Fully Discrete Convergence" authored by Harbir Antil, Denis Ridzal, Jimmie Adriazola, Rohit Khandelwal and Yaw Owusu-Agyemang.
+This folder contains MrHyDE input files for the examples used in the Numerical Results section of the  Paper titled ["Source Cloaking for Maxwell’s Equations: Well-Posedness, Adjoint Analysis, and Fully Discrete Convergence" authored by Harbir Antil, Denis Ridzal, Jimmie Adriazola, Rohit Khandelwal and Yaw Owusu-Agyemang](https://arxiv.org/pdf/2605.00212).
 
 
 ## To run
