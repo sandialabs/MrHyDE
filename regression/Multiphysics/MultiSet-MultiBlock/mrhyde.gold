@@ -1,3 +1,253 @@
+STK Meta data:
+   Element blocks = "material_0" "material_1" 
+   Sidesets = "back" "bottom" "front" "left" "right" "top" 
+   Nodesets = 
+   Fields = "coordinates" "left_df" "right_df" "bottom_df" "top_df" "back_df" "front_df" "edges" "faces" "PROC_ID" "LOAD_BAL" 
+DOFManager Field Information: 
+   Element Block = material_0
+      "q" is field ID 0
+   Element Block = material_1
+      "q" is field ID 0
+DOFManager Field Information: 
+   Element Block = material_0
+   Element Block = material_1
+      "c" is field ID 0
+ - Processor 2 has 667 elements
+ - Processor 2 has 364 boundary elements
+ - Processor 2 is using 0.213664 MB to store volumetric data
+ - Processor 2 is using 0 MB to store face data
+ - Processor 2 is using 0.128248 MB to store boundary data
+ - Processor 1 has 667 elements
+ - Processor 1 has 273 boundary elements
+ - Processor 1 is using 0.897824 MB to store volumetric data
+ - Processor 1 is using 0 MB to store face data
+ - Processor 1 is using 0.23664 MB to store boundary data
+ - Processor 0 has 666 elements
+ - Processor 0 has 363 boundary elements
+ - Processor 0 is using 1.57748 MB to store volumetric data
+ - Processor 0 is using 0 MB to store face data
+ - Processor 0 is using 0.499688 MB to store boundary data
+
+*********************************************
+Printing settings used by MrHyDE (ignore unused keyword):
+verbosity = 10
+debug level = 0
+profile = 0   [default]
+print timers = 0   [default]
+disable timers = 0   [default]
+enable memory purge = 0   [default]
+Mesh -> 
+ dimension = 3
+ element type = hex
+ source = Exodus
+ mesh file = two_block_3D.e
+ use STK mesh = 1   [default]
+ use simple mesh = 0   [default]
+ shape = none   [default]
+ compute mesh data = 0   [default]
+ data file = none   [default]
+ data points file = none   [default]
+ numNodesPerElem = 8
+ have element data = 0   [default]
+ have nodal data = 0   [default]
+ Periodic Boundaries =    [default]
+ use measurements as DBCs = 0   [default]
+Functions -> 
+ ODE source = -1.0*q   [unused]
+Physics -> 
+ physics set names = ODE, CDR
+ use custom initial param guess = 0   [default]
+ ODE -> 
+  material_0, material_1 -> 
+   modules = ODE   [unused]
+   assemble boundary terms = 0   [unused]
+   Initial conditions -> 
+    scalar data = 1   [unused]
+    q = 1   [unused]
+ CDR -> 
+  material_1 -> 
+   modules = cdr   [unused]
+Discretization -> 
+ ODE -> 
+  quadrature = 2   [unused]
+  order -> 
+   q = 1   [unused]
+ CDR -> 
+  quadrature = 2   [unused]
+  order -> 
+   c = 1   [unused]
+Solver -> 
+ solver = transient
+ transient BDF order = 1
+ transient Butcher tableau = BWE
+ workset size = 100
+ nonlinear TOL = 1e-07
+ max nonlinear iters = 1
+ final time = 0.01
+ number of steps = 2
+ reuse Jacobian = 0   [unused]
+ use direct solver = 1   [unused]
+ lump mass = 0
+ fully explicit = 0
+ solution for x-mesh mod = -1   [default]
+ solution for y-mesh mod = -1   [default]
+ solution for z-mesh mod = -1   [default]
+ solution based mesh mod TOL = 1   [default]
+ solution based mesh mod smoother = 0   [default]
+ solution based mesh mod param = 0.1   [default]
+ solution based mesh mod layer thickness = 0.1   [default]
+ minimize memory = 0   [default]
+ use strong DBCs = 1   [default]
+ fix zero rows = 0   [default]
+ matrix free = 0   [default]
+ assembly partitioning = sequential   [default]
+ enable autotune = 1   [default]
+ store nodes = 1   [default]
+ storage proportion = 1   [default]
+ Use Mortar Objective = 0   [default]
+ use basis database = 0   [default]
+ use mass database = 0   [default]
+ use ip database = 0   [default]
+ use phase database = 1   [default]
+ store mass = 1   [default]
+ have multidata = 0   [default]
+ max subgrid ML training steps = 10   [default]
+ have ML models = 0   [default]
+ maximum storage = 100   [default]
+ storage time tol = 1e-10   [default]
+ initial time = 0   [default]
+ use custom PCG = 0   [default]
+ absolute nonlinear TOL = 1e-07   [default]
+ max subcycles = 1   [default]
+ use relative TOL = 1   [default]
+ use absolute TOL = 0   [default]
+ allow backtracking = 1   [default]
+ compute forward sensitivities = 0   [default]
+ maximum time step cuts = 5   [default]
+ explicit amplification factor = 10   [default]
+ use parameter mass = 0   [default]
+ print mass = 0   [default]
+ initial type = L2-projection   [default]
+ transient startup Butcher tableau = BWE   [default]
+ transient startup BDF order = 1   [default]
+ transient startup steps = 1   [default]
+ keep nodes = 0   [default]
+ linear TOL = 1e-07   [default]
+ Estimate Condition Number = 0   [default]
+ max linear iters = 100   [default]
+ krylov vectors = 100   [default]
+ Belos implicit residual scaling = None   [default]
+ dump jacobian = 0   [default]
+ dump residual = 0   [default]
+ dump solution = 0   [default]
+ ODE -> 
+  [empty list]
+ CDR -> 
+  [empty list]
+Analysis -> 
+ analysis type = forward
+ Load Sensor Files = 0   [default]
+ Write Sensor Files = 0   [default]
+ multiscale split comm = 0   [default]
+ have sensor data = 0   [default]
+ save sensor data = 0   [default]
+ sensor prefix = sensor   [default]
+ additive normal noise standard dev = 0   [default]
+ ROL2 -> 
+  General -> 
+   Do magnitude check = 0   [default]
+Postprocess -> 
+ compute errors = 1
+ create optimization movie = 0   [default]
+ write solution = 0   [default]
+ Compute Difference in Objective = 1   [default]
+ Use fine scale sensors = 1   [default]
+ response type = pointwise   [default]
+ plot solution at nodes = 0   [default]
+ compute responses = 0   [default]
+ write responses = 0   [default]
+ write solution to file = 0   [default]
+ solution storage file = fwdsoln   [default]
+ write frequency = 1   [default]
+ exodus write frequency = 1   [default]
+ write group number = 0   [default]
+ write objective to file = 0   [default]
+ objective storage file = objective   [default]
+ write subgrid solution = 0   [default]
+ write HFACE variables = 0   [default]
+ output file = output   [default]
+ compute objective = 0   [default]
+ compute objective grad param = 1   [default]
+ objective output file =    [default]
+ objective gradient output file =    [default]
+ scale factor for discrete objective = 1   [default]
+ extra grp field reduction = mean   [default]
+ compute flux response = 0   [default]
+ store sensor solution = 0   [default]
+ file output format = text   [default]
+ write quadrature data = 0   [default]
+ write boundary quadrature data = 0   [default]
+ exodus record start time = -1.79769e+308   [default]
+ exodus record stop time = 1.79769e+308   [default]
+ record start time = -1.79769e+308   [default]
+ record stop time = 1.79769e+308   [default]
+ compute integrated quantities = 0   [default]
+ compute weighted norm = 0   [default]
+ write Dakota output = 0   [default]
+ True solutions -> 
+  q = 1.0*exp(-1.0*t)   [unused]
+  c = 0.0   [unused]
+Parameters -> 
+ [empty list]
+*********************************************
+
+
+*******************************************************
+
+**** Beginning Time Step 1
+**** Current time is 0
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 0.001
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+Norm of solution: 44.4989    (overlapped vector so results may differ on multiple procs)
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 0.001
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+Norm of solution: 0.191311    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 2
+**** Current time is 0.005
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 0.000995025
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+Norm of solution: 44.2775    (overlapped vector so results may differ on multiple procs)
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 0.001
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+Norm of solution: 0.382623    (overlapped vector so results may differ on multiple procs)
 
 *********************************************************
 ***** Computing errors ******
@@ -5,12 +255,195 @@
 ***** L2 norm of the error for q = 0  (time = 0)
 ***** L2 norm of the error for q = 1.23964e-05  (time = 0.005)
 ***** L2 norm of the error for q = 2.46694e-05  (time = 0.01)
-***** L2 norm of the error for c = 0  (time = 0)
-***** L2 norm of the error for c = 0.005  (time = 0.005)
-***** L2 norm of the error for c = 0.01  (time = 0.01)
 ***** L2 norm of the error for q = 0  (time = 0)
 ***** L2 norm of the error for q = 1.23964e-05  (time = 0.005)
 ***** L2 norm of the error for q = 2.46694e-05  (time = 0.01)
 ***** L2 norm of the error for c = 0  (time = 0)
 ***** L2 norm of the error for c = 0.005  (time = 0.005)
 ***** L2 norm of the error for c = 0.01  (time = 0.01)
+===========================================================================================================================================================
+
+                                                           TimeMonitor results over 3 processors
+
+Timer Name                                                                   MinOverProcs     MeanOverProcs        MaxOverProcs      MeanOverCallCounts    
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+MrHyDE::AnalysisManager - constructor                                        0 (1)            3.333e-07 (1)        1e-06 (1)         3.333e-07 (1)         
+MrHyDE::AnalysisManager::ROL2Solve()                                         0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::AnalysisManager::ROLSolve()                                          0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::AssemblyManager - constructor                                        0.000836 (1)     0.000846 (1)         0.000863 (1)      0.000846 (1)          
+MrHyDE::AssemblyManager::computeJac() - Jacobian assembly                    0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::AssemblyManager::computeJacRes() - boundary evaluation               0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::AssemblyManager::computeJacRes() - fill complete                     0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::AssemblyManager::computeJacRes() - multiscale projection             0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::AssemblyManager::computeJacRes() - physics evaluation                0.000538 (66)    0.00284 (70.67)      0.005118 (66)     4.019e-05 (70.67)     
+MrHyDE::AssemblyManager::computeJacRes() - total assembly                    0.000529 (4)     0.00287 (5.333)      0.005093 (4)      0.0005381 (5.333)     
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+MrHyDE::AssemblyManager::computeRes() - residual assembly                    0.000162 (4)     0.0006117 (5.333)    0.001108 (4)      0.0001147 (5.333)     
+MrHyDE::AssemblyManager::createGroups()                                      0.000644 (1)     0.0006593 (1)        0.000673 (1)      0.0006593 (1)         
+MrHyDE::AssemblyManager::createWorkset()                                     2e-05 (1)        2.2e-05 (1)          2.5e-05 (1)       2.2e-05 (1)           
+MrHyDE::AssemblyManager::dataBase - assignment                               0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::AssemblyManager::dataBase - basis                                    0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::AssemblyManager::dofConstraints()                                    1e-06 (4)        3.333e-06 (5.333)    5e-06 (8)         6.25e-07 (5.333)      
+MrHyDE::AssemblyManager::gather()                                            3.8e-05 (56)     6.367e-05 (58.67)    9.3e-05 (56)      1.085e-06 (58.67)     
+MrHyDE::AssemblyManager::scatter()                                           3e-05 (76)       0.0004027 (82.67)    0.00078 (76)      4.871e-06 (82.67)     
+MrHyDE::AssemblyManager::setDirichlet()                                      0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::AssemblyManager::setInitial()                                        0 (0)            0 (0)                0 (0)             0 (0)                 
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+MrHyDE::DiscretizationInterface - constructor                                0.006381 (1)     0.006405 (1)         0.006423 (1)      0.006405 (1)          
+MrHyDE::DiscretizationInterface::buildDOFManagers()                          0.006248 (1)     0.006268 (1)         0.00629 (1)       0.006268 (1)          
+MrHyDE::DiscretizationInterface::copyDataFromDatabase() - allocate memory    0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::DiscretizationInterface::copyDataFromDatabase() - apply orient       0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::DiscretizationInterface::copyDataFromDatabase() - copy               0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::DiscretizationInterface::copyDataFromDatabase() - total              0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::DiscretizationInterface::evaluateBasisNewQuadrature()                0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::DiscretizationInterface::getMyNodes()                                0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::DiscretizationInterface::getPhysicalBoundaryData - basis             1.7e-05 (5)      8.567e-05 (6)        0.000151 (5)      1.428e-05 (6)         
+MrHyDE::DiscretizationInterface::getPhysicalBoundaryData - hsize             0 (0)            0 (0)                0 (0)             0 (0)                 
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+MrHyDE::DiscretizationInterface::getPhysicalBoundaryData - ip                7.2e-05 (5)      7.3e-05 (6)          7.5e-05 (8)       1.217e-05 (6)         
+MrHyDE::DiscretizationInterface::getPhysicalBoundaryData - other Jac         0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::DiscretizationInterface::getPhysicalBoundaryData - set Jac           6.2e-05 (8)      6.833e-05 (6)        7.5e-05 (5)       1.139e-05 (6)         
+MrHyDE::DiscretizationInterface::getPhysicalBoundaryData - total             0.000433 (10)    0.000496 (12)        0.000583 (10)     4.133e-05 (12)        
+MrHyDE::DiscretizationInterface::getPhysicalBoundaryData - wts               0.000117 (8)     0.0001263 (6)        0.000132 (5)      2.106e-05 (6)         
+MrHyDE::DiscretizationInterface::getPhysicalFaceData - basis                 0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::DiscretizationInterface::getPhysicalFaceData - hsize                 0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::DiscretizationInterface::getPhysicalFaceData - ip                    0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::DiscretizationInterface::getPhysicalFaceData - other Jac             0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::DiscretizationInterface::getPhysicalFaceData - set Jac               0 (0)            0 (0)                0 (0)             0 (0)                 
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+MrHyDE::DiscretizationInterface::getPhysicalFaceData - total                 0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::DiscretizationInterface::getPhysicalFaceData - wts                   0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::DiscretizationInterface::getPhysicalIntegrationData()                0.000602 (16)    0.00061 (14.67)      0.000623 (14)     4.159e-05 (14.67)     
+MrHyDE::DiscretizationInterface::getPhysicalOrientations                     6e-06 (12)       9.333e-06 (13.33)    1.2e-05 (16)      7e-07 (13.33)         
+MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - HCURL-CURL      0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - HCURL-VALUE     0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - HDIV-DIV        0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - HDIV-VALUE      0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - basis           3.5e-05 (7)      0.0002643 (7.333)    0.000491 (7)      3.605e-05 (7.333)     
+MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - hsize           0 (0)            0 (0)                0 (0)             0 (0)                 
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - ip              0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - other Jac       0.000202 (7)     0.0002027 (7.333)    0.000203 (7)      2.764e-05 (7.333)     
+MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - set Jac         0.000184 (8)     0.0001907 (7.333)    0.000202 (7)      2.6e-05 (7.333)       
+MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - total           0.000455 (7)     0.000678 (7.333)     0.000903 (7)      9.245e-05 (7.333)     
+MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - wts             0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::DiscretizationInterface::setBCData()                                 0.000138 (2)     0.001995 (2)         0.003074 (2)      0.0009977 (2)         
+MrHyDE::DiscretizationInterface::setDirichletData()                          2.3e-05 (2)      2.6e-05 (2)          2.9e-05 (2)       1.3e-05 (2)           
+MrHyDE::LinearAlgebraInterface - constructor                                 0.002662 (1)     0.002958 (1)         0.003243 (1)      0.002958 (1)          
+MrHyDE::LinearAlgebraInterface::PCG - total                                  0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::LinearAlgebraInterface::buildPreconditioner()                        0 (0)            0 (0)                0 (0)             0 (0)                 
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+MrHyDE::LinearAlgebraInterface::export*()                                    0.000527 (8)     0.001517 (8)         0.002206 (8)      0.0001897 (8)         
+MrHyDE::LinearAlgebraInterface::fillComplete*()                              0.001087 (12)    0.005012 (12)        0.008804 (12)     0.0004177 (12)        
+MrHyDE::LinearAlgebraInterface::getNew*Matrix()                              2.2e-05 (8)      2.567e-05 (8)        2.8e-05 (8)       3.208e-06 (8)         
+MrHyDE::LinearAlgebraInterface::getNewOverlappedVector()                     1.1e-05 (12)     1.367e-05 (12)       1.5e-05 (12)      1.139e-06 (12)        
+MrHyDE::LinearAlgebraInterface::getNewVector()                               9e-06 (8)        1e-05 (8)            1.1e-05 (8)       1.25e-06 (8)          
+MrHyDE::LinearAlgebraInterface::import*()                                    2.7e-05 (4)      4.433e-05 (4)        5.8e-05 (4)       1.108e-05 (4)         
+MrHyDE::LinearAlgebraInterface::linearSolver*()                              0.01972 (4)      0.01991 (4)          0.02001 (4)       0.004977 (4)          
+MrHyDE::LinearAlgebraInterface::read()                                       0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::LinearAlgebraInterface::setup                                        0.002587 (1)     0.002881 (1)         0.003163 (1)      0.002881 (1)          
+MrHyDE::LinearAlgebraInterface::write()                                      1e-06 (4)        1.667e-06 (4)        2e-06 (4)         4.167e-07 (4)         
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+MrHyDE::MultiscaleManager - constructor                                      3.6e-05 (1)      3.867e-05 (1)        4e-05 (1)         3.867e-05 (1)         
+MrHyDE::MultiscaleManager::initialize()                                      0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::MultiscaleManager::reset()                                           0 (4)            1e-06 (4)            2e-06 (4)         2.5e-07 (4)           
+MrHyDE::MultiscaleManager::update()                                          1e-06 (4)        1.667e-06 (4)        2e-06 (4)         4.167e-07 (4)         
+MrHyDE::ODE::volumeResidual() - evaluation of residual                       0.000215 (28)    0.0002193 (29.33)    0.000226 (32)     7.477e-06 (29.33)     
+MrHyDE::ODE::volumeResidual() - function evaluation                          0.000225 (28)    0.0002377 (29.33)    0.00026 (32)      8.102e-06 (29.33)     
+MrHyDE::OptVector::clone()                                                   0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::OptVector::constructor()                                             0 (1)            3.333e-07 (1)        1e-06 (1)         3.333e-07 (1)         
+MrHyDE::ParameterManager - constructor                                       1.4e-05 (1)      1.5e-05 (1)          1.7e-05 (1)       1.5e-05 (1)           
+MrHyDE::ParameterManager::constructor()                                      1.5e-05 (1)      1.6e-05 (1)          1.8e-05 (1)       1.6e-05 (1)           
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+MrHyDE::ParameterManager::getCurrentParams()                                 0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::ParameterManager::updateParams()                                     0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::PhysicsInterface - constructor                                       9.3e-05 (1)      0.000126 (1)         0.000181 (1)      0.000126 (1)          
+MrHyDE::Postprocess::computeDiscreteSensitivities()                          0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::Postprocess::computeError                                            0.000153 (3)     0.000244 (3)         0.000304 (3)      8.133e-05 (3)         
+MrHyDE::Postprocess::computeObjective()                                      0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::Postprocess::computeObjectiveGradParam()                             0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::Postprocess::computeObjectiveGradState()                             0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::Postprocess::computeSensitivities()                                  0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::Postprocess::computeSensorSolution()                                 0 (0)            0 (0)                0 (0)             0 (0)                 
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+MrHyDE::Postprocess::computeWeightedNorm()                                   0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::Postprocess::report()                                                0.000108 (1)     0.0001477 (1)        0.000182 (1)      0.0001477 (1)         
+MrHyDE::Postprocess::writeSolution                                           0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::Postprocess::writeSolution - solution to ip                          0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::PostprocessManager - constructor                                     5e-05 (1)        5.067e-05 (1)        5.2e-05 (1)       5.067e-05 (1)         
+MrHyDE::SolutionStorage::extract                                             0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::SolutionStorage::store                                               0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::SolutionStorage::trainDNN                                            0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::SolutionStorage::useDNN                                              0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::SolverManager - constructor                                          0.000103 (1)     0.000121 (1)         0.000134 (1)      0.000121 (1)          
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+MrHyDE::SolverManager::PCG - apply Op                                        0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::SolverManager::PCG - apply prec                                      0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::SolverManager::adjoint()                                             0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::SolverManager::explicitSolver()                                      0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::SolverManager::forward()                                             0.03008 (1)      0.03099 (1)          0.03146 (1)       0.03099 (1)           
+MrHyDE::SolverManager::nonlinearSolver()                                     0.02957 (4)      0.03063 (4)          0.0312 (4)        0.007657 (4)          
+MrHyDE::SolverManager::nonlinearSolver() - norm LA                           1.4e-05 (4)      0.0003457 (4)        0.000996 (4)      8.642e-05 (4)         
+MrHyDE::SolverManager::nonlinearSolver() - update LA                         7e-06 (4)        9.333e-06 (4)        1.1e-05 (4)       2.333e-06 (4)         
+MrHyDE::SolverManager::projectDirichlet()                                    1e-06 (2)        2.333e-06 (2)        3e-06 (2)         1.167e-06 (2)         
+MrHyDE::SolverManager::setDirichlet()                                        0 (0)            0 (0)                0 (0)             0 (0)                 
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+MrHyDE::SolverManager::setInitial()                                          9e-06 (1)        1e-05 (1)            1.1e-05 (1)       1e-05 (1)             
+MrHyDE::SolverManager::setupFixedDOFs()                                      0 (1)            0 (1)                0 (1)             0 (1)                 
+MrHyDE::SolverManager::transientSolver()                                     0.03006 (1)      0.03097 (1)          0.03143 (1)       0.03097 (1)           
+MrHyDE::SolverManager::transientSolver() - adjoint RHS                       0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::UserInterface - constructor                                          0.00643 (1)      0.006896 (1)         0.007819 (1)      0.006896 (1)          
+MrHyDE::cdr::boundaryResidual() - evaluation of residual                     0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::cdr::boundaryResidual() - function evaluation                        0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::cdr::computeFlux() - evaluation of flux                              0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::cdr::computeFlux() - function evaluation                             0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::cdr::volumeResidual() - evaluation of residual                       0 (0)            0.002167 (14.67)     0.004362 (28)     0.0001477 (14.67)     
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+MrHyDE::cdr::volumeResidual() - function evaluation                          0 (0)            1e-05 (14.67)        1.6e-05 (28)      6.818e-07 (14.67)     
+MrHyDE::driver::total run time                                               0.0302 (1)       0.03115 (1)          0.03162 (1)       0.03115 (1)           
+MrHyDE::driver::total setup and execution time                               0.1324 (1)       0.1324 (1)           0.1325 (1)        0.1324 (1)            
+MrHyDE::groupMetaData::constructor()                                         4e-06 (1)        5.333e-06 (1.333)    7e-06 (2)         4e-06 (1.333)         
+MrHyDE::meshInterface - constructor                                          0.01328 (1)      0.01424 (1)          0.01472 (1)       0.01424 (1)           
+MrHyDE::workset::computeSolnSideIP                                           0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::workset::computeSolnVolIP - allocate/compute seeded                  5.6e-05 (194)    0.0001677 (209.3)    0.000255 (194)    8.01e-07 (209.3)      
+MrHyDE::workset::getData                                                     0.000114 (49)    0.001065 (135.7)     0.002029 (210)    7.848e-06 (135.7)     
+MrHyDE::workset::getDataSc                                                   0 (0)            0 (0)                0 (0)             0 (0)                 
+MrHyDE::workset::reset*                                                      1.8e-05 (127)    6.733e-05 (140.7)    9.3e-05 (127)     4.787e-07 (140.7)     
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+SolverCore::numericFactorization                                             0 (0)            0 (0)                0 (0)             0 (0)                 
+SolverCore::solve                                                            0 (0)            0 (0)                0 (0)             0 (0)                 
+SolverCore::symbolicFactorization                                            0 (0)            0 (0)                0 (0)             0 (0)                 
+Time for matrix pre-order                                                    0 (0)            0 (0)                0 (0)             0 (0)                 
+Time for numeric factorization                                               0 (0)            0 (0)                0 (0)             0 (0)                 
+Time for solve                                                               0 (0)            0 (0)                0 (0)             0 (0)                 
+Time for symbolic factorization                                              0 (0)            0 (0)                0 (0)             0 (0)                 
+Time to convert matrix to solver format                                      0 (0)            0 (0)                0 (0)             0 (0)                 
+Time to convert vectors to solver format                                     0 (0)            0 (0)                0 (0)             0 (0)                 
+Time to redistribute data structures                                         0 (0)            0 (0)                0 (0)             0 (0)                 
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+Time to redistribute vectors                                                 0 (0)            0 (0)                0 (0)             0 (0)                 
+Total Time in Amesos2 interface                                              0 (0)            0 (0)                0 (0)             0 (0)                 
+panzer::DOFManager::buildGlobalUnknowns                                      0.002277 (2)     0.003459 (2)         0.005486 (2)      0.00173 (2)           
+panzer::DOFManager::buildGlobalUnknowns::build_ghosted_array                 1.9e-05 (2)      3.867e-05 (2)        5.4e-05 (2)       1.933e-05 (2)         
+panzer::DOFManager::buildGlobalUnknowns::build_local_ids                     3.8e-05 (2)      6.567e-05 (2)        9e-05 (2)         3.283e-05 (2)         
+panzer::DOFManager::buildGlobalUnknowns::build_orientation                   0.000257 (2)     0.0003733 (2)        0.000496 (2)      0.0001867 (2)         
+panzer::DOFManager::buildGlobalUnknowns::build_owned_vector                  5.9e-05 (2)      0.0001067 (2)        0.000158 (2)      5.333e-05 (2)         
+panzer::DOFManager::buildGlobalUnknowns_GUN                                  0.000674 (2)     0.000778 (2)         0.000844 (2)      0.000389 (2)          
+panzer::DOFManager::buildGlobalUnknowns_GUN::line_04 createOneToOne          0.000391 (2)     0.000494 (2)         0.000561 (2)      0.000247 (2)          
+panzer::DOFManager::buildGlobalUnknowns_GUN::line_05 alloc_unique_mv         2e-06 (2)        2.333e-06 (2)        3e-06 (2)         1.167e-06 (2)         
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+panzer::DOFManager::buildGlobalUnknowns_GUN::line_06 export                  0.000191 (2)     0.000197 (2)         0.000205 (2)      9.85e-05 (2)          
+panzer::DOFManager::buildGlobalUnknowns_GUN::line_07-09 local_count          8e-06 (2)        9.333e-06 (2)        1.1e-05 (2)       4.667e-06 (2)         
+panzer::DOFManager::buildGlobalUnknowns_GUN::line_10 prefix_sum              8e-06 (2)        1.833e-05 (2)        3.3e-05 (2)       9.167e-06 (2)         
+panzer::DOFManager::buildGlobalUnknowns_GUN::line_13-21 gid_assignment       1.2e-05 (2)      1.6e-05 (2)          1.8e-05 (2)       8e-06 (2)             
+panzer::DOFManager::buildGlobalUnknowns_GUN::line_23 final_import            1.8e-05 (2)      2.667e-05 (2)        4e-05 (2)         1.333e-05 (2)         
+panzer::DOFManager::buildTaggedMultiVector                                   0.000614 (2)     0.001074 (2)         0.001385 (2)      0.000537 (2)          
+panzer::DOFManager::buildTaggedMultiVector::allocate_tagged_multivector      1.9e-05 (2)      2.133e-05 (2)        2.5e-05 (2)       1.067e-05 (2)         
+panzer::DOFManager::buildTaggedMultiVector::fill_tagged_multivector          5e-05 (2)        9.867e-05 (2)        0.000165 (2)      4.933e-05 (2)         
+panzer::DOFManager::builderOverlapMapFromElements                            0.000502 (2)     0.000942 (2)         0.001181 (2)      0.000471 (2)          
+panzer::STK_ExodusReaderFactory::buildUncomittedMesh()                       0.01317 (1)      0.01417 (1)          0.01466 (1)       0.01417 (1)           
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+panzer::STK_ExodusReaderFactory::completeMeshConstruction()                  0.06672 (1)      0.06674 (1)          0.06675 (1)       0.06674 (1)           
+panzer_stk::STKConnManager::applyPeriodicBCs                                 1e-06 (3)        2.667e-06 (3)        4e-06 (3)         8.889e-07 (3)         
+panzer_stk::STKConnManager::buildConnectivity                                0.000238 (3)     0.0004613 (3)        0.000887 (3)      0.0001538 (3)         
+===========================================================================================================================================================

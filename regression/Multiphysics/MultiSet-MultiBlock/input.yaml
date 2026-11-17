@@ -13,13 +13,15 @@ ANONYMOUS:
   Physics:
     physics set names: "ODE, CDR"
     ODE:
-      modules: ODE
-      assemble boundary terms: false
-      Initial conditions:
-        scalar data: true
-        q: 1.0
+      'material_0, material_1':
+        modules: ODE
+        assemble boundary terms: false
+        Initial conditions:
+          scalar data: true
+          q: 1.0
     CDR:
-      modules: cdr
+      material_1:
+        modules: cdr
   Discretization:
     ODE:
       order:
