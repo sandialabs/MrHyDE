@@ -1,0 +1,49 @@
+#!/bin/bash
+
+# Machine name: voltage
+# Machine type: linux workstation without GPU
+# Build type: serial
+
+#Currently Loaded Modules (SEMS 2.0):
+#  1) sems-gcc/13.2.0     4) sems-boost/1.69.0            7) sems-hdf5/1.10.7     10) sems-netcdf-c/4.7.3
+#  2) sems-cmake/3.24.2   5) sems-openmpi-no-cuda/4.1.6   8) sems-yaml-cpp/0.6.2  11) sems-parallel-netcdf/1.12.3
+#  3) sems-ninja/1.10.1   6) sems-zlib/1.2.13             9) sems-doxygen/1.8.20  12) sems-texlive/20210325
+
+EXTRA_ARGS=$@
+ENABLE_UNIT_TESTS=false
+ENABLE_SANDBOX=false
+
+if [[ ${EXTRA_ARGS} == *"sandbox"* ]]; then
+  echo "Turning on MrHyDE_ENABLE_SANDBOX"
+  ENABLE_SANDBOX=true
+fi
+
+if [[ ${EXTRA_ARGS} == *"test"* ]]; then
+  echo "Turning on MrHyDE_ENABLE_UNIT_TESTS"
+  ENABLE_UNIT_TESTS=true
+fi
+
+rm CMakeCache.txt
+rm -rf CMakeFiles
+
+TRILINOS_SOURCE_PREFIX="/ascldap/users/MrHyDE/nightly/Trilinos"
+MrHyDE_SOURCE_PREFIX="/ascldap/users/MrHyDE/nightly/MrHyDE"
+
+TRILINOS_SOURCE="${TRILINOS_SOURCE_PREFIX}/Trilinos-source"
+TRILINOS_INSTALL="${TRILINOS_SOURCE_PREFIX}/Trilinos-build/lib/cmake/Trilinos"
+
+MrHyDE_SOURCE="${MrHyDE_SOURCE_PREFIX}/MrHyDE-source"
+MrHyDE_BUILD="${MrHyDE_SOURCE_PREFIX}/MrHyDE-build"
+
+cmake \
+  -D Trilinos_SRC_DIR=${TRILINOS_SOURCE} \
+  -D Trilinos_INSTALL_DIR=${TRILINOS_INSTALL} \
+  -D MrHyDE_ENABLE_UNIT_TESTS=${ENABLE_UNIT_TESTS} \
+  -D MrHyDE_ENABLE_SANDBOX=${ENABLE_SANDBOX} \
+  -D MrHyDE_MAX_DERIVS=82 \
+  -D MrHyDE_BUILD_DOXYGEN=true \
+  -D CMAKE_INSTALL_PREFIX:PATH=${MrHyDE_BUILD} \
+  ${MrHyDE_SOURCE}
+
+# sometimes this flag is needed due to oddities with the STK stack in Trilinos
+#  -D CMAKE_CXX_LINK_FLAGS="-lpnetcdf -lhdf5_hl -lhdf5 -lz" \
