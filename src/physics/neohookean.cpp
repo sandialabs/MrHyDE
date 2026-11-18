@@ -115,12 +115,14 @@ void neohookean<EvalT>::volumeResidual() {
       source_dz = functionManager->evaluate("source dz","ip");
     }
     if (use_quadrature_data) {
-      lambda = Vista<EvalT>(wkset->extra_data);
+      //lambda = Vista<EvalT>(wkset->extra_data);
+      mu = Vista<EvalT>(wkset->extra_data);
     }
     else {
-      lambda = functionManager->evaluate("lambda","ip");
+      mu = functionManager->evaluate("mu","ip");
+      //lambda = functionManager->evaluate("lambda","ip");
     }
-    mu = functionManager->evaluate("mu","ip");
+    lambda = functionManager->evaluate("lambda","ip");
   }
   
   // fills in PK1 stress tensor
