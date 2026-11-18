@@ -1,0 +1,192 @@
+#!/bin/bash
+
+# "other" users can read results from the nightly tests but not write
+umask 002
+
+# get the date that tests started
+YEAR="$(date +%Y%m%d)"
+MONTH="$(date +%m)"
+DAY="$(date +%d)"
+HOUR="$(date +%H)"
+MINUTE="$(date +%M)"
+DATE="$(date +%Y%m%d)"
+
+# setup shortcuts for directories
+# NOTE: do not put spaces in these paths!!!
+HOME_DIR="/ascldap/users/MrHyDE"
+NIGHTLY_FOLDER="/ascldap/users/MrHyDE/nightly"
+TRILINOS_SOURCE_PREFIX="${NIGHTLY_FOLDER}/Trilinos"
+MrHyDE_SOURCE_PREFIX="${NIGHTLY_FOLDER}/MrHyDE"
+TRILINOS_SOURCE="${TRILINOS_SOURCE_PREFIX}/Trilinos-source"
+TRILINOS_BUILD="${TRILINOS_SOURCE_PREFIX}/Trilinos-build"
+MrHyDE_SOURCE="${MrHyDE_SOURCE_PREFIX}/MrHyDE-source"
+MrHyDE_BUILD="${MrHyDE_SOURCE_PREFIX}/MrHyDE-build"
+
+# set the branches for MrHyDE and Trilinos
+TRILINOS_BRANCH="develop"
+MrHyDE_BRANCH="main"
+
+
+
+# Check input to decide which mode to run the script in
+if [ $# -eq 0 ]; then
+  echo "No arguments provided to the script. Defaulting to pulling and building on top of the previous night's results."
+  SCRIPT_MODE=0
+else
+  if [[ $1 == "clean" ]]; then
+    echo "Argument \"clean\" provided to the script. Cleaning all source and build directories and rebuilding from scratch."
+    SCRIPT_MODE=1
+  else
+    echo "Unrecognized argument $1 provided to the script. Ignoring and running the default of pulling and building on top of the previous night's results."
+  fi
+fi
+
+
+
+############################
+# Part 1: CODE SETUP
+############################
+
+# go to the nightly folder
+cd ${NIGHTLY_FOLDER}
+
+# if in clean mode, delete directories and re-clone
+if [ ${SCRIPT_MODE} -eq 1 ]; then
+  # clear out Trilinos
+  rm -rf ${TRILINOS_SOURCE_PREFIX}
+  mkdir Trilinos
+
+  # clear out MrHyDE
+  rm -rf ${MrHyDE_SOURCE_PREFIX}
+  mkdir MrHyDE
+
+  # clone Trilinos source into Trilinos-source
+  cd ${TRILINOS_SOURCE_PREFIX}
+  mkdir Trilinos-build
+  git clone -b ${TRILINOS_BRANCH} git@github.com:Trilinos/trilinos.git Trilinos-source
+  STATUS=$?
+  if [ "${STATUS}" -ne 0 ] ; then
+    echo "Trilinos clone failed! Aborting!"
+    exit 1
+  fi
+
+  # clone MrHyDE source into MrHyDE-source
+  cd ${MrHyDE_SOURCE_PREFIX}
+  mkdir MrHyDE-build
+  git clone -b ${MrHyDE_BRANCH} git@github.com:sandialabs/MrHyDE.git MrHyDE-source
+  STATUS=$?
+  if [ "${STATUS}" -ne 0 ] ; then
+    echo "MrHyDE clone failed! Aborting!"
+    exit 1
+  fi
+fi
+
+# update Trilinos
+cd ${TRILINOS_SOURCE}
+git pull origin ${TRILINOS_BRANCH}
+TRILINOS_COMMIT=$(git show | grep commit | tr " " "\n" | tail -1)
+
+# update MrHyDE
+cd ${MrHyDE_SOURCE}
+git pull origin ${MrHyDE_BRANCH}
+MrHyDE_COMMIT=$(git show | grep commit | tr " " "\n" | tail -1)
+
+# setup the environment; setup SEMS and load the modules
+alias startsems="source /projects/sems/modulefiles/utils/sems-modules-init.sh"
+startsems
+source "${MrHyDE_SOURCE}/scripts/env/load-env-voltage.sh"
+
+# informative printout
+echo "-----------------------"
+echo " MrHyDE nightly script "
+echo "-----------------------"
+echo "Date ${YEAR} ${MONTH} ${DAY} ${HOUR}:${MINUTE}"
+echo "Trilinos commit SHA ${TRILINOS_COMMIT}"
+echo "MrHyDE commit SHA   ${MrHyDE_COMMIT}"
+
+
+
+############################
+# Part 2: TRILINOS
+############################
+
+echo "Building Trilinos..."
+
+cd ${TRILINOS_BUILD}
+cp ${MrHyDE_SOURCE}/scripts/configure-trilinos/configure-trilinos-voltage-nightly ../
+
+# build and install Trilinos
+source ${TRILINOS_SOURCE_PREFIX}/configure-trilinos-voltage-nightly
+make -j20 install | tee ../trilinos_build.log
+
+# check the exit status of the build command
+STATUS=$?
+if [ ${STATUS} -eq 0 ]; then 
+  echo "Trilinos build success!"
+else
+  echo "Trilinos build failed with status ${STATUS}"
+fi
+
+
+
+############################
+# Part 3: MrHyDE
+############################
+
+echo "Building MrHyDE..."
+
+cd ${MrHyDE_BUILD}
+cp ${MrHyDE_SOURCE}/scripts/configure-MrHyDE/configure-MrHyDE-voltage-nightly ../
+
+# build MrHyDE
+source ../configure-MrHyDE-voltage-nightly
+make -j5 | tee ../mrhyde_build.log
+
+# check the exit status of the build command
+STATUS=$?
+if [ ${STATUS} -eq 0 ]; then
+  echo "MrHyDE build success!"
+else
+  echo "MrHyDE build failed with status ${STATUS}"
+fi
+
+
+
+############################
+# Part 4: TESTS
+############################
+
+# now run the testsuite and count the failures
+echo "Running the testsuite..."
+cd ${MrHyDE_SOURCE}/regression
+ln -sf ${MrHyDE_BUILD}/src/mrhyde ${MrHyDE_SOURCE}/regression/mrhyde
+./runtests.py -s > ${MrHyDE_SOURCE_PREFIX}/MrHyDE-nightly-vaporwave.txt
+
+# parse results
+cd ${MrHyDE_SOURCE_PREFIX}
+NUM_FAILS=$(cat MrHyDE-nightly-vaporwave.txt | grep Fail | tr -s " " "\n" | sed '5q;d') # This should probably be explained... find the Fail line in the testsuite log, squeeze all whitespaces then replace them with new lines, and grab line 5. This is the number of failures.
+
+# check if the number of failures is empty. if so, let me know
+if [ -z "$NUM_FAILS" ]; then
+  STATUS_LOG="${STATUS_LOG}Number of testsuite failures is empty for MrHyDE on Vaporwave, $(date)\n"
+fi
+
+echo "Done running tests!"
+
+
+
+############################
+# Part 5: REPORT
+############################
+
+echo "Sending nightly report..."
+
+# TODO: avoid putting email addresses straight in the script and instead use an external .email_list file
+# if there's nothing unusual, send a normal email. otherwise, report 'no tests run'
+if [ -z "$STATUS_LOG" ]; then
+  cat MrHyDE-nightly-vaporwave.txt | mail -r MrHyDE@voltage.sandia.gov -s "MrHyDE on Vaporwave: ${NUM_FAILS} failures" gbharpe@sandia.gov
+else
+  echo -e ${STATUS_LOG} | mail -s "MrHyDE on Vaporwave: no tests run" gbharpe@sandia.gov
+fi
+
+echo "Report sent!"
