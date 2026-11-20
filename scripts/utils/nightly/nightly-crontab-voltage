@@ -3,7 +3,7 @@
 # "other" users can read results from the nightly tests but not write
 umask 002
 
-# get the date that tests started
+# get the date that tests started (likely not used)
 YEAR="$(date +%Y%m%d)"
 MONTH="$(date +%m)"
 DAY="$(date +%d)"
@@ -63,7 +63,7 @@ if [ ${SCRIPT_MODE} -eq 1 ]; then
   # clone Trilinos source into Trilinos-source
   cd ${TRILINOS_SOURCE_PREFIX}
   mkdir Trilinos-build
-  git clone -b ${TRILINOS_BRANCH} git@github.com:Trilinos/trilinos.git Trilinos-source
+  git clone -b ${TRILINOS_BRANCH} https://github.com/Trilinos/trilinos.git Trilinos-source
   STATUS=$?
   if [ "${STATUS}" -ne 0 ] ; then
     echo "Trilinos clone failed! Aborting!"
@@ -73,7 +73,7 @@ if [ ${SCRIPT_MODE} -eq 1 ]; then
   # clone MrHyDE source into MrHyDE-source
   cd ${MrHyDE_SOURCE_PREFIX}
   mkdir MrHyDE-build
-  git clone -b ${MrHyDE_BRANCH} git@github.com:sandialabs/MrHyDE.git MrHyDE-source
+  git clone -b ${MrHyDE_BRANCH} https://github.com/sandialabs/MrHyDE.git MrHyDE-source
   STATUS=$?
   if [ "${STATUS}" -ne 0 ] ; then
     echo "MrHyDE clone failed! Aborting!"
@@ -92,8 +92,7 @@ git pull origin ${MrHyDE_BRANCH}
 MrHyDE_COMMIT=$(git show | grep commit | tr " " "\n" | tail -1)
 
 # setup the environment; setup SEMS and load the modules
-alias startsems="source /projects/sems/modulefiles/utils/sems-modules-init.sh"
-startsems
+source /projects/sems/modulefiles/utils/sems-modules-init.sh
 source "${MrHyDE_SOURCE}/scripts/env/load-env-voltage.sh"
 
 # informative printout
@@ -103,8 +102,11 @@ echo "-----------------------"
 echo "Date ${YEAR} ${MONTH} ${DAY} ${HOUR}:${MINUTE}"
 echo "Trilinos commit SHA ${TRILINOS_COMMIT}"
 echo "MrHyDE commit SHA   ${MrHyDE_COMMIT}"
-
-
+echo ""
+echo "-----------------------"
+echo "        Modules        "
+echo "-----------------------"
+module list
 
 ############################
 # Part 2: TRILINOS
@@ -115,9 +117,9 @@ echo "Building Trilinos..."
 cd ${TRILINOS_BUILD}
 cp ${MrHyDE_SOURCE}/scripts/configure-trilinos/configure-trilinos-voltage-nightly ../
 
-# build and install Trilinos
-source ${TRILINOS_SOURCE_PREFIX}/configure-trilinos-voltage-nightly
-make -j20 install | tee ../trilinos_build.log
+# configure, build, and install Trilinos
+source ${TRILINOS_SOURCE_PREFIX}/configure-trilinos-voltage-nightly 2>&1 | tee ../trilinos_build.log
+make -j20 install 2>&1 | tee ../trilinos_build.log
 
 # check the exit status of the build command
 STATUS=$?
@@ -138,9 +140,9 @@ echo "Building MrHyDE..."
 cd ${MrHyDE_BUILD}
 cp ${MrHyDE_SOURCE}/scripts/configure-MrHyDE/configure-MrHyDE-voltage-nightly ../
 
-# build MrHyDE
-source ../configure-MrHyDE-voltage-nightly
-make -j5 | tee ../mrhyde_build.log
+# configure and build MrHyDE
+source ../configure-MrHyDE-voltage-nightly  2>&1 | tee ../mrhyde_build.log
+make -j5 2>&1 | tee ../mrhyde_build.log
 
 # check the exit status of the build command
 STATUS=$?
@@ -157,14 +159,14 @@ fi
 ############################
 
 # now run the testsuite and count the failures
-echo "Running the testsuite..."
+echo "Running the testsuite (silently)..."
 cd ${MrHyDE_SOURCE}/regression
 ln -sf ${MrHyDE_BUILD}/src/mrhyde ${MrHyDE_SOURCE}/regression/mrhyde
-./runtests.py -s > ${MrHyDE_SOURCE_PREFIX}/MrHyDE-nightly-vaporwave.txt
+./runtests.py -s 2>&1 | tee ${MrHyDE_SOURCE_PREFIX}/mrhyde_tests.txt
 
 # parse results
 cd ${MrHyDE_SOURCE_PREFIX}
-NUM_FAILS=$(cat MrHyDE-nightly-vaporwave.txt | grep Fail | tr -s " " "\n" | sed '5q;d') # This should probably be explained... find the Fail line in the testsuite log, squeeze all whitespaces then replace them with new lines, and grab line 5. This is the number of failures.
+NUM_FAILS=$(cat mrhyde_tests.txt | grep Fail | tr -s " " "\n" | sed '5q;d') # This should probably be explained... find the Fail line in the testsuite log, squeeze all whitespaces then replace them with new lines, and grab line 5. This is the number of failures.
 
 # check if the number of failures is empty. if so, let me know
 if [ -z "$NUM_FAILS" ]; then
@@ -184,9 +186,9 @@ echo "Sending nightly report..."
 # TODO: avoid putting email addresses straight in the script and instead use an external .email_list file
 # if there's nothing unusual, send a normal email. otherwise, report 'no tests run'
 if [ -z "$STATUS_LOG" ]; then
-  cat MrHyDE-nightly-vaporwave.txt | mail -r MrHyDE@voltage.sandia.gov -s "MrHyDE on Vaporwave: ${NUM_FAILS} failures" gbharpe@sandia.gov
+  cat mrhyde_tests.txt | mail -r MrHyDE@voltage.sandia.gov -s "MrHyDE on Voltage: ${NUM_FAILS} failures" gbharpe@sandia.gov
 else
-  echo -e ${STATUS_LOG} | mail -s "MrHyDE on Vaporwave: no tests run" gbharpe@sandia.gov
+  echo -e ${STATUS_LOG} | mail -s "MrHyDE on Voltage: no tests run" gbharpe@sandia.gov
 fi
 
 echo "Report sent!"
