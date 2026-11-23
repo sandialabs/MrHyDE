@@ -114,7 +114,7 @@ void CrystalElastic<EvalT>::computeLatticeTensor() {
   C_host(2,0,2,0) = c55_;
   C_host(0,2,0,2) = c55_;
   C_host(2,0,0,2) = c55_;
-  C_host(0,2,0,0) = c55_;
+  C_host(0,2,2,0) = c55_;
   C_host(2,1,2,1) = c44_;
   C_host(1,2,1,2) = c44_;
   C_host(1,2,2,1) = c44_;
