@@ -1,0 +1,63 @@
+%YAML 1.1
+---
+# Neohookean in 2D at small strain. The manufactured solution and source of
+# le/2D_manufactured, scaled by eps = 1e-4: at this amplitude neohookean
+# equals linear elasticity up to O(eps^2), so the L2 errors are eps times
+# those of le/2D_manufactured (7.70e-4, 1.22e-3), to 0.3%.
+ANONYMOUS:
+  verbosity: 0
+  debug level: 0
+  Mesh:
+    dimension: 2
+    element type: quad
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    NX: 40
+    NY: 40
+  Physics:
+    modules: neohookean
+    Dirichlet conditions:
+      scalar data: true
+      neodx:
+        all boundaries: 0.0
+      neody:
+        all boundaries: 0.0
+    Initial conditions:
+      scalar data: true
+      neodx: 0.0
+      neody: 0.0
+  Functions:
+    lambda: '1.0'
+    mu: '1.0'
+    eps: '1.0e-4'
+    A: '1.0'
+    B: '2.0'
+    dxxx: (A*pi)*(A*pi)*sin(A*pi*x)*sin(A*pi*y)
+    dxxy: -1.0*(A*pi)*(A*pi)*cos(A*pi*x)*cos(A*pi*y)
+    dxyy: (A*pi)*(A*pi)*sin(A*pi*x)*sin(A*pi*y)
+    dyxx: (B*pi)*(B*pi)*sin(B*pi*x)*sin(B*pi*y)
+    dyxy: -1.0*(B*pi)*(B*pi)*cos(B*pi*x)*cos(B*pi*y)
+    dyyy: (B*pi)*(B*pi)*sin(B*pi*x)*sin(B*pi*y)
+    source dx: eps*((lambda+2.0*mu)*dxxx + mu*(dxyy+dyxy) + lambda*dyxy)
+    source dy: eps*((lambda+2.0*mu)*dyyy + mu*(dyxx+dxxy) + lambda*dxxy)
+  Discretization:
+    order:
+      neodx: 1
+      neody: 1
+    quadrature: 2
+  Solver:
+    solver: steady-state
+    workset size: 100
+    nonlinear TOL: 1.0e-10
+    max nonlinear iters: 5
+    linear TOL: 1.0e-12
+  Postprocess:
+    compute errors: true
+    True solutions:
+      neodx: eps*sin(A*pi*x)*sin(A*pi*y)
+      neody: eps*sin(B*pi*x)*sin(B*pi*y)
+  Analysis:
+    analysis type: forward
+...
