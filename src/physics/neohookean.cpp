@@ -876,8 +876,8 @@ void neohookean<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu, cons
         
         // P = mu*F + coeff*cof(F)
         stress(e,k,0,0) = mu(e,k)*F00 + coeff*F11;
-        stress(e,k,0,1) = mu(e,k)*F01 + coeff*(-F01); //coeff*(-F10);
-        stress(e,k,1,0) = mu(e,k)*F10 + coeff*(-F10); //coeff*(-F01);
+        stress(e,k,0,1) = mu(e,k)*F01 + coeff*(-F10);
+        stress(e,k,1,0) = mu(e,k)*F10 + coeff*(-F01);
         stress(e,k,1,1) = mu(e,k)*F11 + coeff*F00;
       }
     });
